@@ -2,3 +2,5 @@ export * from './errors.js';
 export * from './transport.js';
 export * from './message-bridge.js';
 export * from './mock-router.js';
+export * from './adapter.js';
+export * from './mcp-apps-adapter.js';
