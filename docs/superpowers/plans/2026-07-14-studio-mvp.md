@@ -29,7 +29,7 @@
 - Consumes: `Transport` from `./transport.js`.
 - Produces: `class IframeTransport implements Transport { constructor(iframe: IframeLike, listeningWindow?: ListeningWindow); send; onMessage; dispose(): void }`, `interface IframeLike { readonly contentWindow: { postMessage(m: unknown, targetOrigin: string): void } | null }`.
 
-- [ ] **Step 1: Failing test** — fakes, no jsdom:
+- [x] **Step 1: Failing test** — fakes, no jsdom:
 
 ```ts
 import { describe, expect, it, vi } from 'vitest';
@@ -96,7 +96,7 @@ describe('IframeTransport', () => {
 });
 ```
 
-- [ ] **Step 2: verify FAIL** → **Step 3: implement**
+- [x] **Step 2: verify FAIL** → **Step 3: implement**
 
 ```ts
 import type { Transport } from './transport.js';
@@ -153,7 +153,7 @@ export class IframeTransport implements Transport {
 
 Add `export * from './iframe-transport.js';` to `src/index.ts`.
 
-- [ ] **Step 4: PASS + typecheck** → **Step 5: commit** `feat(host-emulator): iframe transport with event.source trust check`
+- [x] **Step 4: PASS + typecheck** → **Step 5: commit** `feat(host-emulator): iframe transport with event.source trust check`
 
 ---
 
@@ -167,7 +167,7 @@ Add `export * from './iframe-transport.js';` to `src/index.ts`.
 **Interfaces:**
 - Produces: `useStudioStore` (zustand) with `{ hostContext, scenario, log, setHostContext(patch), setScenario(id), appendLog(ev), clearLog() }`; `scenarios: Record<ScenarioId, MockConfig>` with `default | loading | error`; `ScenarioId`.
 
-- [ ] **Step 1: Package skeleton**
+- [x] **Step 1: Package skeleton**
 
 `apps/studio/package.json`:
 ```json
@@ -252,7 +252,7 @@ createRoot(document.getElementById('root')!).render(
 
 Root `vitest.config.ts` include → `['{packages,apps}/*/src/**/*.test.ts']`.
 
-- [ ] **Step 2: Failing store test** (`src/store.test.ts`)
+- [x] **Step 2: Failing store test** (`src/store.test.ts`)
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -298,7 +298,7 @@ describe('studio store', () => {
 });
 ```
 
-- [ ] **Step 3: verify FAIL** → **Step 4: implement** (`src/store.ts`)
+- [x] **Step 3: verify FAIL** → **Step 4: implement** (`src/store.ts`)
 
 ```ts
 import { create } from 'zustand';
@@ -578,7 +578,7 @@ body {
 }
 ```
 
-- [ ] **Step 5: `pnpm install`, tests PASS** → **Step 6: commit** `feat(studio): scaffold Vite+React app with zustand store and scenario mocks`
+- [x] **Step 5: `pnpm install`, tests PASS** → **Step 6: commit** `feat(studio): scaffold Vite+React app with zustand store and scenario mocks`
 
 ---
 
@@ -590,7 +590,7 @@ body {
 **Interfaces:**
 - Produces: self-contained HTML widget speaking MCP Apps JSON-RPC: sends `ui/initialize`, applies `hostContext.theme`, listens for `ui/notifications/host-context-changed`, sends `ui/notifications/size-changed`, calls `tools/call get_metrics` on load and on button click, renders loading/error states. Imported via `?raw` into Canvas.
 
-- [ ] **Step 1: Write widget** (full HTML in repo; verification is Task 5's live run)
+- [x] **Step 1: Write widget** (full HTML in repo; verification is Task 5's live run)
 
 ```html
 <!doctype html>
@@ -711,7 +711,7 @@ body {
 </html>
 ```
 
-- [ ] **Step 2: commit** `feat(studio): demo KPI widget speaking MCP Apps JSON-RPC`
+- [x] **Step 2: commit** `feat(studio): demo KPI widget speaking MCP Apps JSON-RPC`
 
 ---
 
@@ -725,7 +725,7 @@ body {
 - Consumes: `useStudioStore`, `scenarios`, `HostEmulator`, `IframeTransport`, `McpAppsAdapter`, widget HTML via `?raw`.
 - Produces: working SPA. No new exported APIs.
 
-- [ ] **Step 1: Canvas** (`src/components/Canvas.tsx`)
+- [x] **Step 1: Canvas** (`src/components/Canvas.tsx`)
 
 ```tsx
 import { useEffect, useRef } from 'react';
@@ -782,7 +782,7 @@ export function Canvas() {
 }
 ```
 
-- [ ] **Step 2: TracePanel** (`src/components/TracePanel.tsx`)
+- [x] **Step 2: TracePanel** (`src/components/TracePanel.tsx`)
 
 ```tsx
 import type { RpcLogEvent } from '@studio/shared';
@@ -826,7 +826,7 @@ export function TracePanel() {
 }
 ```
 
-- [ ] **Step 3: HeaderControls + App**
+- [x] **Step 3: HeaderControls + App**
 
 `src/components/HeaderControls.tsx`:
 ```tsx
@@ -894,16 +894,16 @@ export function App() {
 }
 ```
 
-- [ ] **Step 4: typecheck + tests + build** — `pnpm typecheck && pnpm test && pnpm -F @studio/app build` → all green.
+- [x] **Step 4: typecheck + tests + build** — `pnpm typecheck && pnpm test && pnpm -F @studio/app build` → all green.
 
-- [ ] **Step 5: commit** `feat(studio): canvas with emulated host, RPC trace panel, context controls`
+- [x] **Step 5: commit** `feat(studio): canvas with emulated host, RPC trace panel, context controls`
 
 ---
 
 ### Task 5: Live smoke verification
 
-- [ ] **Step 1:** `pnpm -F @studio/app dev` in background; `curl` the served page, confirm 200 + root div + module script.
-- [ ] **Step 2:** stop server, report manual check steps to user (scenario switch, theme push, trace inspection).
+- [x] **Step 1:** `pnpm -F @studio/app dev` in background; `curl` the served page, confirm 200 + root div + module script.
+- [x] **Step 2:** stop server, report manual check steps to user (scenario switch, theme push, trace inspection).
 
 ## Self-Review Notes
 
