@@ -28,7 +28,7 @@
 **Interfaces:**
 - Produces: workspace layout `packages/*`, root scripts `test` (vitest), `typecheck` (turbo).
 
-- [ ] **Step 1: git init + root files**
+- [x] **Step 1: git init + root files**
 
 `package.json`:
 ```json
@@ -103,12 +103,12 @@ dist/
 *.log
 ```
 
-- [ ] **Step 2: Verify install**
+- [x] **Step 2: Verify install**
 
 Run: `pnpm install`
 Expected: lockfile created, no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git init -b main && git add -A && git commit -m "chore: scaffold pnpm+turbo monorepo"
@@ -129,7 +129,7 @@ git init -b main && git add -A && git commit -m "chore: scaffold pnpm+turbo mono
   - `parseJsonRpcMessage(raw: unknown): ParsedJsonRpc` where `ParsedJsonRpc = { ok: true; kind: 'request'|'notification'|'response'; message: ... } | { ok: false; error: string }`
   - `ERROR_CODES`: `PARSE_ERROR -32700, INVALID_REQUEST -32600, METHOD_NOT_FOUND -32601, INVALID_PARAMS -32602, INTERNAL_ERROR -32603, REQUEST_TIMEOUT -32001, RESOURCE_NOT_FOUND -32002, TOOL_ERROR -32000`
 
-- [ ] **Step 1: Package skeleton**
+- [x] **Step 1: Package skeleton**
 
 `packages/shared/package.json`:
 ```json
@@ -153,7 +153,7 @@ git init -b main && git add -A && git commit -m "chore: scaffold pnpm+turbo mono
 }
 ```
 
-- [ ] **Step 2: Write failing test** (`src/json-rpc.test.ts`)
+- [x] **Step 2: Write failing test** (`src/json-rpc.test.ts`)
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -188,9 +188,9 @@ describe('parseJsonRpcMessage', () => {
 });
 ```
 
-- [ ] **Step 3: Run, verify FAIL** — `pnpm vitest run packages/shared` → module not found.
+- [x] **Step 3: Run, verify FAIL** — `pnpm vitest run packages/shared` → module not found.
 
-- [ ] **Step 4: Implement** (`src/json-rpc.ts`)
+- [x] **Step 4: Implement** (`src/json-rpc.ts`)
 
 ```ts
 import { z } from 'zod';
@@ -278,9 +278,9 @@ export function parseJsonRpcMessage(raw: unknown): ParsedJsonRpc {
 export * from './json-rpc.js';
 ```
 
-- [ ] **Step 5: Run, verify PASS** — `pnpm vitest run packages/shared`
+- [x] **Step 5: Run, verify PASS** — `pnpm vitest run packages/shared`
 
-- [ ] **Step 6: Commit** — `git add -A && git commit -m "feat(shared): JSON-RPC 2.0 zod schemas and message parser"`
+- [x] **Step 6: Commit** — `git add -A && git commit -m "feat(shared): JSON-RPC 2.0 zod schemas and message parser"`
 
 ---
 
@@ -300,7 +300,7 @@ export * from './json-rpc.js';
   - `WidgetSource`
   - `RpcDirection`, `RpcLogEvent`
 
-- [ ] **Step 1: Write failing test** (`src/host-context.test.ts`)
+- [x] **Step 1: Write failing test** (`src/host-context.test.ts`)
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -342,9 +342,9 @@ describe('protocol constants', () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify FAIL**
+- [x] **Step 2: Run, verify FAIL**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/host-context.ts`:
 ```ts
@@ -454,9 +454,9 @@ export * from './widget.js';
 export * from './rpc-log.js';
 ```
 
-- [ ] **Step 4: Run tests + typecheck** — `pnpm vitest run packages/shared && pnpm -F @studio/shared typecheck` → PASS
+- [x] **Step 4: Run tests + typecheck** — `pnpm vitest run packages/shared && pnpm -F @studio/shared typecheck` → PASS
 
-- [ ] **Step 5: Commit** — `git commit -m "feat(shared): host context, protocol constants, mocks, widget, rpc-log types"`
+- [x] **Step 5: Commit** — `git commit -m "feat(shared): host context, protocol constants, mocks, widget, rpc-log types"`
 
 ---
 
@@ -478,7 +478,7 @@ export * from './rpc-log.js';
     - `request(method: string, params?: unknown): Promise<unknown>`
     - `notify(method: string, params?: unknown): void`
 
-- [ ] **Step 1: Package skeleton**
+- [x] **Step 1: Package skeleton**
 
 `packages/host-emulator/package.json`:
 ```json
@@ -507,7 +507,7 @@ export * from './rpc-log.js';
 
 Run `pnpm install` to link workspace dep.
 
-- [ ] **Step 2: Write failing test** (`src/message-bridge.test.ts`)
+- [x] **Step 2: Write failing test** (`src/message-bridge.test.ts`)
 
 ```ts
 import { describe, expect, it, vi } from 'vitest';
@@ -635,9 +635,9 @@ describe('MessageBridge', () => {
 });
 ```
 
-- [ ] **Step 3: Run, verify FAIL**
+- [x] **Step 3: Run, verify FAIL**
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 `src/errors.ts`:
 ```ts
@@ -823,9 +823,9 @@ export * from './transport.js';
 export * from './message-bridge.js';
 ```
 
-- [ ] **Step 5: Run, verify PASS** — `pnpm vitest run packages/host-emulator && pnpm -F @studio/host-emulator typecheck`
+- [x] **Step 5: Run, verify PASS** — `pnpm vitest run packages/host-emulator && pnpm -F @studio/host-emulator typecheck`
 
-- [ ] **Step 6: Commit** — `git commit -m "feat(host-emulator): transport abstraction and validating JSON-RPC message bridge"`
+- [x] **Step 6: Commit** — `git commit -m "feat(host-emulator): transport abstraction and validating JSON-RPC message bridge"`
 
 ---
 
@@ -842,7 +842,7 @@ export * from './message-bridge.js';
   - `type PassthroughHandler = (toolName: string, args: unknown) => Promise<unknown>`
   - `class MockRouter { constructor(config?: MockConfig, passthrough?: PassthroughHandler); call(toolName: string, args: unknown): Promise<unknown>; setConfig(config: MockConfig): void }`
 
-- [ ] **Step 1: Write failing test** (`src/mock-router.test.ts`)
+- [x] **Step 1: Write failing test** (`src/mock-router.test.ts`)
 
 ```ts
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -895,9 +895,9 @@ describe('MockRouter', () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify FAIL**
+- [x] **Step 2: Run, verify FAIL**
 
-- [ ] **Step 3: Implement** (`src/mock-router.ts`)
+- [x] **Step 3: Implement** (`src/mock-router.ts`)
 
 ```ts
 import { ERROR_CODES, type MockConfig } from '@studio/shared';
@@ -939,9 +939,9 @@ Add to `src/index.ts`:
 export * from './mock-router.js';
 ```
 
-- [ ] **Step 4: Run, verify PASS**
+- [x] **Step 4: Run, verify PASS**
 
-- [ ] **Step 5: Commit** — `git commit -m "feat(host-emulator): mock router for tool calls (static/error/delay/passthrough)"`
+- [x] **Step 5: Commit** — `git commit -m "feat(host-emulator): mock router for tool calls (static/error/delay/passthrough)"`
 
 ---
 
@@ -963,7 +963,7 @@ export * from './mock-router.js';
   - `interface HostAdapter { readonly id: AdapterId; buildIframeEnv(widget: WidgetSource, ctx: HostContext): IframeEnv; handleWidgetMessage(msg: JsonRpcRequest | JsonRpcNotification): AdapterAction; pushHostEvent(ev: HostEvent): JsonRpcNotification | null; buildInitializeResult(ctx: HostContext): unknown; capabilities(): HostCapabilities }`
   - `class McpAppsAdapter implements HostAdapter`
 
-- [ ] **Step 1: Write failing test** (`src/mcp-apps-adapter.test.ts`)
+- [x] **Step 1: Write failing test** (`src/mcp-apps-adapter.test.ts`)
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -1046,9 +1046,9 @@ describe('McpAppsAdapter host-side translation', () => {
 });
 ```
 
-- [ ] **Step 2: Run, verify FAIL**
+- [x] **Step 2: Run, verify FAIL**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src/adapter.ts`:
 ```ts
@@ -1176,9 +1176,9 @@ export * from './mcp-apps-adapter.js';
 
 Note: `tool-call.args` may be `undefined` when the widget omits `arguments`; the test for tools/call passes explicit arguments. `toEqual` treats missing/undefined keys as equal.
 
-- [ ] **Step 4: Run, verify PASS**
+- [x] **Step 4: Run, verify PASS**
 
-- [ ] **Step 5: Commit** — `git commit -m "feat(host-emulator): HostAdapter interface and SEP-1865 mcp-apps adapter"`
+- [x] **Step 5: Commit** — `git commit -m "feat(host-emulator): HostAdapter interface and SEP-1865 mcp-apps adapter"`
 
 ---
 
@@ -1195,7 +1195,7 @@ Note: `tool-call.args` may be `undefined` when the widget omits `arguments`; the
   - `interface HostEmulatorOptions { adapter: HostAdapter; transport: Transport; mocks?: MockConfig; passthrough?: PassthroughHandler; resources?: Record<string, string>; hostContext?: HostContext; onLog?: (ev: RpcLogEvent) => void; onSizeChanged?: (size: { width?: number; height?: number }) => void }`
   - `class HostEmulator { start(); stop(); setHostContext(patch: Partial<HostContext>); setMocks(config: MockConfig); getHostContext(): HostContext }`
 
-- [ ] **Step 1: Write failing test** (`src/host-emulator.test.ts`)
+- [x] **Step 1: Write failing test** (`src/host-emulator.test.ts`)
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -1332,9 +1332,9 @@ Replace the last test with a simpler, honest version (no dead code):
   });
 ```
 
-- [ ] **Step 2: Run, verify FAIL**
+- [x] **Step 2: Run, verify FAIL**
 
-- [ ] **Step 3: Implement** (`src/host-emulator.ts`)
+- [x] **Step 3: Implement** (`src/host-emulator.ts`)
 
 ```ts
 import {
@@ -1439,9 +1439,9 @@ Add to `src/index.ts`:
 export * from './host-emulator.js';
 ```
 
-- [ ] **Step 4: Run full suite + typecheck** — `pnpm test && pnpm typecheck` → all PASS
+- [x] **Step 4: Run full suite + typecheck** — `pnpm test && pnpm typecheck` → all PASS
 
-- [ ] **Step 5: Commit** — `git commit -m "feat(host-emulator): HostEmulator composing bridge, adapter, mocks and resources"`
+- [x] **Step 5: Commit** — `git commit -m "feat(host-emulator): HostEmulator composing bridge, adapter, mocks and resources"`
 
 ---
 
