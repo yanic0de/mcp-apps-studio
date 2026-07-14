@@ -1,0 +1,222 @@
+:root {
+  --bg: #14171f;
+  --panel: #1b2029;
+  --panel-raised: #212836;
+  --line: #2a3140;
+  --text: #e8eaf0;
+  --muted: #8a93a6;
+  --to-host: #7ad3e6;   /* widget → host */
+  --to-widget: #f0a868; /* host → widget */
+  --err: #e06c75;
+  --mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+}
+
+.app {
+  display: grid;
+  grid-template-rows: 48px 1fr;
+  grid-template-columns: 1fr 380px;
+  grid-template-areas: 'header header' 'canvas trace';
+  height: 100%;
+}
+
+.header {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.brand {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.brand em {
+  color: var(--to-host);
+  font-style: normal;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.control select,
+.control button {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.control select:focus-visible,
+.control button:focus-visible {
+  outline: 2px solid var(--to-host);
+  outline-offset: 1px;
+}
+
+.canvas {
+  grid-area: canvas;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  background:
+    conic-gradient(var(--panel) 25%, transparent 0 50%, var(--panel) 0 75%, transparent 0)
+    0 0 / 24px 24px;
+}
+
+.viewport {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.viewport iframe {
+  display: block;
+  border: 0;
+  width: 360px;
+  height: 240px;
+  background: #fff;
+}
+
+.trace {
+  grid-area: trace;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  min-height: 0;
+}
+
+.trace-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.trace-head button {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.trace-head button:focus-visible {
+  outline: 2px solid var(--to-host);
+  outline-offset: 1px;
+}
+
+.trace-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.trace-empty {
+  padding: 16px 12px;
+  color: var(--muted);
+}
+
+.trace-row {
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 45%, transparent);
+}
+
+.trace-row summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.trace-row summary::-webkit-details-marker { display: none; }
+
+.dir { flex: none; font-weight: 700; }
+.dir.to-host { color: var(--to-host); }
+.dir.to-widget { color: var(--to-widget); }
+
+.method { overflow: hidden; text-overflow: ellipsis; }
+
+.kind {
+  flex: none;
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.trace-row.invalid .method,
+.trace-row.invalid .kind,
+.trace-row.invalid .dir { color: var(--err); }
+
+.trace-row pre {
+  margin: 0;
+  padding: 6px 12px 10px 28px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-x: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .trace-row { animation: row-in 160ms ease-out; }
+  @keyframes row-in {
+    from { opacity: 0; transform: translateY(-2px); }
+    to { opacity: 1; transform: none; }
+  }
+}
