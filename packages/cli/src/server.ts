@@ -66,7 +66,15 @@ export function createStudioServer(opts: StudioServerOptions): http.Server {
       return;
     }
 
-    const rel = decodeURIComponent(url.pathname === '/' ? 'index.html' : url.pathname.slice(1));
+    let rel: string;
+    try {
+      rel = decodeURIComponent(url.pathname === '/' ? 'index.html' : url.pathname.slice(1));
+    } catch {
+      // malformed percent-encoding must not crash the process
+      res.writeHead(400, { 'content-type': 'text/plain' });
+      res.end('Bad Request');
+      return;
+    }
     let filePath = path.normalize(path.join(distRoot, rel));
     if (filePath !== distRoot && !filePath.startsWith(distRoot + path.sep)) {
       res.writeHead(403, { 'content-type': 'text/plain' });

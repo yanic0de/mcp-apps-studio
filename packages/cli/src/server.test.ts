@@ -94,6 +94,16 @@ describe('createStudioServer', () => {
     expect(await spa.text()).toContain('studio');
   });
 
+  it('answers 400 to a malformed percent-encoded path instead of crashing', async () => {
+    await start();
+    const headers = { cookie: `mcp_studio_token=${TOKEN}` };
+    const res = await fetch(`${base}/%zz`, { headers });
+    expect(res.status).toBe(400);
+    // server must survive the bad request
+    const after = await fetch(`${base}/api/manifest`, { headers });
+    expect(after.status).toBe(200);
+  });
+
   it('blocks path traversal outside the dist dir', async () => {
     await start();
     const res = await fetch(`${base}/..%2f..%2f..%2fetc%2fpasswd`, {
