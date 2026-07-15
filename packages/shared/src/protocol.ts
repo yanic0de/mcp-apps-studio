@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 export const MCP_APPS_PROTOCOL_VERSION = '2026-01-26';
 
+/** Mime type marking an MCP Apps ui:// HTML resource. */
+export const MCP_APPS_RESOURCE_MIME = 'text/html;profile=mcp-app';
+
 /**
  * Wire method names for the MCP Apps extension (SEP-1865), spec 2026-01-26.
  * Single source of truth — adjust here when the spec evolves.

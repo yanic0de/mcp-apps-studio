@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  body {
+    margin: 0;
+    padding: 20px;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #ffffff;
+    color: #16181d;
+    transition: background 200ms, color 200ms;
+  }
+  body.dark { background: #1c212b; color: #e8eaf0; }
+  h1 {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.6;
+    margin: 0 0 12px;
+  }
+  .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  button {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(127, 127, 127, 0.4);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #output {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid rgba(127, 127, 127, 0.3);
+    border-radius: 6px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+    min-height: 120px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  #output.error { border-color: #c94f4f; color: #c94f4f; }
+</style>
+</head>
+<body>
+<h1>Protocol Inspector · test-server</h1>
+<div class="buttons">
+  <button data-tool="echo" data-args='{"message":"hello from inspector"}'>echo</button>
+  <button data-tool="slow_metrics" data-args='{"delayMs":1500}'>slow (1.5s)</button>
+  <button data-tool="fail" data-args='{}'>fail</button>
+  <button data-tool="get_rows" data-args='{"page":1,"pageSize":5}'>rows</button>
+  <button data-tool="counter" data-args='{}'>counter</button>
+</div>
+<pre id="output">click a button to call a tool…</pre>
+<script>
+  (() => {
+    let nextId = 0;
+    const pending = new Map();
+    const output = document.getElementById('output');
+
+    function request(method, params) {
+      const id = 'w' + ++nextId;
+      parent.postMessage({ jsonrpc: '2.0', id, method, params }, '*');
+      return new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
+    }
+
+    function show(obj, isError) {
+      output.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+      output.className = isError ? 'error' : '';
+    }
+
+    window.addEventListener('message', (ev) => {
+      const msg = ev.data;
+      if (!msg || msg.jsonrpc !== '2.0') return;
+      if (msg.id !== undefined && pending.has(msg.id)) {
+        const p = pending.get(msg.id);
+        pending.delete(msg.id);
+        if (msg.error) p.reject(msg.error);
+        else p.resolve(msg.result);
+      } else if (msg.method === 'ui/notifications/host-context-changed') {
+        if (msg.params && msg.params.theme) {
+          document.body.classList.toggle('dark', msg.params.theme === 'dark');
+        }
+      }
+    });
+
+    for (const btn of document.querySelectorAll('button[data-tool]')) {
+      btn.addEventListener('click', async () => {
+        const name = btn.dataset.tool;
+        const args = JSON.parse(btn.dataset.args);
+        show(`→ tools/call ${name} ${btn.dataset.args}\n…`);
+        try {
+          const result = await request('tools/call', { name, arguments: args });
+          show({ tool: name, result });
+        } catch (e) {
+          show({ tool: name, error: e }, true);
+        }
+      });
+    }
+
+    (async () => {
+      const init = await request('ui/initialize', { protocolVersion: '2026-01-26', appCapabilities: {} });
+      if (init.hostContext && init.hostContext.theme) {
+        document.body.classList.toggle('dark', init.hostContext.theme === 'dark');
+      }
+      parent.postMessage(
+        { jsonrpc: '2.0', method: 'ui/notifications/size-changed', params: { width: 420, height: 320 } },
+        '*',
+      );
+    })();
+  })();
+</script>
+</body>
+</html>
