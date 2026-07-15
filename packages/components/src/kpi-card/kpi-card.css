@@ -1,0 +1,51 @@
+.kpi-card {
+  background: var(--widget-surface, #ffffff);
+  color: var(--widget-fg, #16181d);
+  border: 1px solid var(--widget-border, rgba(127, 127, 127, 0.35));
+  border-radius: var(--widget-radius, 10px);
+  padding: 16px 20px;
+  max-width: 280px;
+  font-family: var(--widget-font, system-ui, -apple-system, sans-serif);
+}
+
+[data-theme='dark'] .kpi-card {
+  background: var(--widget-surface, #1c212b);
+  color: var(--widget-fg, #e8eaf0);
+}
+
+.kpi-card__label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.kpi-card__value {
+  font-size: 34px;
+  font-weight: 700;
+  margin: 6px 0 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-card__status {
+  font-size: 13px;
+  opacity: 0.8;
+  min-height: 18px;
+}
+
+.kpi-card__status--error {
+  color: var(--widget-error, #c94f4f);
+  opacity: 1;
+}
+
+.kpi-card__refresh {
+  margin-top: 14px;
+  padding: 6px 14px;
+  border-radius: calc(var(--widget-radius, 10px) - 4px);
+  border: 1px solid var(--widget-border, rgba(127, 127, 127, 0.4));
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
