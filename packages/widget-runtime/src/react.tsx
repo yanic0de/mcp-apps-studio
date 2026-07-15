@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { HostContext } from '@studio/shared';
 import type { WidgetClient } from './client.js';
+import { createToolCaller, type ToolCallSnapshot } from './tool-caller.js';
 
 const WidgetClientContext = createContext<WidgetClient | null>(null);
 
@@ -30,22 +31,14 @@ export interface ToolCallState<T> {
 
 export function useToolCall<T = unknown>(name: string): ToolCallState<T> {
   const client = useWidgetClient();
-  const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean }>({
+  const [state, setState] = useState<ToolCallSnapshot<T>>({
     data: null,
     error: null,
     loading: false,
   });
 
-  const call = useCallback(
-    async (args?: unknown) => {
-      setState((s) => ({ ...s, loading: true, error: null }));
-      try {
-        const data = await client.callTool<T>(name, args);
-        setState({ data, error: null, loading: false });
-      } catch (e) {
-        setState((s) => ({ ...s, loading: false, error: e instanceof Error ? e.message : String(e) }));
-      }
-    },
+  const call = useMemo(
+    () => createToolCaller<T>((args) => client.callTool<T>(name, args), setState),
     [client, name],
   );
 
