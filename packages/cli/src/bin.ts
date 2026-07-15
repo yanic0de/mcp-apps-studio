@@ -61,7 +61,8 @@ if (manifest.length === 0) {
 }
 
 const token = fixedToken ?? generateToken();
-const server = createStudioServer({ studioDist, manifest, token });
+// Rediscover per request: story edits show up on browser refresh, no CLI restart.
+const server = createStudioServer({ studioDist, getManifest: () => discoverStories(rootDir), token });
 
 // localhost only + one-time token in URL: a local dev tool is still an attack surface.
 server.listen(port, '127.0.0.1', () => {

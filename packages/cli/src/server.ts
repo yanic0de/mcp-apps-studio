@@ -6,7 +6,8 @@ import type { WidgetManifestEntry } from '@studio/shared';
 
 export interface StudioServerOptions {
   studioDist: string;
-  manifest: WidgetManifestEntry[];
+  /** Re-invoked on every /api/manifest request so story edits land on browser refresh. */
+  getManifest: () => Promise<WidgetManifestEntry[]>;
   token: string;
 }
 
@@ -61,8 +62,17 @@ export function createStudioServer(opts: StudioServerOptions): http.Server {
     const url = new URL(req.url ?? '/', 'http://localhost');
 
     if (url.pathname === '/api/manifest') {
-      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-      res.end(JSON.stringify({ widgets: opts.manifest }));
+      opts
+        .getManifest()
+        .then((widgets) => {
+          res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+          res.end(JSON.stringify({ widgets }));
+        })
+        .catch((err: unknown) => {
+          // a story file mid-edit must not kill the server
+          res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
+          res.end(`Manifest discovery failed: ${err instanceof Error ? err.message : String(err)}`);
+        });
       return;
     }
 

@@ -32,8 +32,8 @@ afterEach(
     }),
 );
 
-function start(): Promise<string> {
-  const s = createStudioServer({ studioDist: dist, manifest, token: TOKEN });
+function start(getManifest: () => Promise<WidgetManifestEntry[]> = async () => manifest): Promise<string> {
+  const s = createStudioServer({ studioDist: dist, getManifest, token: TOKEN });
   server = s;
   return new Promise((resolve) => {
     s.listen(0, '127.0.0.1', () => {
@@ -92,6 +92,30 @@ describe('createStudioServer', () => {
     const spa = await fetch(`${base}/some/client/route`, { headers });
     expect(spa.status).toBe(200);
     expect(await spa.text()).toContain('studio');
+  });
+
+  it('rebuilds the manifest on every /api/manifest request', async () => {
+    let calls = 0;
+    await start(async () => {
+      calls++;
+      return [{ ...manifest[0]!, title: `KPI v${calls}` }];
+    });
+    const headers = { cookie: `mcp_studio_token=${TOKEN}` };
+    const first = (await (await fetch(`${base}/api/manifest`, { headers })).json()) as { widgets: WidgetManifestEntry[] };
+    const second = (await (await fetch(`${base}/api/manifest`, { headers })).json()) as { widgets: WidgetManifestEntry[] };
+    expect(first.widgets[0]?.title).toBe('KPI v1');
+    expect(second.widgets[0]?.title).toBe('KPI v2');
+  });
+
+  it('answers 500 when manifest discovery fails, without dying', async () => {
+    await start(async () => {
+      throw new Error('story file is mid-edit');
+    });
+    const headers = { cookie: `mcp_studio_token=${TOKEN}` };
+    const res = await fetch(`${base}/api/manifest`, { headers });
+    expect(res.status).toBe(500);
+    expect(await res.text()).toContain('story file is mid-edit');
+    expect((await fetch(`${base}/`, { headers })).status).toBe(200);
   });
 
   it('answers 404 for a missing asset instead of the SPA fallback', async () => {
