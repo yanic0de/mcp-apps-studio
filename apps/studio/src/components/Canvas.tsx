@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { HostEmulator, IframeTransport, McpAppsAdapter } from '@studio/host-emulator';
-import { connectExampleServer, type LiveConnection } from '../mcp-client.js';
+import { connectMcpServer, type LiveConnection } from '../mcp-client.js';
 import { selectActiveWidget, useStudioStore } from '../store.js';
 
 export function Canvas() {
@@ -21,7 +21,7 @@ export function Canvas() {
     if (!isLive) return;
     let cancelled = false;
     let connection: LiveConnection | null = null;
-    connectExampleServer()
+    connectMcpServer()
       .then((c) => {
         if (cancelled) return void c.close();
         connection = c;
@@ -78,8 +78,9 @@ export function Canvas() {
     return (
       <main className="canvas">
         <p className="canvas-note">
-          Can't reach the example server: {liveError}. Start it with{' '}
-          <code>pnpm -F @studio/example-server dev</code> and switch the scenario again.
+          Can't reach the MCP server: {liveError}. Start one (e.g.{' '}
+          <code>pnpm -F @studio/example-server dev</code>) or point the studio at another with{' '}
+          <code>?server=&lt;url&gt;</code>, then switch the scenario again.
         </p>
       </main>
     );
