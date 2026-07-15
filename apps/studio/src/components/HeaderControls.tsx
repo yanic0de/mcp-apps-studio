@@ -1,21 +1,36 @@
-import type { ScenarioId } from '../store.js';
-import { useStudioStore } from '../store.js';
+import { selectActiveWidget, useStudioStore } from '../store.js';
 
 export function HeaderControls() {
+  const widgets = useStudioStore((s) => s.widgets);
+  const activeWidget = useStudioStore(selectActiveWidget);
   const hostContext = useStudioStore((s) => s.hostContext);
   const scenario = useStudioStore((s) => s.scenario);
+  const setActiveWidget = useStudioStore((s) => s.setActiveWidget);
   const setHostContext = useStudioStore((s) => s.setHostContext);
   const setScenario = useStudioStore((s) => s.setScenario);
 
   return (
     <div className="controls">
+      {widgets.length > 1 && (
+        <label className="control">
+          Widget
+          <select value={activeWidget?.id ?? ''} onChange={(e) => setActiveWidget(e.target.value)}>
+            {widgets.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="control">
         Scenario
-        <select value={scenario} onChange={(e) => setScenario(e.target.value as ScenarioId)}>
-          <option value="default">default</option>
-          <option value="loading">loading</option>
-          <option value="error">error</option>
-          <option value="live">live (example-server)</option>
+        <select value={scenario} onChange={(e) => setScenario(e.target.value)}>
+          {Object.keys(activeWidget?.scenarios ?? {}).map((name) => (
+            <option key={name} value={name}>
+              {name === 'live' ? 'live (example-server)' : name}
+            </option>
+          ))}
         </select>
       </label>
       <label className="control">

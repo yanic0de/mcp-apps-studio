@@ -1,48 +1,43 @@
 import { create } from 'zustand';
-import { defaultHostContext, type HostContext, type MockConfig, type RpcLogEvent } from '@studio/shared';
+import { defaultHostContext, type HostContext, type RpcLogEvent, type WidgetManifestEntry } from '@studio/shared';
 
-export type ScenarioId = 'default' | 'loading' | 'error' | 'live';
-
-export const scenarios: Record<ScenarioId, MockConfig> = {
-  default: {
-    get_metrics: {
-      kind: 'static',
-      result: { value: 12840, delta: 8.3, label: 'Monthly active users' },
-    },
-  },
-  loading: {
-    get_metrics: {
-      kind: 'static',
-      result: { value: 12840, delta: 8.3, label: 'Monthly active users' },
-      delayMs: 3_600_000,
-    },
-  },
-  error: {
-    get_metrics: {
-      kind: 'error',
-      error: { code: -32000, message: 'Metrics backend unavailable' },
-    },
-  },
-  // Live: no mocks — every tool call is proxied to the example server (passthrough).
-  live: {},
-};
+function firstScenario(widget: WidgetManifestEntry | undefined): string {
+  return Object.keys(widget?.scenarios ?? {})[0] ?? 'default';
+}
 
 interface StudioState {
+  widgets: WidgetManifestEntry[];
+  activeWidgetId: string | null;
+  scenario: string;
   hostContext: HostContext;
-  scenario: ScenarioId;
   log: RpcLogEvent[];
+  setWidgets: (widgets: WidgetManifestEntry[]) => void;
+  setActiveWidget: (id: string) => void;
+  setScenario: (scenario: string) => void;
   setHostContext: (patch: Partial<HostContext>) => void;
-  setScenario: (scenario: ScenarioId) => void;
   appendLog: (ev: RpcLogEvent) => void;
   clearLog: () => void;
 }
 
 export const useStudioStore = create<StudioState>()((set) => ({
-  hostContext: defaultHostContext,
+  widgets: [],
+  activeWidgetId: null,
   scenario: 'default',
+  hostContext: defaultHostContext,
   log: [],
-  setHostContext: (patch) => set((s) => ({ hostContext: { ...s.hostContext, ...patch } })),
+  setWidgets: (widgets) =>
+    set({ widgets, activeWidgetId: widgets[0]?.id ?? null, scenario: firstScenario(widgets[0]), log: [] }),
+  setActiveWidget: (id) =>
+    set((s) => {
+      const widget = s.widgets.find((w) => w.id === id);
+      return widget ? { activeWidgetId: id, scenario: firstScenario(widget), log: [] } : {};
+    }),
   setScenario: (scenario) => set({ scenario, log: [] }),
+  setHostContext: (patch) => set((s) => ({ hostContext: { ...s.hostContext, ...patch } })),
   appendLog: (ev) => set((s) => ({ log: [...s.log, ev] })),
   clearLog: () => set({ log: [] }),
 }));
+
+export function selectActiveWidget(s: StudioState): WidgetManifestEntry | undefined {
+  return s.widgets.find((w) => w.id === s.activeWidgetId);
+}

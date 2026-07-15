@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { HostEmulator, IframeTransport, McpAppsAdapter } from '@studio/host-emulator';
 import { connectExampleServer, type LiveConnection } from '../mcp-client.js';
-import { scenarios, useStudioStore } from '../store.js';
-import widgetHtml from '../demo/kpi-widget.html?raw';
+import { selectActiveWidget, useStudioStore } from '../store.js';
 
 export function Canvas() {
+  const activeWidget = useStudioStore(selectActiveWidget);
   const scenario = useStudioStore((s) => s.scenario);
   const hostContext = useStudioStore((s) => s.hostContext);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -12,10 +12,13 @@ export function Canvas() {
   const [live, setLive] = useState<LiveConnection | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
 
+  const widgetId = activeWidget?.id ?? null;
+  const isLive = scenario === 'live';
+
   useEffect(() => {
     setLive(null);
     setLiveError(null);
-    if (scenario !== 'live') return;
+    if (!isLive) return;
     let cancelled = false;
     let connection: LiveConnection | null = null;
     connectExampleServer()
@@ -31,18 +34,18 @@ export function Canvas() {
       cancelled = true;
       void connection?.close();
     };
-  }, [scenario]);
+  }, [isLive, widgetId]);
 
-  const waitingForServer = scenario === 'live' && !live;
+  const waitingForServer = isLive && !live;
 
   useEffect(() => {
     const iframe = iframeRef.current;
-    if (!iframe || waitingForServer) return;
+    if (!iframe || !activeWidget || waitingForServer) return;
     const transport = new IframeTransport(iframe);
     const emulator = new HostEmulator({
       adapter: new McpAppsAdapter(),
       transport,
-      mocks: scenarios[scenario],
+      mocks: activeWidget.scenarios[scenario]?.mocks ?? {},
       passthrough: live?.callTool,
       hostContext: useStudioStore.getState().hostContext,
       onLog: (ev) => useStudioStore.getState().appendLog(ev),
@@ -54,7 +57,7 @@ export function Canvas() {
       transport.dispose();
       emulatorRef.current = null;
     };
-  }, [scenario, live, waitingForServer]);
+  }, [activeWidget, scenario, live, waitingForServer]);
 
   useEffect(() => {
     const emulator = emulatorRef.current;
@@ -62,6 +65,14 @@ export function Canvas() {
       emulator.setHostContext(hostContext);
     }
   }, [hostContext]);
+
+  if (!activeWidget) {
+    return (
+      <main className="canvas">
+        <p className="canvas-note">Loading widget manifest…</p>
+      </main>
+    );
+  }
 
   if (liveError) {
     return (
@@ -86,11 +97,11 @@ export function Canvas() {
     <main className="canvas">
       <div className="viewport">
         <iframe
-          key={scenario}
+          key={`${activeWidget.id}:${scenario}`}
           ref={iframeRef}
           title="widget under test"
           sandbox="allow-scripts"
-          srcDoc={scenario === 'live' && live ? live.widgetHtml : widgetHtml}
+          srcDoc={isLive && live ? live.widgetHtml : activeWidget.html}
         />
       </div>
     </main>
