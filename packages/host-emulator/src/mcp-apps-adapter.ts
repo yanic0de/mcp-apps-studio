@@ -43,7 +43,7 @@ export class McpAppsAdapter implements HostAdapter {
       }
       case MCP_APPS_METHODS.sizeChanged: {
         const p = sizeChangedParamsSchema.safeParse(msg.params);
-        if (!p.success) return { type: 'unsupported', method: msg.method };
+        if (!p.success) return { type: 'invalid-params', requestId: id ?? 0, method: msg.method, error: p.error.message };
         return { type: 'size-changed', ...p.data };
       }
       default:

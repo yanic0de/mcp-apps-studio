@@ -41,6 +41,15 @@ describe('McpAppsAdapter.handleWidgetMessage', () => {
     ).toEqual({ type: 'size-changed', width: 300, height: 200 });
   });
 
+  it('maps malformed size-changed params to invalid-params', () => {
+    const action = adapter.handleWidgetMessage({
+      jsonrpc: '2.0',
+      method: MCP_APPS_METHODS.sizeChanged,
+      params: { width: 'wide' },
+    });
+    expect(action).toMatchObject({ type: 'invalid-params', method: MCP_APPS_METHODS.sizeChanged });
+  });
+
   it('maps unknown method to unsupported', () => {
     expect(adapter.handleWidgetMessage(req(5, 'wat/ever'))).toEqual({ type: 'unsupported', method: 'wat/ever', requestId: 5 });
   });

@@ -108,6 +108,26 @@ describe('HostEmulator', () => {
     expect(resp.error?.code).toBe(ERROR_CODES.INVALID_PARAMS);
   });
 
+  it('logs size-changed with malformed params as invalid and does not report a size', async () => {
+    const sizes: unknown[] = [];
+    const { widget, log } = setup({ onSizeChanged: (s) => sizes.push(s) });
+    widget.notify(MCP_APPS_METHODS.sizeChanged, { width: 'wide' });
+    await flush();
+    expect(sizes).toEqual([]);
+    const invalid = log.filter((e) => e.kind === 'invalid');
+    expect(invalid).toHaveLength(1);
+    expect(invalid[0]).toMatchObject({ direction: 'widget→host', method: MCP_APPS_METHODS.sizeChanged });
+  });
+
+  it('logs unknown notification methods as invalid', async () => {
+    const { widget, log } = setup();
+    widget.notify('wat/notification');
+    await flush();
+    const invalid = log.filter((e) => e.kind === 'invalid');
+    expect(invalid).toHaveLength(1);
+    expect(invalid[0]).toMatchObject({ method: 'wat/notification' });
+  });
+
   it('survives garbage messages and logs them as invalid', async () => {
     const { widget, widgetT, log } = setup({ mocks: { t: { kind: 'static', result: 'ok' } } });
     widgetT.send({ totally: 'garbage' });

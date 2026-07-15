@@ -88,8 +88,23 @@ export class HostEmulator {
 
   private handleNotification(n: JsonRpcNotification): void {
     const action = this.opts.adapter.handleWidgetMessage(n);
-    if (action.type === 'size-changed') {
-      this.opts.onSizeChanged?.({ width: action.width, height: action.height });
+    switch (action.type) {
+      case 'size-changed':
+        this.opts.onSizeChanged?.({ width: action.width, height: action.height });
+        return;
+      // Notifications have no response channel, so problems must surface in the trace.
+      case 'invalid-params':
+        this.logInvalidNotification(n, `Invalid params: ${action.error}`);
+        return;
+      case 'unsupported':
+        this.logInvalidNotification(n, `Unsupported notification: ${n.method}`);
+        return;
+      default:
+        return;
     }
+  }
+
+  private logInvalidNotification(n: JsonRpcNotification, error: string): void {
+    this.opts.onLog?.({ ts: Date.now(), direction: 'widget→host', kind: 'invalid', method: n.method, payload: n, error });
   }
 }
