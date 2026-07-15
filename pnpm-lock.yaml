@@ -60,6 +60,9 @@ importers:
       '@studio/app':
         specifier: workspace:*
         version: link:../../apps/studio
+      '@studio/components':
+        specifier: workspace:*
+        version: link:../components
       '@studio/shared':
         specifier: workspace:*
         version: link:../shared

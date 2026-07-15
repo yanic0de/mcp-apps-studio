@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@studio/app": "workspace:*",
+    "@studio/components": "workspace:*",
     "@studio/shared": "workspace:*",
     "esbuild": "^0.25.0"
   },

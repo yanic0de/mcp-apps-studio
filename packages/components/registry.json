@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "name": "kpi-card",
+      "title": "KPI Card",
+      "description": "Single metric with delta, loading/error states; expects a tool returning { value, delta, label }.",
+      "files": ["src/kpi-card/KpiCard.tsx", "src/kpi-card/kpi-card.css", "src/kpi-card/fallback.ts"],
+      "dependencies": ["@studio/widget-runtime"]
+    },
+    {
+      "name": "data-table",
+      "title": "Data Table",
+      "description": "Column/row table with empty and error states; expects a tool returning { columns, rows }.",
+      "files": ["src/data-table/DataTable.tsx", "src/data-table/data-table.css", "src/data-table/fallback.ts"],
+      "dependencies": ["@studio/widget-runtime"]
+    }
+  ]
+}

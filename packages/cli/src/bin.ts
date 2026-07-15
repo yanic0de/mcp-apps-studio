@@ -2,10 +2,28 @@
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { addComponent, listComponents } from './add.js';
 import { discoverStories } from './discover.js';
 import { createStudioServer, generateToken } from './server.js';
 
 const args = process.argv.slice(2);
+
+if (args[0] === 'add') {
+  const name = args[1];
+  if (!name || name.startsWith('-')) {
+    console.error('Usage: mcp-apps-studio add <component> [--dir <dir>]');
+    console.error(`Available: ${(await listComponents()).map((i) => i.name).join(', ')}`);
+    process.exit(1);
+  }
+  const dirFlag = args.indexOf('--dir');
+  const dir = dirFlag !== -1 ? (args[dirFlag + 1] ?? 'src/components') : 'src/components';
+  const copied = await addComponent(name, path.resolve(process.cwd(), dir));
+  console.log(`Added "${name}":`);
+  for (const file of copied) console.log(`  ${path.relative(process.cwd(), file)}`);
+  console.log('\nComponent uses @studio/widget-runtime — add it to your dependencies.');
+  process.exit(0);
+}
+
 let port = 4400;
 let rootDir = process.cwd();
 
