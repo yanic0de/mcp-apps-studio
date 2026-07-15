@@ -19,6 +19,7 @@ pnpm -F @studio/example-server dev         # reference MCP server on :3100 (live
 pnpm -F mcp-apps-studio start [dir]        # CLI: serve built studio + discovered widgets (needs app build first)
 pnpm -F @studio/components build           # bundle library widgets to dist/<name>.html (needed by their stories)
 pnpm -F mcp-apps-studio start add <name>   # copy a registry component into a project (shadcn model)
+pnpm e2e                                   # Playwright (chromium-only), spins up vite dev + example-server + CLI itself
 ```
 
 Tests run in node (no jsdom): DOM-facing code is written against duck-typed interfaces (see `IframeTransport`) and tested with fakes. Test files sit next to source (`src/*.test.ts`), picked up by the root `vitest.config.ts`.
@@ -45,10 +46,11 @@ Layering (dependencies point down, never up):
 ## Constraints that are easy to violate
 
 - Widget follow-up messages are intentionally NOT in the adapter: the wire method name was unconfirmed in spec `2026-01-26`. Add only against the real `@modelcontextprotocol/ext-apps` SDK, not from memory.
-- Deliberate MVP cuts (do not "helpfully" add): server-api backend, docs site, Playwright e2e, openai/legacy adapters, Tailwind, changesets. Registry is static JSON, sessions go to localStorage, traces live in the Zustand log.
+- Deliberate MVP cuts (do not "helpfully" add): server-api backend, docs site, openai/legacy adapters, Tailwind, changesets. Registry is static JSON, sessions go to localStorage, traces live in the Zustand log.
+- E2E (`e2e/`, Playwright) is chromium-only by design; the CLI web server rebuilds app+components each run and uses the `--token` bin flag (automation-only) so tests can authenticate.
 - CSP emulation via the iframe `csp` attribute only works in Chromium — treat CSP checks as Chromium-only.
 - Core packages must stay runnable in node: no direct `window`/DOM globals outside `IframeTransport` (which takes an injectable `ListeningWindow`).
 
 ## Workflow
 
-Implementation plans live in `docs/superpowers/plans/` (checkbox format, one per phase). TDD per task: failing test → implement → commit. MVP roadmap complete: core → studio → example-server → CLI → widget-runtime/components/registry. Candidate next steps: publish story (build + changesets), Playwright e2e, openai-apps adapter, design brief (see memory).
+Implementation plans live in `docs/superpowers/plans/` (checkbox format, one per phase). TDD per task: failing test → implement → commit. MVP roadmap complete: core → studio → example-server → CLI → widget-runtime/components/registry → e2e. Candidate next steps: publish story (build + changesets), openai-apps adapter, design brief (see memory).
