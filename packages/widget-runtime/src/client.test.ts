@@ -83,6 +83,34 @@ describe('WidgetClient', () => {
     expect(listeners.size).toBe(0);
   });
 
+  it('rejects a request that gets no response within the timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      const { win } = fakeEnv();
+      const client = new WidgetClient(win, { requestTimeoutMs: 1000 });
+      const p = client.callTool('never_answers');
+      const assertion = expect(p).rejects.toThrow(/timed out/);
+      vi.advanceTimersByTime(1000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not fire the timeout after a response arrived', async () => {
+    vi.useFakeTimers();
+    try {
+      const { win, sent, reply } = fakeEnv();
+      const client = new WidgetClient(win, { requestTimeoutMs: 1000 });
+      const p = client.callTool('fast');
+      reply({ jsonrpc: '2.0', id: sent[0].id, result: 'ok' });
+      vi.advanceTimersByTime(5000);
+      await expect(p).resolves.toBe('ok');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('ignores garbage messages', () => {
     const { win, reply } = fakeEnv();
     const client = new WidgetClient(win);

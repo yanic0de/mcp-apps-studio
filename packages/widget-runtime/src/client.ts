@@ -25,7 +25,14 @@ export class ToolCallError extends Error {
 interface Pending {
   resolve: (value: unknown) => void;
   reject: (error: unknown) => void;
+  timer: ReturnType<typeof setTimeout>;
 }
+
+export interface WidgetClientOptions {
+  requestTimeoutMs?: number;
+}
+
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 /**
  * Widget-side client for the MCP Apps host bridge. The ONLY sanctioned way for
@@ -39,7 +46,10 @@ export class WidgetClient {
   private context: HostContext | null = null;
   private disposed = false;
 
-  constructor(private readonly win: WidgetWindow = window as unknown as WidgetWindow) {
+  constructor(
+    private readonly win: WidgetWindow = window as unknown as WidgetWindow,
+    private readonly opts: WidgetClientOptions = {},
+  ) {
     this.listener = (ev) => this.handleMessage(ev.data);
     win.addEventListener('message', this.listener);
   }
@@ -77,6 +87,7 @@ export class WidgetClient {
     this.disposed = true;
     this.win.removeEventListener('message', this.listener);
     for (const p of this.pending.values()) {
+      clearTimeout(p.timer);
       p.reject(new Error('WidgetClient disposed'));
     }
     this.pending.clear();
@@ -90,7 +101,13 @@ export class WidgetClient {
       { jsonrpc: JSON_RPC_VERSION, id, method, ...(params !== undefined ? { params } : {}) },
       '*',
     );
-    return new Promise((resolve, reject) => this.pending.set(id, { resolve, reject }));
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`Request "${method}" timed out`));
+      }, this.opts.requestTimeoutMs ?? DEFAULT_TIMEOUT_MS);
+      this.pending.set(id, { resolve, reject, timer });
+    });
   }
 
   private handleMessage(raw: unknown): void {
@@ -101,6 +118,7 @@ export class WidgetClient {
       const pending = typeof id === 'string' ? this.pending.get(id) : undefined;
       if (!pending || typeof id !== 'string') return;
       this.pending.delete(id);
+      clearTimeout(pending.timer);
       if ('error' in parsed.message) {
         pending.reject(new ToolCallError(parsed.message.error.code, parsed.message.error.message));
       } else {
