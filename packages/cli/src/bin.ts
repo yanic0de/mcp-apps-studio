@@ -26,6 +26,7 @@ if (args[0] === 'add') {
 
 let port = 4400;
 let rootDir = process.cwd();
+let fixedToken: string | undefined;
 
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
@@ -33,6 +34,13 @@ for (let i = 0; i < args.length; i++) {
     port = Number(args[++i]);
     if (!Number.isInteger(port) || port <= 0) {
       console.error('Invalid --port value');
+      process.exit(1);
+    }
+  } else if (arg === '--token') {
+    // Explicit token for automation (e2e); default stays a fresh random token.
+    fixedToken = args[++i];
+    if (!fixedToken) {
+      console.error('Invalid --token value');
       process.exit(1);
     }
   } else if (arg && !arg.startsWith('-')) {
@@ -52,7 +60,7 @@ if (manifest.length === 0) {
   console.log(`No *.stories.mcp.ts found under ${rootDir} — studio will show the built-in demo widget.`);
 }
 
-const token = generateToken();
+const token = fixedToken ?? generateToken();
 const server = createStudioServer({ studioDist, manifest, token });
 
 // localhost only + one-time token in URL: a local dev tool is still an attack surface.

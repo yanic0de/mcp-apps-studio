@@ -3,3 +3,5 @@ dist/
 .turbo/
 *.log
 packages/components/dist/
+test-results/
+playwright-report/
