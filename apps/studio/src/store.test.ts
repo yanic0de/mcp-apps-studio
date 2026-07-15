@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { defaultHostContext, type WidgetManifestEntry } from '@studio/shared';
-import { useStudioStore } from './store.js';
+import { LOG_LIMIT, useStudioStore } from './store.js';
 
 const initial = useStudioStore.getState();
 
@@ -58,6 +58,17 @@ describe('studio store', () => {
   it('merges host context patches', () => {
     useStudioStore.getState().setHostContext({ theme: 'dark' });
     expect(useStudioStore.getState().hostContext).toMatchObject({ theme: 'dark', locale: 'en' });
+  });
+
+  it('caps the log at LOG_LIMIT entries, dropping the oldest', () => {
+    const { appendLog } = useStudioStore.getState();
+    for (let i = 0; i < LOG_LIMIT + 10; i++) {
+      appendLog({ ts: i, direction: 'widget→host', kind: 'request', payload: {} });
+    }
+    const log = useStudioStore.getState().log;
+    expect(log).toHaveLength(LOG_LIMIT);
+    expect(log[0]?.ts).toBe(10);
+    expect(log[log.length - 1]?.ts).toBe(LOG_LIMIT + 9);
   });
 
   it('appends and clears log', () => {

@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { defaultHostContext, type HostContext, type RpcLogEvent, type WidgetManifestEntry } from '@studio/shared';
 
+/** Chatty widgets must not grow the trace (and its re-renders) unbounded. */
+export const LOG_LIMIT = 500;
+
 function firstScenario(widget: WidgetManifestEntry | undefined): string {
   return Object.keys(widget?.scenarios ?? {})[0] ?? 'default';
 }
@@ -34,7 +37,7 @@ export const useStudioStore = create<StudioState>()((set) => ({
     }),
   setScenario: (scenario) => set({ scenario, log: [] }),
   setHostContext: (patch) => set((s) => ({ hostContext: { ...s.hostContext, ...patch } })),
-  appendLog: (ev) => set((s) => ({ log: [...s.log, ev] })),
+  appendLog: (ev) => set((s) => ({ log: [...s.log.slice(-(LOG_LIMIT - 1)), ev] })),
   clearLog: () => set({ log: [] }),
 }));
 
