@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { defaultHostContext, type HostContext, type MockConfig, type RpcLogEvent } from '@studio/shared';
 
-export type ScenarioId = 'default' | 'loading' | 'error';
+export type ScenarioId = 'default' | 'loading' | 'error' | 'live';
 
 export const scenarios: Record<ScenarioId, MockConfig> = {
   default: {
@@ -23,6 +23,8 @@ export const scenarios: Record<ScenarioId, MockConfig> = {
       error: { code: -32000, message: 'Metrics backend unavailable' },
     },
   },
+  // Live: no mocks — every tool call is proxied to the example server (passthrough).
+  live: {},
 };
 
 interface StudioState {

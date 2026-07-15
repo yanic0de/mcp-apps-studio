@@ -35,7 +35,11 @@ describe('studio store', () => {
   });
 
   it('defines mocks for all scenarios', () => {
-    expect(Object.keys(scenarios)).toEqual(['default', 'loading', 'error']);
+    expect(Object.keys(scenarios)).toEqual(['default', 'loading', 'error', 'live']);
     expect(scenarios.error['get_metrics']).toMatchObject({ kind: 'error' });
+  });
+
+  it('live scenario has no mocks — everything goes to passthrough', () => {
+    expect(scenarios.live).toEqual({});
   });
 });

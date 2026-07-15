@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@studio/host-emulator": "workspace:*",
     "@studio/shared": "workspace:*",
     "react": "^19.1.0",

@@ -101,6 +101,23 @@ body {
     0 0 / 24px 24px;
 }
 
+.canvas-note {
+  max-width: 420px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.canvas-note code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+}
+
 .viewport {
   background: transparent;
   border: 1px solid var(--line);

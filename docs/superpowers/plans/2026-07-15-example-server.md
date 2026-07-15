@@ -27,9 +27,9 @@
 **Interfaces:**
 - Produces: `createExampleServer(): McpServer`; `KPI_RESOURCE_URI = 'ui://example/kpi-card.html'`; HTTP entry `pnpm -F @studio/example-server dev` on :3100.
 
-- [ ] **Step 1: Skeleton + deps** — `pnpm -F @studio/example-server add @modelcontextprotocol/sdk @modelcontextprotocol/ext-apps zod express` + dev `tsx @types/express typescript`. Scripts: `dev: tsx src/main.ts`, `typecheck: tsc --noEmit`.
+- [x] **Step 1: Skeleton + deps** — `pnpm -F @studio/example-server add @modelcontextprotocol/sdk @modelcontextprotocol/ext-apps zod express` + dev `tsx @types/express typescript`. Scripts: `dev: tsx src/main.ts`, `typecheck: tsc --noEmit`.
 
-- [ ] **Step 2: Failing test** (`src/server.test.ts`)
+- [x] **Step 2: Failing test** (`src/server.test.ts`)
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -76,7 +76,7 @@ describe('example server', () => {
 });
 ```
 
-- [ ] **Step 3: verify FAIL** → **Step 4: implement**
+- [x] **Step 3: verify FAIL** → **Step 4: implement**
 
 `src/server.ts`:
 ```ts
@@ -177,9 +177,9 @@ app.listen(PORT, () => {
 
 `src/index.ts`: `export * from './server.js';`
 
-- [ ] **Step 5: tests PASS + typecheck** → **Step 6: HTTP smoke** — start `pnpm -F @studio/example-server dev` in background, `curl /health`, POST initialize JSON-RPC to `/mcp` (Accept: `application/json, text/event-stream`), expect serverInfo. Stop server.
+- [x] **Step 5: tests PASS + typecheck** → **Step 6: HTTP smoke** — start `pnpm -F @studio/example-server dev` in background, `curl /health`, POST initialize JSON-RPC to `/mcp` (Accept: `application/json, text/event-stream`), expect serverInfo. Stop server.
 
-- [ ] **Step 7: commit** `feat(example-server): reference MCP Apps server with get_metrics tool and ui:// resource`
+- [x] **Step 7: commit** `feat(example-server): reference MCP Apps server with get_metrics tool and ui:// resource`
 
 ---
 
@@ -193,9 +193,9 @@ app.listen(PORT, () => {
 - `ScenarioId` gains `'live'`; `scenarios.live = {}` (empty mocks → passthrough handles all).
 - `mcp-client.ts` produces: `connectExampleServer(url?): Promise<LiveConnection>` where `LiveConnection = { widgetHtml: string; callTool: PassthroughHandler; close(): Promise<void> }`.
 
-- [ ] **Step 1: store test first** — extend scenario-keys assertion to `['default', 'loading', 'error', 'live']`, add `it('live scenario has no mocks', ...)` expecting `scenarios.live` to equal `{}`. Verify FAIL, then update `store.ts` (`ScenarioId` union + `live: {}`).
+- [x] **Step 1: store test first** — extend scenario-keys assertion to `['default', 'loading', 'error', 'live']`, add `it('live scenario has no mocks', ...)` expecting `scenarios.live` to equal `{}`. Verify FAIL, then update `store.ts` (`ScenarioId` union + `live: {}`).
 
-- [ ] **Step 2: mcp-client** (`src/mcp-client.ts`)
+- [x] **Step 2: mcp-client** (`src/mcp-client.ts`)
 
 ```ts
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -239,11 +239,11 @@ export async function connectExampleServer(url: string = EXAMPLE_SERVER_URL): Pr
 }
 ```
 
-- [ ] **Step 3: Canvas live wiring** — second state `live: LiveConnection | null` + `liveError: string | null`; effect on `scenario === 'live'` connects (cleanup closes); emulator effect waits for connection, passes `passthrough: live.callTool` and `mocks: scenarios[scenario]`; srcdoc = `live.widgetHtml` in live mode, local demo otherwise; canvas shows "connecting…"/error placeholder instead of iframe while unavailable. HeaderControls gets `<option value="live">live (example-server)</option>`.
+- [x] **Step 3: Canvas live wiring** — second state `live: LiveConnection | null` + `liveError: string | null`; effect on `scenario === 'live'` connects (cleanup closes); emulator effect waits for connection, passes `passthrough: live.callTool` and `mocks: scenarios[scenario]`; srcdoc = `live.widgetHtml` in live mode, local demo otherwise; canvas shows "connecting…"/error placeholder instead of iframe while unavailable. HeaderControls gets `<option value="live">live (example-server)</option>`.
 
-- [ ] **Step 4: verify** — `pnpm test && pnpm typecheck && pnpm -F @studio/app build`; e2e smoke: example-server up, studio dev up, curl both; manual click-through reported to user.
+- [x] **Step 4: verify** — `pnpm test && pnpm typecheck && pnpm -F @studio/app build`; e2e smoke: example-server up, studio dev up, curl both; manual click-through reported to user.
 
-- [ ] **Step 5: commit** `feat(studio): live scenario — widget and tools served by example-server via MCP client`
+- [x] **Step 5: commit** `feat(studio): live scenario — widget and tools served by example-server via MCP client`
 
 ## Self-Review Notes
 

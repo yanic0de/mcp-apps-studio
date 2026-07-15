@@ -15,6 +15,7 @@ export function HeaderControls() {
           <option value="default">default</option>
           <option value="loading">loading</option>
           <option value="error">error</option>
+          <option value="live">live (example-server)</option>
         </select>
       </label>
       <label className="control">
