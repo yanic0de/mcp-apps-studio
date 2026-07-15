@@ -19,7 +19,13 @@ export interface LiveConnection {
 
 export async function connectMcpServer(url: string = liveServerUrl()): Promise<LiveConnection> {
   const client = new Client({ name: 'mcp-apps-studio', version: '0.1.0' });
-  await client.connect(new StreamableHTTPClientTransport(new URL(url)));
+  try {
+    await client.connect(new StreamableHTTPClientTransport(new URL(url)));
+  } catch (err) {
+    await client.close().catch(() => {});
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new Error(`${url} — ${reason}`);
+  }
 
   try {
     const list = await client.listResources();
