@@ -15,7 +15,8 @@ pnpm vitest run packages/shared/src/json-rpc.test.ts -t 'classifies'  # single t
 pnpm typecheck                             # tsc --noEmit per package via turbo
 pnpm -F @studio/app dev                    # studio dev server (Vite), demo widget fallback
 pnpm -F @studio/app build                  # studio production build
-pnpm -F @studio/example-server dev         # reference MCP server on :3100 (live scenario)
+pnpm -F @studio/example-server dev         # reference MCP server on :3100 (live scenario default)
+pnpm -F @studio/test-server dev            # test polygon MCP server on :3200 (echo/slow/fail/rows/counter + inspector widget)
 pnpm -F mcp-apps-studio start [dir]        # CLI: serve built studio + discovered widgets (needs app build first)
 pnpm -F @studio/components build           # bundle library widgets to dist/<name>.html (needed by their stories)
 pnpm -F mcp-apps-studio start add <name>   # copy a registry component into a project (shadcn model)
@@ -39,7 +40,8 @@ Layering (dependencies point down, never up):
   - `IframeTransport` — the DOM edge. Sandboxed widgets have a null origin, so `event.source === iframe.contentWindow` is the ONLY trust signal; never weaken this check or add `allow-same-origin`.
 - `packages/shared` — zod schemas + types + protocol constants. `protocol.ts` is the single source of truth for SEP-1865 wire method names; when the spec evolves, change it there only.
 - `packages/cli` (`mcp-apps-studio`) — walks a user project for `*.stories.mcp.ts` (story = default-exported config; `defineWidgetStory` is a typed identity), transpiles each story with esbuild and imports a temp `.mjs` written NEXT to the story (so its imports resolve from the user's project), serves the built studio over `node:http` with `/api/manifest`. Binds 127.0.0.1 ONLY; every request needs the one-time token (query once → HttpOnly cookie), compared timing-safe — do not weaken (MCPJam Inspector RCE lesson).
-- `packages/example-server` (`@studio/example-server`) — reference MCP Apps server on the public SDKs, intentionally free of workspace deps (living documentation). Studio's `live` scenario reads its `ui://` widget and proxies tool calls to it via the MockRouter passthrough hook.
+- `packages/example-server` (`@studio/example-server`) — reference MCP Apps server on the public SDKs, intentionally free of workspace deps (living documentation). Studio's `live` scenario connects to ANY MCP server: URL from the `?server=` query param (default :3100), widget discovered via `resources/list` by mime `text/html;profile=mcp-app`, tool calls proxied via the MockRouter passthrough hook.
+- `packages/test-server` (`@studio/test-server`) — test polygon (also workspace-dep-free): one tool per emulator behavior (`echo`, `slow_metrics`, `fail` → isError, `get_rows` pagination, `counter` module-level state surviving stateless per-request instances) + vanilla "Protocol Inspector" widget with a button per tool. Use with `?server=http://localhost:3200/mcp`.
 - `packages/widget-runtime` (`@studio/widget-runtime`) — the ONLY sanctioned widget↔host channel: `WidgetClient` (duck-typed `WidgetWindow`, node-testable), `applyHostContextToDocument`, React hooks under the `./react` subpath (main entry must stay react-free for vanilla widgets).
 - `packages/components` (`@studio/components`) — source-distributed library (shadcn model). Component contract: theming only via `--widget-*` CSS variables (+ `[data-theme='dark']`), a text-only fallback function per component, a `*.stories.mcp.ts` with default/loading|empty/error scenarios, no direct `window.parent`. `build.mjs` bundles each widget to a self-contained `dist/<name>.html` (vite + singlefile, target es2022 — entries use top-level await); stories point at dist, so build before serving the library in the studio. `registry.json` is the static index consumed by `mcp-apps-studio add`.
 
