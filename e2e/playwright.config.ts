@@ -30,6 +30,12 @@ export default defineConfig({
       cwd: repoRoot,
     },
     {
+      command: 'pnpm -F @studio/test-server dev',
+      url: 'http://127.0.0.1:3200/health',
+      reuseExistingServer: true,
+      cwd: repoRoot,
+    },
+    {
       // pnpm -F runs the script with cwd = packages/cli, hence the relative path.
       command: `pnpm -F @studio/app build && pnpm -F @studio/components build && pnpm -F mcp-apps-studio start --port 4499 --token ${CLI_TOKEN} ../components`,
       url: `${CLI_URL}/?token=${CLI_TOKEN}`,
