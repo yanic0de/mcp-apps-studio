@@ -1,0 +1,23 @@
+{
+  "name": "mcp-apps-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "tsx src/bin.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@studio/app": "workspace:*",
+    "@studio/shared": "workspace:*",
+    "esbuild": "^0.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "tsx": "^4.23.1",
+    "typescript": "~5.8.0"
+  }
+}
