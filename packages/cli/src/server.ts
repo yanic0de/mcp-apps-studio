@@ -82,7 +82,14 @@ export function createStudioServer(opts: StudioServerOptions): http.Server {
       return;
     }
     if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-      filePath = path.join(distRoot, 'index.html'); // SPA fallback
+      // A missing asset (known extension) is a real 404; SPA fallback would
+      // serve index.html and surface as a confusing MIME error in the browser.
+      if (MIME[path.extname(filePath)]) {
+        res.writeHead(404, { 'content-type': 'text/plain' });
+        res.end('Not Found');
+        return;
+      }
+      filePath = path.join(distRoot, 'index.html'); // SPA fallback for client routes
     }
     res.writeHead(200, { 'content-type': MIME[path.extname(filePath)] ?? 'application/octet-stream' });
     fs.createReadStream(filePath).pipe(res);

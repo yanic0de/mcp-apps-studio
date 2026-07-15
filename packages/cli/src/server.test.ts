@@ -94,6 +94,13 @@ describe('createStudioServer', () => {
     expect(await spa.text()).toContain('studio');
   });
 
+  it('answers 404 for a missing asset instead of the SPA fallback', async () => {
+    await start();
+    const headers = { cookie: `mcp_studio_token=${TOKEN}` };
+    const res = await fetch(`${base}/assets/typo.js`, { headers });
+    expect(res.status).toBe(404);
+  });
+
   it('answers 400 to a malformed percent-encoded path instead of crashing', async () => {
     await start();
     const headers = { cookie: `mcp_studio_token=${TOKEN}` };
