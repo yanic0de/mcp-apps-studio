@@ -13,8 +13,10 @@ pnpm test                                  # all tests (vitest, single root conf
 pnpm vitest run packages/host-emulator     # tests for one package/dir
 pnpm vitest run packages/shared/src/json-rpc.test.ts -t 'classifies'  # single test
 pnpm typecheck                             # tsc --noEmit per package via turbo
-pnpm -F @studio/app dev                    # studio dev server (Vite)
+pnpm -F @studio/app dev                    # studio dev server (Vite), demo widget fallback
 pnpm -F @studio/app build                  # studio production build
+pnpm -F @studio/example-server dev         # reference MCP server on :3100 (live scenario)
+pnpm -F mcp-apps-studio start [dir]        # CLI: serve built studio + discovered widgets (needs app build first)
 ```
 
 Tests run in node (no jsdom): DOM-facing code is written against duck-typed interfaces (see `IframeTransport`) and tested with fakes. Test files sit next to source (`src/*.test.ts`), picked up by the root `vitest.config.ts`.
@@ -33,6 +35,8 @@ Layering (dependencies point down, never up):
   - `HostEmulator` — composes bridge + adapter + mocks + resources; the only stateful orchestrator.
   - `IframeTransport` — the DOM edge. Sandboxed widgets have a null origin, so `event.source === iframe.contentWindow` is the ONLY trust signal; never weaken this check or add `allow-same-origin`.
 - `packages/shared` — zod schemas + types + protocol constants. `protocol.ts` is the single source of truth for SEP-1865 wire method names; when the spec evolves, change it there only.
+- `packages/cli` (`mcp-apps-studio`) — walks a user project for `*.stories.mcp.ts` (story = default-exported config; `defineWidgetStory` is a typed identity), transpiles each story with esbuild and imports a temp `.mjs` written NEXT to the story (so its imports resolve from the user's project), serves the built studio over `node:http` with `/api/manifest`. Binds 127.0.0.1 ONLY; every request needs the one-time token (query once → HttpOnly cookie), compared timing-safe — do not weaken (MCPJam Inspector RCE lesson).
+- `packages/example-server` (`@studio/example-server`) — reference MCP Apps server on the public SDKs, intentionally free of workspace deps (living documentation). Studio's `live` scenario reads its `ui://` widget and proxies tool calls to it via the MockRouter passthrough hook.
 
 ## Constraints that are easy to violate
 
@@ -43,4 +47,4 @@ Layering (dependencies point down, never up):
 
 ## Workflow
 
-Implementation plans live in `docs/superpowers/plans/` (checkbox format, one per phase). TDD per task: failing test → implement → commit. Roadmap order: example-server (TS SDK + ext-apps, `ui://` resources, mock passthrough) → CLI → component library/registry.
+Implementation plans live in `docs/superpowers/plans/` (checkbox format, one per phase). TDD per task: failing test → implement → commit. Done: example-server, CLI. Next: component library/registry (shadcn model, `@studio/widget-runtime`).
