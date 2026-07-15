@@ -44,7 +44,7 @@ describe('WidgetClient', () => {
     const p = client.callTool('get_metrics');
     reply({ jsonrpc: '2.0', id: sent[0].id, error: { code: -32000, message: 'boom' } });
     await expect(p).rejects.toBeInstanceOf(ToolCallError);
-    await expect(client.callTool('x').catch((e) => e)).resolves.toBeDefined();
+    await expect(p.catch((e: ToolCallError) => e.code)).resolves.toBe(-32000);
   });
 
   it('merges host-context-changed patches and notifies listeners', async () => {
