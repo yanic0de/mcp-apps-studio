@@ -125,6 +125,22 @@ importers:
         specifier: ~5.8.0
         version: 5.8.3
 
+  packages/widget-runtime:
+    dependencies:
+      '@studio/shared':
+        specifier: workspace:*
+        version: link:../shared
+      react:
+        specifier: ^19.1.0
+        version: 19.2.7
+    devDependencies:
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.2.17
+      typescript:
+        specifier: ~5.8.0
+        version: 5.8.3
+
 packages:
 
   '@babel/code-frame@7.29.7':
