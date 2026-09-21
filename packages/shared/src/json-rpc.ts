@@ -52,7 +52,9 @@ export type ParsedJsonRpc =
 
 /** Human-readable zod issues: `path: message; path: message`. */
 export function formatZodIssues(error: z.ZodError): string {
-  return error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
+  return error.issues
+    .map((i) => (i.path.length ? `${i.path.join('.')}: ${i.message}` : i.message))
+    .join('; ');
 }
 
 export function parseJsonRpcMessage(raw: unknown): ParsedJsonRpc {

@@ -61,3 +61,18 @@ describe('discoverStories', () => {
     expect(names.filter((n) => n.endsWith('.mjs'))).toEqual([]);
   });
 });
+
+describe('discoverStories validation', () => {
+  it('rejects a mock with a misspelled kind, naming file and path', async () => {
+    await fs.writeFile(
+      path.join(fixture, 'src', 'typo.stories.mcp.ts'),
+      `export default { title: 'T', widget: './widget.html', scenarios: { default: { mocks: { get_data: { kind: 'statik', result: 1 } } } } };`,
+    );
+    await expect(discoverStories(fixture)).rejects.toThrow(/typo\.stories\.mcp\.ts.*scenarios\.default\.mocks\.get_data\.kind/s);
+  });
+
+  it('rejects a story missing required fields, naming them', async () => {
+    await fs.writeFile(path.join(fixture, 'src', 'partial.stories.mcp.ts'), `export default { title: 'T' };`);
+    await expect(discoverStories(fixture)).rejects.toThrow(/widget.*scenarios|scenarios.*widget/s);
+  });
+});

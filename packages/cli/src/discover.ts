@@ -3,8 +3,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { transform } from 'esbuild';
-import type { WidgetManifestEntry } from '@studio/shared';
-import type { WidgetStoryConfig } from './define.js';
+import { formatZodIssues, type WidgetManifestEntry } from '@studio/shared';
+import { widgetStoryConfigSchema, type WidgetStoryConfig } from './define.js';
 
 const STORY_SUFFIX = '.stories.mcp.ts';
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build']);
@@ -34,18 +34,14 @@ async function loadStoryConfig(file: string): Promise<WidgetStoryConfig> {
   await fs.writeFile(tmp, code, 'utf8');
   try {
     const mod = (await import(pathToFileURL(tmp).href)) as { default?: unknown };
-    const config = mod.default as WidgetStoryConfig | undefined;
-    if (
-      !config ||
-      typeof config !== 'object' ||
-      typeof config.title !== 'string' ||
-      typeof config.widget !== 'string' ||
-      typeof config.scenarios !== 'object' ||
-      config.scenarios === null
-    ) {
-      throw new Error(`Invalid story config in ${file}: expected default export { title, widget, scenarios }`);
+    if (mod.default === undefined) {
+      throw new Error(`Invalid story config in ${file}: expected a default export ({ title, widget, scenarios })`);
     }
-    return config;
+    const parsed = widgetStoryConfigSchema.safeParse(mod.default);
+    if (!parsed.success) {
+      throw new Error(`Invalid story config in ${file}: ${formatZodIssues(parsed.error)}`);
+    }
+    return parsed.data;
   } finally {
     await fs.rm(tmp, { force: true });
   }
