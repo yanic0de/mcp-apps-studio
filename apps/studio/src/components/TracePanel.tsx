@@ -17,12 +17,14 @@ export function TracePanel() {
     <aside className="trace">
       <div className="trace-head">
         <span>RPC trace · {log.length}</span>
-        <button onClick={clearLog}>Clear</button>
+        <button type="button" onClick={clearLog}>
+          Clear
+        </button>
       </div>
       <div className="trace-list">
         {log.length === 0 && <p className="trace-empty">No traffic yet. The widget talks as soon as it loads.</p>}
-        {log.map((ev, i) => (
-          <details key={i} className={`trace-row${ev.kind === 'invalid' ? ' invalid' : ''}`}>
+        {log.map((ev) => (
+          <details key={ev.seq} className={`trace-row${ev.kind === 'invalid' ? ' invalid' : ''}`}>
             <summary>
               <span className={`dir ${ev.direction === 'widget→host' ? 'to-host' : 'to-widget'}`}>
                 {DIR_GLYPH[ev.direction]}

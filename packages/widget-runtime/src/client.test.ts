@@ -1,6 +1,5 @@
+import { type HostContext, MCP_APPS_METHODS, RpcError } from '@studio/shared';
 import { describe, expect, it, vi } from 'vitest';
-import { MCP_APPS_METHODS, type HostContext } from '@studio/shared';
-import { RpcError } from '@studio/shared';
 import { WidgetClient, type WidgetWindow } from './client.js';
 
 const ctx: HostContext = { theme: 'dark', locale: 'en', displayMode: 'inline' };
@@ -34,7 +33,10 @@ describe('WidgetClient', () => {
     const { win, sent, reply } = fakeEnv();
     const client = new WidgetClient(win);
     const p = client.callTool('get_metrics', { q: 1 });
-    expect(sent[0]).toMatchObject({ method: MCP_APPS_METHODS.toolsCall, params: { name: 'get_metrics', arguments: { q: 1 } } });
+    expect(sent[0]).toMatchObject({
+      method: MCP_APPS_METHODS.toolsCall,
+      params: { name: 'get_metrics', arguments: { q: 1 } },
+    });
     reply({ jsonrpc: '2.0', id: sent[0].id, result: { value: 1 } });
     await expect(p).resolves.toEqual({ value: 1 });
   });

@@ -1,12 +1,12 @@
 import {
   ERROR_CODES,
   JSON_RPC_VERSION,
-  RequestTracker,
-  RpcError,
-  parseJsonRpcMessage,
   type JsonRpcNotification,
   type JsonRpcRequest,
   type JsonRpcResponse,
+  parseJsonRpcMessage,
+  RequestTracker,
+  RpcError,
   type RpcLogEvent,
 } from '@studio/shared';
 import type { Transport } from './transport.js';
@@ -74,7 +74,12 @@ export class MessageBridge {
       case 'request':
         return this.handleRequest(parsed.message);
       case 'notification':
-        this.log({ direction: 'widget→host', kind: 'notification', method: parsed.message.method, payload: parsed.message });
+        this.log({
+          direction: 'widget→host',
+          kind: 'notification',
+          method: parsed.message.method,
+          payload: parsed.message,
+        });
         this.opts.onNotification?.(parsed.message);
         return;
       case 'response':
@@ -90,11 +95,17 @@ export class MessageBridge {
       response = { jsonrpc: JSON_RPC_VERSION, id: req.id, result };
     } catch (err) {
       const rpcErr =
-        err instanceof RpcError ? err : new RpcError(ERROR_CODES.INTERNAL_ERROR, err instanceof Error ? err.message : String(err));
+        err instanceof RpcError
+          ? err
+          : new RpcError(ERROR_CODES.INTERNAL_ERROR, err instanceof Error ? err.message : String(err));
       response = {
         jsonrpc: JSON_RPC_VERSION,
         id: req.id,
-        error: { code: rpcErr.code, message: rpcErr.message, ...(rpcErr.data !== undefined ? { data: rpcErr.data } : {}) },
+        error: {
+          code: rpcErr.code,
+          message: rpcErr.message,
+          ...(rpcErr.data !== undefined ? { data: rpcErr.data } : {}),
+        },
       };
     }
     if (!this.unsubscribe) return; // stopped while handling
@@ -104,7 +115,12 @@ export class MessageBridge {
 
   private handleResponse(msg: JsonRpcResponse): void {
     if (!this.tracker.settle(msg)) {
-      this.log({ direction: 'widget→host', kind: 'invalid', payload: msg, error: `unexpected response id: ${String(msg.id)}` });
+      this.log({
+        direction: 'widget→host',
+        kind: 'invalid',
+        payload: msg,
+        error: `unexpected response id: ${String(msg.id)}`,
+      });
       return;
     }
     this.log({ direction: 'widget→host', kind: 'response', id: msg.id ?? undefined, payload: msg });

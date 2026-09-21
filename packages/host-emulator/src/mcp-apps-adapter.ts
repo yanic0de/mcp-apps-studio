@@ -1,17 +1,17 @@
-import type { ZodType } from 'zod';
 import {
+  formatZodIssues,
+  type HostContext,
   JSON_RPC_VERSION,
+  type JsonRpcNotification,
+  type JsonRpcRequest,
   MCP_APPS_METHODS,
   MCP_APPS_PROTOCOL_VERSION,
-  formatZodIssues,
   resourcesReadParamsSchema,
   sizeChangedParamsSchema,
   toolsCallParamsSchema,
-  type HostContext,
-  type JsonRpcNotification,
-  type JsonRpcRequest,
   type WidgetSource,
 } from '@studio/shared';
+import type { ZodType } from 'zod';
 import type { AdapterAction, HostAdapter, HostCapabilities, HostEvent, IframeEnv } from './adapter.js';
 
 type WireMessage = JsonRpcRequest | JsonRpcNotification;
@@ -39,7 +39,11 @@ export class McpAppsAdapter implements HostAdapter {
       case MCP_APPS_METHODS.uiInitialize:
         return { type: 'initialize' };
       case MCP_APPS_METHODS.toolsCall:
-        return withParams(msg, toolsCallParamsSchema, (p) => ({ type: 'tool-call', toolName: p.name, args: p.arguments }));
+        return withParams(msg, toolsCallParamsSchema, (p) => ({
+          type: 'tool-call',
+          toolName: p.name,
+          args: p.arguments,
+        }));
       case MCP_APPS_METHODS.resourcesRead:
         return withParams(msg, resourcesReadParamsSchema, (p) => ({ type: 'resource-read', uri: p.uri }));
       case MCP_APPS_METHODS.sizeChanged:

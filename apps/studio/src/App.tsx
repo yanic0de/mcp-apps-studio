@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import type { WidgetManifestEntry } from '@studio/shared';
+import { useEffect } from 'react';
 import { Canvas } from './components/Canvas.js';
 import { HeaderControls } from './components/HeaderControls.js';
 import { TracePanel } from './components/TracePanel.js';

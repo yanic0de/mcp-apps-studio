@@ -1,4 +1,4 @@
-import { McpAppsAdapter, type HostAdapter } from '@studio/host-emulator';
+import { type HostAdapter, McpAppsAdapter } from '@studio/host-emulator';
 
 /**
  * The one adapter the studio speaks. Everything protocol-specific (iframe env,

@@ -13,7 +13,7 @@ export function applyHostContextToDocument(
   doc: ThemableDocument = document as unknown as ThemableDocument,
 ): void {
   if (ctx.theme) {
-    doc.documentElement.dataset['theme'] = ctx.theme;
+    doc.documentElement.dataset.theme = ctx.theme;
   }
   const variables = ctx.styles?.variables;
   if (variables) {

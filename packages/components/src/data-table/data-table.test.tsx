@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { renderToString } from 'react-dom/server';
 import { WidgetClient, type WidgetWindow } from '@studio/widget-runtime';
 import { WidgetProvider } from '@studio/widget-runtime/react';
+import { renderToString } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
 import { DataTable } from './DataTable.js';
 import { dataTableTextFallback } from './fallback.js';
 

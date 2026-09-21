@@ -1,5 +1,5 @@
+import { defaultHostContext, MCP_APPS_METHODS, MCP_APPS_PROTOCOL_VERSION } from '@studio/shared';
 import { describe, expect, it } from 'vitest';
-import { MCP_APPS_METHODS, MCP_APPS_PROTOCOL_VERSION, defaultHostContext } from '@studio/shared';
 import { McpAppsAdapter } from './mcp-apps-adapter.js';
 
 const adapter = new McpAppsAdapter();
@@ -13,7 +13,9 @@ describe('McpAppsAdapter.handleWidgetMessage', () => {
   });
 
   it('maps tools/call to tool-call action', () => {
-    expect(adapter.handleWidgetMessage(req(2, MCP_APPS_METHODS.toolsCall, { name: 'get_metrics', arguments: { q: 1 } }))).toEqual({
+    expect(
+      adapter.handleWidgetMessage(req(2, MCP_APPS_METHODS.toolsCall, { name: 'get_metrics', arguments: { q: 1 } })),
+    ).toEqual({
       type: 'tool-call',
       toolName: 'get_metrics',
       args: { q: 1 },
@@ -35,7 +37,11 @@ describe('McpAppsAdapter.handleWidgetMessage', () => {
 
   it('maps size-changed notification', () => {
     expect(
-      adapter.handleWidgetMessage({ jsonrpc: '2.0', method: MCP_APPS_METHODS.sizeChanged, params: { width: 300, height: 200 } }),
+      adapter.handleWidgetMessage({
+        jsonrpc: '2.0',
+        method: MCP_APPS_METHODS.sizeChanged,
+        params: { width: 300, height: 200 },
+      }),
     ).toEqual({ type: 'size-changed', width: 300, height: 200 });
   });
 

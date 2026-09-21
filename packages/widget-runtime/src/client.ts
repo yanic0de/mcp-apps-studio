@@ -1,12 +1,12 @@
 import {
   ERROR_CODES,
+  type HostContext,
   JSON_RPC_VERSION,
   MCP_APPS_METHODS,
   MCP_APPS_PROTOCOL_VERSION,
+  parseJsonRpcMessage,
   RequestTracker,
   RpcError,
-  parseJsonRpcMessage,
-  type HostContext,
 } from '@studio/shared';
 
 export interface WidgetWindow {

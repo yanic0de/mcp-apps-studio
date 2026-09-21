@@ -42,7 +42,10 @@ export function HeaderControls() {
       </label>
       <label className="control">
         Theme
-        <select value={hostContext.theme} onChange={(e) => setHostContext({ theme: themeSchema.parse(e.target.value) })}>
+        <select
+          value={hostContext.theme}
+          onChange={(e) => setHostContext({ theme: themeSchema.parse(e.target.value) })}
+        >
           {themeSchema.options.map((theme) => (
             <option key={theme} value={theme}>
               {theme}

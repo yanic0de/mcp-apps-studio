@@ -1,8 +1,15 @@
-import { create } from 'zustand';
 import { defaultHostContext, type HostContext, type RpcLogEvent, type WidgetManifestEntry } from '@studio/shared';
+import { create } from 'zustand';
 
 /** Chatty widgets must not grow the trace (and its re-renders) unbounded. */
 export const LOG_LIMIT = 500;
+
+/** A logged event plus a monotonic seq: the React key that stays stable while the capped log slides. */
+export interface TraceEntry extends RpcLogEvent {
+  seq: number;
+}
+
+let nextSeq = 0;
 
 function firstScenario(widget: WidgetManifestEntry | undefined): string {
   return Object.keys(widget?.scenarios ?? {})[0] ?? 'default';
@@ -13,7 +20,7 @@ interface StudioState {
   activeWidgetId: string | null;
   scenario: string;
   hostContext: HostContext;
-  log: RpcLogEvent[];
+  log: TraceEntry[];
   setWidgets: (widgets: WidgetManifestEntry[]) => void;
   setActiveWidget: (id: string) => void;
   setScenario: (scenario: string) => void;
@@ -37,7 +44,10 @@ export const useStudioStore = create<StudioState>()((set) => ({
     }),
   setScenario: (scenario) => set({ scenario, log: [] }),
   setHostContext: (patch) => set((s) => ({ hostContext: { ...s.hostContext, ...patch } })),
-  appendLog: (ev) => set((s) => ({ log: [...s.log.slice(-(LOG_LIMIT - 1)), ev] })),
+  appendLog: (ev) => {
+    const entry: TraceEntry = { ...ev, seq: ++nextSeq };
+    set((s) => ({ log: [...s.log.slice(-(LOG_LIMIT - 1)), entry] }));
+  },
   clearLog: () => set({ log: [] }),
 }));
 

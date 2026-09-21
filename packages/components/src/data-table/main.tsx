@@ -1,7 +1,7 @@
+import { applyHostContextToDocument, WidgetClient } from '@studio/widget-runtime';
+import { WidgetProvider } from '@studio/widget-runtime/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { WidgetClient, applyHostContextToDocument } from '@studio/widget-runtime';
-import { WidgetProvider } from '@studio/widget-runtime/react';
 import { DataTable } from './DataTable.js';
 import './data-table.css';
 

@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
 import { defaultHostContext, type WidgetManifestEntry } from '@studio/shared';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { LOG_LIMIT, useStudioStore } from './store.js';
 
 const initial = useStudioStore.getState();
@@ -11,7 +11,10 @@ const widgets: WidgetManifestEntry[] = [
     id: 'kpi',
     title: 'KPI Card',
     html: '<html>kpi</html>',
-    scenarios: { default: { mocks: {} }, error: { mocks: { t: { kind: 'error', error: { code: -1, message: 'x' } } } } },
+    scenarios: {
+      default: { mocks: {} },
+      error: { mocks: { t: { kind: 'error', error: { code: -1, message: 'x' } } } },
+    },
   },
   {
     id: 'table',
@@ -69,6 +72,17 @@ describe('studio store', () => {
     expect(log).toHaveLength(LOG_LIMIT);
     expect(log[0]?.ts).toBe(10);
     expect(log[log.length - 1]?.ts).toBe(LOG_LIMIT + 9);
+  });
+
+  it('gives every entry a unique seq that survives trimming', () => {
+    const { appendLog } = useStudioStore.getState();
+    for (let i = 0; i < LOG_LIMIT; i++) appendLog({ ts: i, direction: 'widget→host', kind: 'request', payload: {} });
+    const survivor = useStudioStore.getState().log[LOG_LIMIT - 1]!;
+    for (let i = 0; i < 10; i++) appendLog({ ts: -1, direction: 'widget→host', kind: 'request', payload: {} });
+    const log = useStudioStore.getState().log;
+    expect(new Set(log.map((e) => e.seq)).size).toBe(LOG_LIMIT);
+    expect(log.find((e) => e.ts === LOG_LIMIT - 1)?.seq).toBe(survivor.seq);
+    expect(log.every((e, i) => i === 0 || e.seq > log[i - 1]!.seq)).toBe(true);
   });
 
   it('appends and clears log', () => {

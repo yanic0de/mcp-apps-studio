@@ -6,7 +6,11 @@ function fakeDoc() {
   const doc: ThemableDocument = {
     documentElement: {
       dataset: {},
-      style: { setProperty: (k, v) => void (props[k] = v) },
+      style: {
+        setProperty: (k, v) => {
+          props[k] = v;
+        },
+      },
     },
   };
   return { doc, props };
@@ -15,17 +19,14 @@ function fakeDoc() {
 describe('applyHostContextToDocument', () => {
   it('sets data-theme and CSS variables', () => {
     const { doc, props } = fakeDoc();
-    applyHostContextToDocument(
-      { theme: 'dark', styles: { variables: { '--color-bg': '#111' } } },
-      doc,
-    );
-    expect(doc.documentElement.dataset['theme']).toBe('dark');
+    applyHostContextToDocument({ theme: 'dark', styles: { variables: { '--color-bg': '#111' } } }, doc);
+    expect(doc.documentElement.dataset.theme).toBe('dark');
     expect(props['--color-bg']).toBe('#111');
   });
 
   it('tolerates partial context', () => {
     const { doc } = fakeDoc();
     expect(() => applyHostContextToDocument({}, doc)).not.toThrow();
-    expect(doc.documentElement.dataset['theme']).toBeUndefined();
+    expect(doc.documentElement.dataset.theme).toBeUndefined();
   });
 });

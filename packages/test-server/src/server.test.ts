@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { INSPECTOR_RESOURCE_URI, TOTAL_ROWS, createTestServer } from './server.js';
+import { describe, expect, it } from 'vitest';
+import { createTestServer, INSPECTOR_RESOURCE_URI, TOTAL_ROWS } from './server.js';
 
 async function connect() {
   const server = createTestServer();
@@ -18,7 +18,7 @@ describe('test server', () => {
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual(['counter', 'echo', 'fail', 'get_rows', 'slow_metrics']);
     for (const tool of tools) {
-      expect(tool._meta?.['ui']).toMatchObject({ resourceUri: INSPECTOR_RESOURCE_URI });
+      expect(tool._meta?.ui).toMatchObject({ resourceUri: INSPECTOR_RESOURCE_URI });
     }
   });
 
@@ -48,7 +48,9 @@ describe('test server', () => {
 
   it('counter keeps module-level state across calls', async () => {
     const client = await connect();
-    const first = (await client.callTool({ name: 'counter', arguments: { by: 2 } })).structuredContent as { count: number };
+    const first = (await client.callTool({ name: 'counter', arguments: { by: 2 } })).structuredContent as {
+      count: number;
+    };
     const second = (await client.callTool({ name: 'counter', arguments: {} })).structuredContent as { count: number };
     expect(second.count).toBe(first.count + 1);
   });

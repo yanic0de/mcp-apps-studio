@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ERROR_CODES } from '@studio/shared';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MockRouter } from './mock-router.js';
 
 afterEach(() => vi.useRealTimers());

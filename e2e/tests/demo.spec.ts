@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const widgetFrame = (page: import('@playwright/test').Page) =>
-  page.frameLocator('iframe[title="widget under test"]');
+const widgetFrame = (page: import('@playwright/test').Page) => page.frameLocator('iframe[title="widget under test"]');
 
 test('demo widget completes the handshake and renders mocked metrics', async ({ page }) => {
   await page.goto('/');
@@ -28,9 +27,7 @@ test('theme switch pushes host-context-changed into the sandboxed iframe', async
   await expect(frame.locator('body')).not.toHaveClass(/dark/);
   await page.getByLabel('Theme').selectOption('dark');
   await expect(frame.locator('body')).toHaveClass(/dark/);
-  await expect(
-    page.locator('.trace-row').filter({ hasText: 'host-context-changed' }).first(),
-  ).toBeVisible();
+  await expect(page.locator('.trace-row').filter({ hasText: 'host-context-changed' }).first()).toBeVisible();
 });
 
 test('trace rows expand to JSON payloads and clear resets the log', async ({ page }) => {

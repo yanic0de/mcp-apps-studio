@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { ERROR_CODES, MCP_APPS_METHODS, MCP_APPS_PROTOCOL_VERSION, type RpcLogEvent } from '@studio/shared';
+import { describe, expect, it } from 'vitest';
 import { HostEmulator, type HostEmulatorOptions } from './host-emulator.js';
 import { McpAppsAdapter } from './mcp-apps-adapter.js';
 import { createInMemoryTransportPair, type Transport } from './transport.js';
@@ -63,7 +63,9 @@ describe('HostEmulator', () => {
   });
 
   it('returns JSON-RPC error for error mock', async () => {
-    const { widget } = setup({ mocks: { get_metrics: { kind: 'error', error: { code: -32000, message: 'db down' } } } });
+    const { widget } = setup({
+      mocks: { get_metrics: { kind: 'error', error: { code: -32000, message: 'db down' } } },
+    });
     const resp = await widget.request(MCP_APPS_METHODS.toolsCall, { name: 'get_metrics' });
     expect(resp.error).toMatchObject({ code: -32000, message: 'db down' });
   });

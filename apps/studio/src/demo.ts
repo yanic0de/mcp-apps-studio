@@ -1,6 +1,6 @@
-import type { WidgetManifestEntry } from '@studio/shared';
 // Single source: the reference vanilla widget shipped by the example server.
 import widgetHtml from '@studio/example-server/kpi-card.html?raw';
+import type { WidgetManifestEntry } from '@studio/shared';
 
 /** Built-in fallback widget: used when no CLI manifest is served (plain `vite dev`). */
 export const demoWidget: WidgetManifestEntry = {

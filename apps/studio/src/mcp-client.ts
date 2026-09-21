@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { ERROR_CODES, MCP_APPS_RESOURCE_MIME, RpcError } from '@studio/shared';
 import type { PassthroughHandler } from '@studio/host-emulator';
+import { ERROR_CODES, MCP_APPS_RESOURCE_MIME, RpcError } from '@studio/shared';
 
 export const DEFAULT_SERVER_URL = 'http://localhost:3100/mcp';
 

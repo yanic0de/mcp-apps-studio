@@ -11,9 +11,7 @@ export const hostContextSchema = z.object({
       css: z.object({ fonts: z.string().optional() }).optional(),
     })
     .optional(),
-  safeAreaInsets: z
-    .object({ top: z.number(), right: z.number(), bottom: z.number(), left: z.number() })
-    .optional(),
+  safeAreaInsets: z.object({ top: z.number(), right: z.number(), bottom: z.number(), left: z.number() }).optional(),
 });
 export type HostContext = z.infer<typeof hostContextSchema>;
 

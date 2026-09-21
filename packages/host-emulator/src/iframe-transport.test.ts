@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { IframeTransport, type IframeLike, type ListeningWindow } from './iframe-transport.js';
+import { type IframeLike, IframeTransport, type ListeningWindow } from './iframe-transport.js';
 
 function fakeEnv() {
   const listeners = new Set<(ev: MessageEvent) => void>();

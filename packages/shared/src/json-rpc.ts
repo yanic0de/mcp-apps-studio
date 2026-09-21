@@ -52,9 +52,7 @@ export type ParsedJsonRpc =
 
 /** Human-readable zod issues: `path: message; path: message`. */
 export function formatZodIssues(error: z.ZodError): string {
-  return error.issues
-    .map((i) => (i.path.length ? `${i.path.join('.')}: ${i.message}` : i.message))
-    .join('; ');
+  return error.issues.map((i) => (i.path.length ? `${i.path.join('.')}: ${i.message}` : i.message)).join('; ');
 }
 
 export function parseJsonRpcMessage(raw: unknown): ParsedJsonRpc {
@@ -62,20 +60,26 @@ export function parseJsonRpcMessage(raw: unknown): ParsedJsonRpc {
     return { ok: false, error: 'message is not an object' };
   }
   const obj = raw as Record<string, unknown>;
-  if (obj['jsonrpc'] !== JSON_RPC_VERSION) {
+  if (obj.jsonrpc !== JSON_RPC_VERSION) {
     return { ok: false, error: 'missing or invalid "jsonrpc" field' };
   }
   if ('method' in obj) {
     if ('id' in obj) {
       const r = jsonRpcRequestSchema.safeParse(obj);
-      return r.success ? { ok: true, kind: 'request', message: r.data } : { ok: false, error: formatZodIssues(r.error) };
+      return r.success
+        ? { ok: true, kind: 'request', message: r.data }
+        : { ok: false, error: formatZodIssues(r.error) };
     }
     const n = jsonRpcNotificationSchema.safeParse(obj);
-    return n.success ? { ok: true, kind: 'notification', message: n.data } : { ok: false, error: formatZodIssues(n.error) };
+    return n.success
+      ? { ok: true, kind: 'notification', message: n.data }
+      : { ok: false, error: formatZodIssues(n.error) };
   }
   if ('result' in obj || 'error' in obj) {
     const resp = jsonRpcResponseSchema.safeParse(obj);
-    return resp.success ? { ok: true, kind: 'response', message: resp.data } : { ok: false, error: formatZodIssues(resp.error) };
+    return resp.success
+      ? { ok: true, kind: 'response', message: resp.data }
+      : { ok: false, error: formatZodIssues(resp.error) };
   }
   return { ok: false, error: 'not a request, notification, or response' };
 }

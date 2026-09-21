@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { useToolCall } from '@studio/widget-runtime/react';
+import { useEffect } from 'react';
 import type { KpiMetrics } from './fallback.js';
 
 export interface KpiCardProps {
@@ -20,9 +20,10 @@ export function KpiCard({ tool = 'get_metrics', title = 'KPI' }: KpiCardProps) {
       <div className="kpi-card__label">{title}</div>
       <div className="kpi-card__value">{data ? data.value.toLocaleString() : '—'}</div>
       <div className={`kpi-card__status${error ? ' kpi-card__status--error' : ''}`}>
-        {error ?? (loading ? 'loading…' : data ? `${data.label} ${data.delta >= 0 ? '▲' : '▼'}${Math.abs(data.delta)}%` : '')}
+        {error ??
+          (loading ? 'loading…' : data ? `${data.label} ${data.delta >= 0 ? '▲' : '▼'}${Math.abs(data.delta)}%` : '')}
       </div>
-      <button className="kpi-card__refresh" onClick={() => void call()}>
+      <button type="button" className="kpi-card__refresh" onClick={() => void call()}>
         Refresh
       </button>
     </div>

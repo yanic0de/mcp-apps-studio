@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { CLI_TOKEN, CLI_URL } from '../playwright.config.js';
 
-const widgetFrame = (page: import('@playwright/test').Page) =>
-  page.frameLocator('iframe[title="widget under test"]');
+const widgetFrame = (page: import('@playwright/test').Page) => page.frameLocator('iframe[title="widget under test"]');
 
 test('CLI rejects requests without a valid token', async ({ page }) => {
   const noToken = await page.goto(`${CLI_URL}/`);

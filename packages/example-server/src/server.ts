@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { RESOURCE_MIME_TYPE, registerAppResource, registerAppTool } from '@modelcontextprotocol/ext-apps/server';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 export const KPI_RESOURCE_URI = 'ui://example/kpi-card.html';
 

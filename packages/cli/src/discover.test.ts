@@ -46,8 +46,8 @@ describe('discoverStories', () => {
       title: 'Test Widget',
       html: '<html>test-widget</html>',
     });
-    expect(entries[0]?.scenarios['default']?.mocks['get_data']).toMatchObject({ kind: 'static' });
-    expect(entries[0]?.scenarios['empty']).toEqual({ mocks: {} });
+    expect(entries[0]?.scenarios.default?.mocks.get_data).toMatchObject({ kind: 'static' });
+    expect(entries[0]?.scenarios.empty).toEqual({ mocks: {} });
   });
 
   it('rejects a story without default export, naming the file', async () => {
@@ -68,7 +68,9 @@ describe('discoverStories validation', () => {
       path.join(fixture, 'src', 'typo.stories.mcp.ts'),
       `export default { title: 'T', widget: './widget.html', scenarios: { default: { mocks: { get_data: { kind: 'statik', result: 1 } } } } };`,
     );
-    await expect(discoverStories(fixture)).rejects.toThrow(/typo\.stories\.mcp\.ts.*scenarios\.default\.mocks\.get_data\.kind/s);
+    await expect(discoverStories(fixture)).rejects.toThrow(
+      /typo\.stories\.mcp\.ts.*scenarios\.default\.mocks\.get_data\.kind/s,
+    );
   });
 
   it('rejects a story missing required fields, naming them', async () => {

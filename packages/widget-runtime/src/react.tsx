@@ -1,5 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { HostContext } from '@studio/shared';
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import type { WidgetClient } from './client.js';
 import { createToolCaller, type ToolCallSnapshot } from './tool-caller.js';
 
@@ -37,10 +37,7 @@ export function useToolCall<T = unknown>(name: string): ToolCallState<T> {
     loading: false,
   });
 
-  const call = useMemo(
-    () => createToolCaller<T>((args) => client.callTool<T>(name, args), setState),
-    [client, name],
-  );
+  const call = useMemo(() => createToolCaller<T>((args) => client.callTool<T>(name, args), setState), [client, name]);
 
   return { ...state, call };
 }

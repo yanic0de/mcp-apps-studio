@@ -1,11 +1,11 @@
 import {
-  ERROR_CODES,
-  RpcError,
   defaultHostContext,
+  ERROR_CODES,
   type HostContext,
   type JsonRpcNotification,
   type JsonRpcRequest,
   type MockConfig,
+  RpcError,
   type RpcLogEvent,
 } from '@studio/shared';
 import type { HostAdapter } from './adapter.js';
@@ -83,7 +83,10 @@ export class HostEmulator {
       case 'unsupported':
         throw new RpcError(ERROR_CODES.METHOD_NOT_FOUND, `Unsupported method: ${action.method}`);
       default:
-        throw new RpcError(ERROR_CODES.INTERNAL_ERROR, `Request produced non-request action: ${(action as { type: string }).type}`);
+        throw new RpcError(
+          ERROR_CODES.INTERNAL_ERROR,
+          `Request produced non-request action: ${(action as { type: string }).type}`,
+        );
     }
   }
 
@@ -106,6 +109,13 @@ export class HostEmulator {
   }
 
   private logInvalidNotification(n: JsonRpcNotification, error: string): void {
-    this.opts.onLog?.({ ts: Date.now(), direction: 'widget→host', kind: 'invalid', method: n.method, payload: n, error });
+    this.opts.onLog?.({
+      ts: Date.now(),
+      direction: 'widget→host',
+      kind: 'invalid',
+      method: n.method,
+      payload: n,
+      error,
+    });
   }
 }

@@ -1,5 +1,5 @@
-import express from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import express from 'express';
 import { createExampleServer } from './server.js';
 
 const PORT = Number(process.env.PORT ?? 3100);

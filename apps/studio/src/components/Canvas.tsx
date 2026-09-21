@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
 import { HostEmulator, IframeTransport } from '@studio/host-emulator';
 import type { WidgetSource } from '@studio/shared';
+import { useEffect, useRef, useState } from 'react';
 import { adapter } from '../adapter.js';
 import { connectMcpServer, type LiveConnection } from '../mcp-client.js';
 import { selectActiveWidget, useStudioStore } from '../store.js';
@@ -17,6 +17,7 @@ export function Canvas() {
   const widgetId = activeWidget?.id ?? null;
   const isLive = scenario === 'live';
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reconnect when the active widget changes, not only on the live toggle
   useEffect(() => {
     setLive(null);
     setLiveError(null);
@@ -80,9 +81,8 @@ export function Canvas() {
     return (
       <main className="canvas">
         <p className="canvas-note">
-          Can't reach the MCP server: {liveError}. Start one (e.g.{' '}
-          <code>pnpm -F @studio/example-server dev</code>) or point the studio at another with{' '}
-          <code>?server=&lt;url&gt;</code>, then switch the scenario again.
+          Can't reach the MCP server: {liveError}. Start one (e.g. <code>pnpm -F @studio/example-server dev</code>) or
+          point the studio at another with <code>?server=&lt;url&gt;</code>, then switch the scenario again.
         </p>
       </main>
     );

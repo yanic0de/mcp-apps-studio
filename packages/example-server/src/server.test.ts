@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
-import { KPI_RESOURCE_URI, createExampleServer } from './server.js';
+import { describe, expect, it } from 'vitest';
+import { createExampleServer, KPI_RESOURCE_URI } from './server.js';
 
 async function connect() {
   const server = createExampleServer();
@@ -18,7 +18,7 @@ describe('example server', () => {
     const { tools } = await client.listTools();
     const tool = tools.find((t) => t.name === 'get_metrics');
     expect(tool).toBeDefined();
-    expect(tool?._meta?.['ui']).toMatchObject({ resourceUri: KPI_RESOURCE_URI });
+    expect(tool?._meta?.ui).toMatchObject({ resourceUri: KPI_RESOURCE_URI });
   });
 
   it('returns structuredContent plus text fallback from tools/call', async () => {

@@ -2,8 +2,8 @@ import fs from 'node:fs/promises';
 import type http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { WidgetManifestEntry } from '@studio/shared';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createStudioServer, generateToken } from './server.js';
 
 const TOKEN = 'a'.repeat(32);
@@ -101,8 +101,12 @@ describe('createStudioServer', () => {
       return [{ ...manifest[0]!, title: `KPI v${calls}` }];
     });
     const headers = { cookie: `mcp_studio_token=${TOKEN}` };
-    const first = (await (await fetch(`${base}/api/manifest`, { headers })).json()) as { widgets: WidgetManifestEntry[] };
-    const second = (await (await fetch(`${base}/api/manifest`, { headers })).json()) as { widgets: WidgetManifestEntry[] };
+    const first = (await (await fetch(`${base}/api/manifest`, { headers })).json()) as {
+      widgets: WidgetManifestEntry[];
+    };
+    const second = (await (await fetch(`${base}/api/manifest`, { headers })).json()) as {
+      widgets: WidgetManifestEntry[];
+    };
     expect(first.widgets[0]?.title).toBe('KPI v1');
     expect(second.widgets[0]?.title).toBe('KPI v2');
   });

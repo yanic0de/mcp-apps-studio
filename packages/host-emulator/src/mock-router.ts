@@ -1,4 +1,4 @@
-import { ERROR_CODES, RpcError, type MockConfig } from '@studio/shared';
+import { ERROR_CODES, type MockConfig, RpcError } from '@studio/shared';
 
 export type PassthroughHandler = (toolName: string, args: unknown) => Promise<unknown>;
 

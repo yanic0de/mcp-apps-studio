@@ -2,9 +2,9 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { transform } from 'esbuild';
 import { formatZodIssues, type WidgetManifestEntry } from '@studio/shared';
-import { widgetStoryConfigSchema, type WidgetStoryConfig } from './define.js';
+import { transform } from 'esbuild';
+import { type WidgetStoryConfig, widgetStoryConfigSchema } from './define.js';
 
 const STORY_SUFFIX = '.stories.mcp.ts';
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build']);

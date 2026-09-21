@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { renderToString } from 'react-dom/server';
 import { WidgetClient, type WidgetWindow } from '@studio/widget-runtime';
 import { WidgetProvider } from '@studio/widget-runtime/react';
-import { KpiCard } from './KpiCard.js';
+import { renderToString } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
 import { kpiCardTextFallback } from './fallback.js';
+import { KpiCard } from './KpiCard.js';
 
 const fakeWin: WidgetWindow = {
   addEventListener: () => {},
