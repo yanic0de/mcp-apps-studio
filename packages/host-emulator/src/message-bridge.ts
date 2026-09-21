@@ -1,14 +1,14 @@
 import {
   ERROR_CODES,
   JSON_RPC_VERSION,
+  RequestTracker,
+  RpcError,
   parseJsonRpcMessage,
-  type JsonRpcId,
   type JsonRpcNotification,
   type JsonRpcRequest,
   type JsonRpcResponse,
   type RpcLogEvent,
 } from '@studio/shared';
-import { RpcError } from './errors.js';
 import type { Transport } from './transport.js';
 
 export interface MessageBridgeOptions {
@@ -21,20 +21,15 @@ export interface MessageBridgeOptions {
   now?: () => number;
 }
 
-interface Pending {
-  resolve: (value: unknown) => void;
-  reject: (error: unknown) => void;
-  timer: ReturnType<typeof setTimeout>;
-}
-
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export class MessageBridge {
-  private readonly pending = new Map<JsonRpcId, Pending>();
+  private readonly tracker: RequestTracker;
   private unsubscribe: (() => void) | null = null;
-  private counter = 0;
 
-  constructor(private readonly opts: MessageBridgeOptions) {}
+  constructor(private readonly opts: MessageBridgeOptions) {
+    this.tracker = new RequestTracker({ idPrefix: 'h', timeoutMs: opts.requestTimeoutMs ?? DEFAULT_TIMEOUT_MS });
+  }
 
   start(): void {
     if (this.unsubscribe) return;
@@ -44,25 +39,19 @@ export class MessageBridge {
   stop(): void {
     this.unsubscribe?.();
     this.unsubscribe = null;
-    for (const p of this.pending.values()) {
-      clearTimeout(p.timer);
-      p.reject(new RpcError(ERROR_CODES.INTERNAL_ERROR, 'bridge stopped'));
-    }
-    this.pending.clear();
+    this.tracker.rejectAll(new RpcError(ERROR_CODES.INTERNAL_ERROR, 'bridge stopped'));
   }
 
   request(method: string, params?: unknown): Promise<unknown> {
-    const id = `h${++this.counter}`;
+    const { id, promise } = this.tracker.track(method);
     const msg = { jsonrpc: JSON_RPC_VERSION, id, method, ...(params !== undefined ? { params } : {}) };
     this.log({ direction: 'host→widget', kind: 'request', method, id, payload: msg });
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.pending.delete(id);
-        reject(new RpcError(ERROR_CODES.REQUEST_TIMEOUT, `Request "${method}" timed out`));
-      }, this.opts.requestTimeoutMs ?? DEFAULT_TIMEOUT_MS);
-      this.pending.set(id, { resolve, reject, timer });
+    try {
       this.opts.transport.send(msg);
-    });
+    } catch (err) {
+      this.tracker.reject(id, err);
+    }
+    return promise;
   }
 
   notify(method: string, params?: unknown): void {
@@ -114,19 +103,10 @@ export class MessageBridge {
   }
 
   private handleResponse(msg: JsonRpcResponse): void {
-    const id = msg.id;
-    const pending = id === null ? undefined : this.pending.get(id);
-    if (!pending || id === null) {
-      this.log({ direction: 'widget→host', kind: 'invalid', payload: msg, error: `unexpected response id: ${String(id)}` });
+    if (!this.tracker.settle(msg)) {
+      this.log({ direction: 'widget→host', kind: 'invalid', payload: msg, error: `unexpected response id: ${String(msg.id)}` });
       return;
     }
-    this.pending.delete(id);
-    clearTimeout(pending.timer);
-    this.log({ direction: 'widget→host', kind: 'response', id, payload: msg });
-    if ('error' in msg) {
-      pending.reject(new RpcError(msg.error.code, msg.error.message, msg.error.data));
-    } else {
-      pending.resolve(msg.result);
-    }
+    this.log({ direction: 'widget→host', kind: 'response', id: msg.id ?? undefined, payload: msg });
   }
 }

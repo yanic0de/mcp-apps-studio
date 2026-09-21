@@ -1,5 +1,6 @@
 import {
   ERROR_CODES,
+  RpcError,
   defaultHostContext,
   type HostContext,
   type JsonRpcNotification,
@@ -8,7 +9,7 @@ import {
   type RpcLogEvent,
 } from '@studio/shared';
 import type { HostAdapter } from './adapter.js';
-import { RpcError } from './errors.js';
+
 import { MessageBridge } from './message-bridge.js';
 import { MockRouter, type PassthroughHandler } from './mock-router.js';
 import type { Transport } from './transport.js';

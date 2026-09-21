@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MCP_APPS_METHODS, type HostContext } from '@studio/shared';
-import { ToolCallError, WidgetClient, type WidgetWindow } from './client.js';
+import { RpcError } from '@studio/shared';
+import { WidgetClient, type WidgetWindow } from './client.js';
 
 const ctx: HostContext = { theme: 'dark', locale: 'en', displayMode: 'inline' };
 
@@ -38,13 +39,13 @@ describe('WidgetClient', () => {
     await expect(p).resolves.toEqual({ value: 1 });
   });
 
-  it('callTool rejects with ToolCallError on error response', async () => {
+  it('callTool rejects with RpcError on error response', async () => {
     const { win, sent, reply } = fakeEnv();
     const client = new WidgetClient(win);
     const p = client.callTool('get_metrics');
     reply({ jsonrpc: '2.0', id: sent[0].id, error: { code: -32000, message: 'boom' } });
-    await expect(p).rejects.toBeInstanceOf(ToolCallError);
-    await expect(p.catch((e: ToolCallError) => e.code)).resolves.toBe(-32000);
+    await expect(p).rejects.toBeInstanceOf(RpcError);
+    await expect(p.catch((e: RpcError) => e.code)).resolves.toBe(-32000);
   });
 
   it('merges host-context-changed patches and notifies listeners', async () => {
@@ -120,5 +121,16 @@ describe('WidgetClient', () => {
       reply({ jsonrpc: '2.0', id: 'unknown', result: 1 });
     }).not.toThrow();
     expect(client.getHostContext()).toBeNull();
+  });
+});
+
+describe('WidgetClient send failures', () => {
+  it('rejects the call when postMessage throws instead of leaving it pending', async () => {
+    const { win } = fakeEnv();
+    win.parent.postMessage = () => {
+      throw new Error('DataCloneError');
+    };
+    const client = new WidgetClient(win);
+    await expect(client.callTool('x', { fn: () => 1 })).rejects.toThrow('DataCloneError');
   });
 });

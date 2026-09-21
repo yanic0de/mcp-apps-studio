@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ERROR_CODES, type RpcLogEvent } from '@studio/shared';
-import { RpcError } from './errors.js';
+import { ERROR_CODES, RpcError, type RpcLogEvent } from '@studio/shared';
 import { MessageBridge } from './message-bridge.js';
 import { createInMemoryTransportPair, type Transport } from './transport.js';
 
