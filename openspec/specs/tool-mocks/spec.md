@@ -1,54 +1,54 @@
-# Моки инструментов
+# Tool Mocks
 
 ## Purpose
 
-Сценарий студии — это набор моков: как эмулятор отвечает на `tools/call` каждого инструмента. `toolMockSchema` в `@studio/shared` — единственный источник и для TypeScript-типа, и для валидации story-файлов. `MockRouter` в `host-emulator` исполняет конфигурацию; его `passthrough`-обработчик — точка подключения реального MCP-клиента.
+A studio scenario is a set of mocks: how the emulator answers `tools/call` for each tool. `toolMockSchema` in `@studio/shared` is the single source for both the TypeScript type and story-file validation. `MockRouter` in `host-emulator` executes the configuration; its `passthrough` handler is the hook for a real MCP client.
 
 ## Requirements
 
-### Requirement: Виды моков
-Схема `toolMockSchema` SHALL допускать ровно три вида, различаемых полем `kind`: `static` (`result: unknown`, `delayMs?`), `error` (`error: { code: целое, message: строка }`, `delayMs?`), `passthrough` (без полей). `delayMs` SHALL быть целым неотрицательным числом.
+### Requirement: Mock kinds
+`toolMockSchema` SHALL allow exactly three kinds discriminated by `kind`: `static` (`result: unknown`, `delayMs?`), `error` (`error: { code: integer, message: string }`, `delayMs?`), `passthrough` (no fields). `delayMs` SHALL be a non-negative integer.
 
-#### Scenario: Опечатка в kind
-- **WHEN** мок содержит `kind: 'statik'`
-- **THEN** схема отклоняет его, и текст ошибки называет поле `kind`
+#### Scenario: Misspelled kind
+- **WHEN** a mock contains `kind: 'statik'`
+- **THEN** the schema rejects it and the error text names the `kind` field
 
-#### Scenario: Отрицательная задержка
-- **WHEN** мок содержит `delayMs: -5` или `delayMs: 1.5`
-- **THEN** схема отклоняет его
+#### Scenario: Negative delay
+- **WHEN** a mock contains `delayMs: -5` or `delayMs: 1.5`
+- **THEN** the schema rejects it
 
-#### Scenario: Результат null
-- **WHEN** мок `{ kind: 'static', result: null }`
-- **THEN** схема принимает его, сохраняя `result: null`
+#### Scenario: Null result
+- **WHEN** the mock is `{ kind: 'static', result: null }`
+- **THEN** the schema accepts it, preserving `result: null`
 
-### Requirement: Конфигурация по именам инструментов
-`mockConfigSchema` SHALL быть словарём «имя инструмента → мок» и при ошибке SHALL указывать имя инструмента в пути проблемы.
+### Requirement: Configuration keyed by tool name
+`mockConfigSchema` SHALL be a "tool name → mock" dictionary and on failure SHALL include the tool name in the issue path.
 
-#### Scenario: Сломан один инструмент
-- **WHEN** конфигурация `{ ok: { kind: 'passthrough' }, bad: { kind: 'error', error: {} } }`
-- **THEN** ошибка содержит путь `bad.error.`
+#### Scenario: One tool broken
+- **WHEN** the configuration is `{ ok: { kind: 'passthrough' }, bad: { kind: 'error', error: {} } }`
+- **THEN** the error contains the path `bad.error.`
 
-### Requirement: Исполнение статического мока
-`MockRouter.call` SHALL дождаться `delayMs` (если задано) и вернуть `result`.
+### Requirement: Executing a static mock
+`MockRouter.call` SHALL wait `delayMs` (if set) and return `result`.
 
-#### Scenario: Задержка для состояния загрузки
-- **WHEN** мок `{ kind: 'static', result: 1, delayMs: 3_600_000 }`
-- **THEN** промис не резолвится в течение часа, и виджет остаётся в состоянии загрузки
+#### Scenario: Delay for a loading state
+- **WHEN** the mock is `{ kind: 'static', result: 1, delayMs: 3_600_000 }`
+- **THEN** the promise does not resolve for an hour and the widget stays in its loading state
 
-### Requirement: Исполнение мока-ошибки
-Для мока `error` роутер SHALL, дождавшись `delayMs`, бросить `RpcError` с указанными `code` и `message`.
+### Requirement: Executing an error mock
+For an `error` mock the router SHALL, after `delayMs`, throw an `RpcError` with the given `code` and `message`.
 
-#### Scenario: Ошибка бэкенда
-- **WHEN** мок `{ kind: 'error', error: { code: -32000, message: 'Metrics backend unavailable' } }`
-- **THEN** `call` отклоняется `RpcError(-32000, 'Metrics backend unavailable')`
+#### Scenario: Backend error
+- **WHEN** the mock is `{ kind: 'error', error: { code: -32000, message: 'Metrics backend unavailable' } }`
+- **THEN** `call` rejects with `RpcError(-32000, 'Metrics backend unavailable')`
 
 ### Requirement: Passthrough
-Если для инструмента нет мока или мок имеет вид `passthrough`, роутер SHALL вызвать обработчик `passthrough(toolName, args)`. При отсутствии обработчика SHALL бросаться `RpcError(METHOD_NOT_FOUND)` с текстом, называющим инструмент.
+If a tool has no mock, or its mock is `passthrough`, the router SHALL invoke the `passthrough(toolName, args)` handler. Without a handler it SHALL throw `RpcError(METHOD_NOT_FOUND)` with a message naming the tool.
 
-#### Scenario: Live-режим
-- **WHEN** сценарий `live` с пустыми моками и подключённым MCP-сервером
-- **THEN** каждый `tools/call` проксируется в реальный сервер через обработчик
+#### Scenario: Live mode
+- **WHEN** the `live` scenario has empty mocks and an MCP server is connected
+- **THEN** every `tools/call` is proxied to the real server through the handler
 
-#### Scenario: Нет ни мока, ни обработчика
-- **WHEN** инструмент `unknown_tool` не описан, а passthrough не задан
-- **THEN** `call` отклоняется ошибкой `-32601` с упоминанием `unknown_tool`
+#### Scenario: Neither mock nor handler
+- **WHEN** `unknown_tool` is not configured and no passthrough is set
+- **THEN** `call` rejects with error `-32601` mentioning `unknown_tool`

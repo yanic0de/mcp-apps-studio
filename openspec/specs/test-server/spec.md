@@ -1,63 +1,63 @@
-# Тестовый полигон (test-server)
+# Test Polygon (test-server)
 
 ## Purpose
 
-`@studio/test-server` — MCP-сервер, у которого каждый инструмент проверяет одно поведение эмулятора: круговой обход данных, задержку, ошибку инструмента, пагинацию, состояние между вызовами. Виджет «Protocol Inspector» даёт кнопку на каждый инструмент и показывает сырой JSON ответа. Как и example-server, не зависит от пакетов монорепо.
+`@studio/test-server` is an MCP server where each tool exercises one emulator behavior: data round trip, latency, tool error, pagination, cross-call state. The "Protocol Inspector" widget offers a button per tool and shows the raw JSON of the response. Like example-server, it has no monorepo dependencies.
 
 ## Requirements
 
-### Requirement: Набор инструментов
-Сервер SHALL регистрировать ровно `echo`, `slow_metrics`, `fail`, `get_rows`, `counter`, каждый с `_meta.ui.resourceUri` на ресурс инспектора.
+### Requirement: Tool set
+The server SHALL register exactly `echo`, `slow_metrics`, `fail`, `get_rows`, `counter`, each with `_meta.ui.resourceUri` pointing at the inspector resource.
 
-#### Scenario: Список инструментов
-- **WHEN** клиент запрашивает `tools/list`
-- **THEN** имена равны `['counter', 'echo', 'fail', 'get_rows', 'slow_metrics']`
+#### Scenario: Tool list
+- **WHEN** a client requests `tools/list`
+- **THEN** the names equal `['counter', 'echo', 'fail', 'get_rows', 'slow_metrics']`
 
 ### Requirement: echo
-`echo({ message = 'ping' })` SHALL вернуть `structuredContent: { echoed: args }`.
+`echo({ message = 'ping' })` SHALL return `structuredContent: { echoed: args }`.
 
-#### Scenario: Круговой обход
-- **WHEN** вызов с `{ message: 'hello' }`
-- **THEN** `structuredContent` равен `{ echoed: { message: 'hello' } }`
+#### Scenario: Round trip
+- **WHEN** called with `{ message: 'hello' }`
+- **THEN** `structuredContent` equals `{ echoed: { message: 'hello' } }`
 
 ### Requirement: slow_metrics
-`slow_metrics({ delayMs = 1500 })` SHALL ждать `delayMs` (0…10 000) и вернуть метрики с `label`, упоминающим задержку.
+`slow_metrics({ delayMs = 1500 })` SHALL wait `delayMs` (0…10 000) and return metrics whose `label` mentions the delay.
 
-#### Scenario: Нулевая задержка
-- **WHEN** вызов с `{ delayMs: 0 }`
-- **THEN** ответ содержит числовое `value` и строковый `label`
+#### Scenario: Zero delay
+- **WHEN** called with `{ delayMs: 0 }`
+- **THEN** the response holds a numeric `value` and a string `label`
 
 ### Requirement: fail
-`fail({ message = 'Intentional failure' })` SHALL вернуть `isError: true` с этим текстом в `content`.
+`fail({ message = 'Intentional failure' })` SHALL return `isError: true` with that text in `content`.
 
-#### Scenario: Ошибка инструмента доходит до виджета
-- **WHEN** инспектор нажимает `fail` в live-режиме
-- **THEN** виджет показывает `Intentional failure` в состоянии ошибки
+#### Scenario: Tool error reaches the widget
+- **WHEN** the inspector presses `fail` in live mode
+- **THEN** the widget shows `Intentional failure` in its error state
 
 ### Requirement: get_rows
-`get_rows({ page = 1, pageSize = 10 })` SHALL возвращать детерминированные строки `Row N` из 42, `columns`, `total: 42`, `page`.
+`get_rows({ page = 1, pageSize = 10 })` SHALL return deterministic rows `Row N` out of 42, `columns`, `total: 42`, `page`.
 
-#### Scenario: Вторая страница
-- **WHEN** вызов с `{ page: 2, pageSize: 5 }`
-- **THEN** строки `Row 6` … `Row 10`, `total === 42`
+#### Scenario: Second page
+- **WHEN** called with `{ page: 2, pageSize: 5 }`
+- **THEN** the rows are `Row 6` … `Row 10` and `total === 42`
 
 ### Requirement: counter
-`counter({ by = 1 })` SHALL инкрементировать значение на уровне модуля, переживающее stateless-инстансы сервера на каждый запрос.
+`counter({ by = 1 })` SHALL increment a module-level value that survives the stateless per-request server instances.
 
-#### Scenario: Два вызова через HTTP
-- **WHEN** два последовательных `POST /mcp` с `counter`
-- **THEN** второй `count` на `by` больше первого
+#### Scenario: Two calls over HTTP
+- **WHEN** two consecutive `POST /mcp` requests call `counter`
+- **THEN** the second `count` is `by` greater than the first
 
-### Requirement: Виджет-инспектор
-Ресурс `ui://test/inspector.html` (MIME `text/html;profile=mcp-app`) SHALL содержать кнопку на каждый инструмент и вывод сырого запроса и ответа; ошибка SHALL выделяться классом `error`.
+### Requirement: Inspector widget
+The resource `ui://test/inspector.html` (MIME `text/html;profile=mcp-app`) SHALL contain a button per tool and print the raw request and response; an error SHALL be highlighted with the `error` class.
 
-#### Scenario: Использование из студии
-- **WHEN** студия открыта с `?server=http://localhost:3200/mcp` и выбран `live`
-- **THEN** заголовок виджета содержит `Protocol Inspector`, кнопки вызывают инструменты через passthrough
+#### Scenario: Use from the studio
+- **WHEN** the studio is opened with `?server=http://localhost:3200/mcp` and `live` is selected
+- **THEN** the widget heading contains `Protocol Inspector` and the buttons call tools through passthrough
 
-### Requirement: HTTP как у example-server
-`main.ts` SHALL повторять схему example-server (express, CORS, `/health`, stateless `POST /mcp`) на порту 3200. Это намеренная копия: оба пакета остаются без общих зависимостей.
+### Requirement: HTTP like example-server
+`main.ts` SHALL mirror the example-server layout (express, CORS, `/health`, stateless `POST /mcp`) on port 3200. This is a deliberate copy: both packages stay free of shared dependencies.
 
 #### Scenario: Health
-- **WHEN** запрос `GET /health`
-- **THEN** ответ `{ ok: true }`
+- **WHEN** `GET /health` is requested
+- **THEN** the answer is `{ ok: true }`

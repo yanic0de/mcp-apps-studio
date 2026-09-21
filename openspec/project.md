@@ -1,62 +1,62 @@
-# Контекст проекта
+# Project Context
 
-## Назначение
+## Purpose
 
-MCP Apps Studio — «поддельный хост» для MCP-виджетов. Всё, что настоящий хост (Claude, ChatGPT) делает с виджетом — рендер в песочнице iframe, JSON-RPC-мост, передача темы и контекста, вызовы инструментов — воспроизводится локально и делается наблюдаемым. Разработчик виджета видит каждое сообщение в трассе, переключает сценарии (моки, задержки, ошибки), темы и режимы отображения без реального хоста.
+MCP Apps Studio is a "fake host" for MCP widgets. Everything a real host (Claude, ChatGPT) does to a widget — sandboxed iframe render, JSON-RPC bridge, theme and context delivery, tool calls — is reproduced locally and made observable. A widget developer sees every message in the trace and switches scenarios (mocks, delays, errors), themes and display modes without a real host.
 
-Целевая спецификация: расширение MCP Apps (SEP-1865), версия протокола `2026-01-26`.
+Target specification: the MCP Apps extension (SEP-1865), protocol version `2026-01-26`.
 
-## Технологический стек
+## Tech Stack
 
-- TypeScript 5.8 (`strict`, `noUncheckedIndexedAccess`), ESM везде.
-- Монорепо: pnpm workspaces + turbo. Пакеты экспортируют исходники напрямую (`"exports": "./src/index.ts"`), сборки нет; история публикации отложена.
-- Валидация: zod 4. Схемы являются единственным источником и для типов, и для проверки в рантайме.
-- Студия: React 19 + Zustand + Vite.
-- Тесты: vitest в node (без jsdom); Playwright для e2e (только chromium).
-- Форматирование и линт: Biome (`biome.json` в корне).
-- Серверы-примеры: `@modelcontextprotocol/sdk` + `@modelcontextprotocol/ext-apps` + express.
+- TypeScript 5.8 (`strict`, `noUncheckedIndexedAccess`), ESM everywhere.
+- Monorepo: pnpm workspaces + turbo. Packages export TS source directly (`"exports": "./src/index.ts"`); no build step yet, the publish story is deferred.
+- Validation: zod 4. Schemas are the single source for both types and runtime checks.
+- Studio: React 19 + Zustand + Vite.
+- Tests: vitest in Node (no jsdom); Playwright for e2e (chromium only).
+- Formatting and linting: Biome (`biome.json` at the root).
+- Example servers: `@modelcontextprotocol/sdk` + `@modelcontextprotocol/ext-apps` + express.
 
-## Структура и слои
+## Structure and Layers
 
-Зависимости направлены только вниз:
+Dependencies point down only:
 
-| Слой | Пакет | Роль |
+| Layer | Package | Role |
 |---|---|---|
-| приложение | `apps/studio` (`@studio/app`) | SPA студии: холст, панель управления, трасса |
-| инструмент | `packages/cli` (`mcp-apps-studio`) | обнаружение stories, локальный сервер студии, `add` |
-| ядро хоста | `packages/host-emulator` | мост, адаптер, роутер моков, эмулятор, iframe-транспорт |
-| сторона виджета | `packages/widget-runtime` | единственный разрешённый канал виджет ↔ хост |
-| библиотека | `packages/components` | распространяемые исходниками компоненты (модель shadcn) |
-| общее | `packages/shared` | схемы, типы, константы протокола, `RpcError`, `RequestTracker` |
-| справочные серверы | `packages/example-server`, `packages/test-server` | без workspace-зависимостей, живая документация и полигон |
+| application | `apps/studio` (`@studio/app`) | Studio SPA: canvas, controls, trace |
+| tool | `packages/cli` (`mcp-apps-studio`) | story discovery, local studio server, `add` |
+| host core | `packages/host-emulator` | bridge, adapter, mock router, emulator, iframe transport |
+| widget side | `packages/widget-runtime` | the only sanctioned widget ↔ host channel |
+| library | `packages/components` | source-distributed components (shadcn model) |
+| shared | `packages/shared` | schemas, types, protocol constants, `RpcError`, `RequestTracker` |
+| reference servers | `packages/example-server`, `packages/test-server` | no workspace deps; living documentation and a test polygon |
 
-Спецификации возможностей лежат в `openspec/specs/<capability>/spec.md`, по одной на строку таблицы (плюс `protocol` и `tool-mocks`).
+Capability specs live in `openspec/specs/<capability>/spec.md`, one per table row (plus `protocol` and `tool-mocks`).
 
-## Конвенции
+## Conventions
 
-- **TDD на каждую задачу:** падающий тест → реализация → `pnpm lint` → коммит. Тесты лежат рядом с исходником (`src/*.test.ts`).
-- **Ядро работает в node.** Никаких `window`/`document` вне `IframeTransport` (принимает инжектируемый `ListeningWindow`) и параметров по умолчанию в `widget-runtime`. DOM-код пишется против duck-typed интерфейсов и тестируется фейками.
-- **Виджет — недоверенный код.** Каждое входящее сообщение проходит zod до диспетчеризации.
-- **Один источник правды.** Имена wire-методов — только в `packages/shared/src/protocol.ts`. Список моков — только `toolMockSchema`. Опции темы и режимов отображения в UI берутся из `hostContextSchema` и `adapter.capabilities()`, а не копируются руками.
-- **Не переизобретать.** Корреляция запросов (id, таймаут, settle) — только `RequestTracker`. Ошибки моста — только `RpcError`.
-- **Подавление правил Biome** — только комментарием `biome-ignore` с причиной.
-- **Коммиты:** conventional commits (`feat|fix|refactor|chore|style(scope): ...`).
+- **TDD per task:** failing test → implementation → `pnpm lint` → commit. Tests sit next to source (`src/*.test.ts`).
+- **The core runs in Node.** No `window`/`document` outside `IframeTransport` (takes an injectable `ListeningWindow`) and default parameters in `widget-runtime`. DOM-facing code is written against duck-typed interfaces and tested with fakes.
+- **The widget is untrusted code.** Every incoming message passes zod before dispatch.
+- **One source of truth.** Wire method names live only in `packages/shared/src/protocol.ts`. The list of mock kinds lives only in `toolMockSchema`. UI options for theme and display mode come from `hostContextSchema` and `adapter.capabilities()`, never hand-copied.
+- **Do not reinvent.** Request correlation (id, timeout, settle) is only `RequestTracker`. Bridge errors are only `RpcError`.
+- **Suppressing Biome rules** is allowed only with a `biome-ignore` comment stating the reason.
+- **Commits:** conventional commits (`feat|fix|refactor|chore|style(scope): ...`).
 
-## Ограничения, которые легко нарушить
+## Constraints That Are Easy to Violate
 
-- Follow-up-сообщения виджета намеренно НЕ реализованы в адаптере: имя wire-метода не подтверждено в спецификации `2026-01-26`. Добавлять только сверяясь с реальным SDK `@modelcontextprotocol/ext-apps`, не по памяти.
-- Осознанные вырезки MVP (не добавлять «из полезности»): бэкенд server-api, сайт документации, адаптеры openai/legacy, Tailwind, changesets. Реестр — статический JSON, сессии — localStorage, трассы — в Zustand-логе.
-- Безопасность CLI: только `127.0.0.1`, токен на каждый запрос, сравнение в постоянное время, запрет обхода каталога. Не ослаблять (урок MCPJam Inspector RCE).
-- Песочница: только `allow-scripts`. Никогда не добавлять `allow-same-origin`. Единственный признак доверия к сообщению — `event.source === iframe.contentWindow`.
-- Эмуляция CSP через атрибут `csp` у iframe работает только в Chromium.
+- Widget follow-up messages are intentionally NOT implemented in the adapter: the wire method name is unconfirmed in spec `2026-01-26`. Add only against the real `@modelcontextprotocol/ext-apps` SDK, never from memory.
+- Deliberate MVP cuts (do not "helpfully" add): server-api backend, docs site, openai/legacy adapters, Tailwind, changesets. The registry is static JSON, sessions go to localStorage, traces live in the Zustand log.
+- CLI security: `127.0.0.1` only, a token on every request, constant-time comparison, path traversal blocked. Do not weaken (the MCPJam Inspector RCE lesson).
+- Sandbox: `allow-scripts` only. Never add `allow-same-origin`. The only trust signal for a message is `event.source === iframe.contentWindow`.
+- CSP emulation via the iframe `csp` attribute works only in Chromium.
 
-## Глоссарий
+## Glossary
 
-- **Хост** — приложение, показывающее виджет (Claude, ChatGPT); здесь его роль играет `HostEmulator`.
-- **Виджет** — HTML-документ, отрисованный в sandboxed iframe, общающийся с хостом по JSON-RPC 2.0 через `postMessage`.
-- **Адаптер** — чистый переводчик wire-сообщений в семантические действия и обратно. Один на диалект протокола.
-- **Story** — файл `*.stories.mcp.ts` с default-экспортом `{ title, widget, scenarios }`; описывает виджет и его сценарии для студии.
-- **Сценарий** — именованный набор моков инструментов. Сценарий `live` без моков означает проксирование в реальный MCP-сервер.
-- **Мок** — ответ эмулятора на `tools/call`: `static`, `error` или `passthrough`.
-- **Манифест** — список виджетов (`WidgetManifestEntry[]`), который CLI отдаёт студии по `/api/manifest`.
-- **Трасса** — журнал `RpcLogEvent` обоих направлений, включая невалидные сообщения.
+- **Host** — the application that shows the widget (Claude, ChatGPT); here `HostEmulator` plays that role.
+- **Widget** — an HTML document rendered in a sandboxed iframe, talking to the host over JSON-RPC 2.0 via `postMessage`.
+- **Adapter** — a pure translator between wire messages and semantic actions, and back. One per protocol dialect.
+- **Story** — a `*.stories.mcp.ts` file whose default export is `{ title, widget, scenarios }`; describes a widget and its scenarios for the studio.
+- **Scenario** — a named set of tool mocks. The `live` scenario with no mocks means proxying to a real MCP server.
+- **Mock** — the emulator's answer to `tools/call`: `static`, `error` or `passthrough`.
+- **Manifest** — the list of widgets (`WidgetManifestEntry[]`) the CLI serves to the studio at `/api/manifest`.
+- **Trace** — the log of `RpcLogEvent`s in both directions, including invalid messages.

@@ -1,75 +1,75 @@
-# JSON-RPC мост
+# JSON-RPC Bridge
 
 ## Purpose
 
-`MessageBridge` — транспортно-независимый слой JSON-RPC 2.0 на стороне хоста. Он проверяет каждое входящее сообщение (виджет — недоверенный код), маршрутизирует запросы и уведомления, коррелирует ответы на запросы хоста через общий `RequestTracker`, выдаёт события трассы. Абстракция `Transport` (`send`, `onMessage`) позволяет тестировать мост в node парой in-memory транспортов.
+`MessageBridge` is the transport-independent JSON-RPC 2.0 layer on the host side. It validates every incoming message (the widget is untrusted code), routes requests and notifications, correlates responses to host-originated requests through the shared `RequestTracker`, and emits trace events. The `Transport` abstraction (`send`, `onMessage`) lets the bridge be tested in Node with an in-memory transport pair.
 
 ## Requirements
 
-### Requirement: Классификация и валидация входящих сообщений
-Мост SHALL пропускать каждое входящее сообщение через `parseJsonRpcMessage`, различая запрос (есть `method` и `id`), уведомление (есть `method`, нет `id`) и ответ (есть `result` или `error`). Невалидное сообщение SHALL попадать в трассу с `kind: 'invalid'` и понятной причиной, не прерывая работу моста.
+### Requirement: Classification and validation of incoming messages
+The bridge SHALL pass every incoming message through `parseJsonRpcMessage`, distinguishing a request (`method` and `id` present), a notification (`method` present, no `id`) and a response (`result` or `error` present). An invalid message SHALL land in the trace with `kind: 'invalid'` and a readable reason without interrupting the bridge.
 
-#### Scenario: Мусор от виджета
-- **WHEN** виджет отправляет `{ evil: true }`, а затем корректный запрос
-- **THEN** в трассе появляется событие `invalid`
-- **AND** корректный запрос обрабатывается и получает ответ
+#### Scenario: Garbage from the widget
+- **WHEN** the widget sends `{ evil: true }` followed by a valid request
+- **THEN** an `invalid` event appears in the trace
+- **AND** the valid request is handled and answered
 
-#### Scenario: Неверное поле jsonrpc
-- **WHEN** сообщение не содержит `jsonrpc: "2.0"`
-- **THEN** оно классифицируется как невалидное с причиной `missing or invalid "jsonrpc" field`
+#### Scenario: Wrong jsonrpc field
+- **WHEN** a message lacks `jsonrpc: "2.0"`
+- **THEN** it is classified as invalid with the reason `missing or invalid "jsonrpc" field`
 
-### Requirement: Обработка запросов виджета
-Мост SHALL передавать запрос в `onRequest` и отвечать `{ jsonrpc, id, result }` при успехе. Брошенный `RpcError` SHALL превращаться в `{ error: { code, message, data? } }` с его кодом; любая другая ошибка — в код `INTERNAL_ERROR` (-32603) с текстом исключения. Ответ MUST NOT отправляться, если мост остановлен во время обработки.
+### Requirement: Handling widget requests
+The bridge SHALL pass a request to `onRequest` and reply `{ jsonrpc, id, result }` on success. A thrown `RpcError` SHALL become `{ error: { code, message, data? } }` with its code; any other error becomes code `INTERNAL_ERROR` (-32603) with the exception text. A response MUST NOT be sent if the bridge was stopped while handling.
 
-#### Scenario: Успешный запрос
-- **WHEN** виджет отправляет запрос с `id: 7` и `onRequest` возвращает `{ echoed: 'tools/call' }`
-- **THEN** виджет получает `{ jsonrpc: '2.0', id: 7, result: { echoed: 'tools/call' } }`
+#### Scenario: Successful request
+- **WHEN** the widget sends a request with `id: 7` and `onRequest` returns `{ echoed: 'tools/call' }`
+- **THEN** the widget receives `{ jsonrpc: '2.0', id: 7, result: { echoed: 'tools/call' } }`
 
-#### Scenario: Протокольная ошибка
-- **WHEN** `onRequest` бросает `RpcError(METHOD_NOT_FOUND, 'no such method')`
-- **THEN** виджет получает ответ с `error.code === -32601` и тем же сообщением
+#### Scenario: Protocol error
+- **WHEN** `onRequest` throws `RpcError(METHOD_NOT_FOUND, 'no such method')`
+- **THEN** the widget receives a response with `error.code === -32601` and the same message
 
-#### Scenario: Остановка во время обработки
-- **WHEN** `stop()` вызван до завершения `onRequest`
-- **THEN** ответ в транспорт не отправляется
+#### Scenario: Stopped while handling
+- **WHEN** `stop()` is called before `onRequest` completes
+- **THEN** no response is sent to the transport
 
-### Requirement: Запросы от хоста к виджету
-Мост SHALL выдавать запросам хоста идентификаторы вида `h<n>` через `RequestTracker`, отклонять их по таймауту (по умолчанию 30 000 мс) ошибкой `REQUEST_TIMEOUT` (-32001) и сопоставлять входящие ответы по `id`. Ответ с неизвестным или `null` идентификатором SHALL логироваться как `invalid`.
+### Requirement: Host-to-widget requests
+The bridge SHALL assign host requests ids of the form `h<n>` via `RequestTracker`, reject them on timeout (default 30 000 ms) with `REQUEST_TIMEOUT` (-32001), and match incoming responses by `id`. A response with an unknown or `null` id SHALL be logged as `invalid`.
 
-#### Scenario: Ответ виджета резолвит промис
-- **WHEN** хост вызывает `request('ping')`, а виджет отвечает `{ id, result: 'pong' }`
-- **THEN** промис резолвится значением `'pong'`
+#### Scenario: Widget response resolves the promise
+- **WHEN** the host calls `request('ping')` and the widget answers `{ id, result: 'pong' }`
+- **THEN** the promise resolves with `'pong'`
 
-#### Scenario: Таймаут
-- **WHEN** виджет не отвечает в течение `requestTimeoutMs`
-- **THEN** промис отклоняется `RpcError` с кодом `REQUEST_TIMEOUT`
+#### Scenario: Timeout
+- **WHEN** the widget does not answer within `requestTimeoutMs`
+- **THEN** the promise rejects with an `RpcError` of code `REQUEST_TIMEOUT`
 
-#### Scenario: Сбой отправки
-- **WHEN** `transport.send` бросает исключение
-- **THEN** промис запроса отклоняется этим исключением, а не висит до таймаута
+#### Scenario: Send failure
+- **WHEN** `transport.send` throws
+- **THEN** the request promise rejects with that exception instead of hanging until the timeout
 
-### Requirement: Остановка моста
-`stop()` SHALL отписаться от транспорта и отклонить все ожидающие запросы хоста ошибкой `INTERNAL_ERROR` с текстом `bridge stopped`. Повторный `start()` после `stop()` SHALL подписаться заново.
+### Requirement: Stopping the bridge
+`stop()` SHALL unsubscribe from the transport and reject all pending host requests with `INTERNAL_ERROR` and the text `bridge stopped`. A subsequent `start()` SHALL subscribe again.
 
-#### Scenario: Ожидающий запрос при остановке
-- **WHEN** хост отправил `request('ping')` и вызвал `stop()` до ответа
-- **THEN** промис отклоняется `RpcError`
-- **AND** последующие сообщения виджета не обрабатываются
+#### Scenario: Pending request at stop
+- **WHEN** the host sent `request('ping')` and called `stop()` before the answer
+- **THEN** the promise rejects with an `RpcError`
+- **AND** subsequent widget messages are not handled
 
-### Requirement: События трассы
-Мост SHALL вызывать `onLog` для каждого сообщения с полями `ts`, `direction` (`widget→host` | `host→widget`), `kind` (`request` | `notification` | `response` | `invalid`), `method`/`id` где применимо и полным `payload`. Источник времени SHALL быть инжектируемым (`now`).
+### Requirement: Trace events
+The bridge SHALL call `onLog` for every message with `ts`, `direction` (`widget→host` | `host→widget`), `kind` (`request` | `notification` | `response` | `invalid`), `method`/`id` where applicable and the full `payload`. The time source SHALL be injectable (`now`).
 
-#### Scenario: Пара запрос-ответ
-- **WHEN** виджет отправляет запрос и получает ответ
-- **THEN** трасса содержит ровно `[widget→host request, host→widget response]` в этом порядке
+#### Scenario: Request-response pair
+- **WHEN** the widget sends a request and receives a response
+- **THEN** the trace contains exactly `[widget→host request, host→widget response]` in that order
 
-### Requirement: Общий коррелятор запросов
-Корреляция запросов (выдача id, таймаут, settle по ответу, массовый reject) SHALL быть реализована один раз в `RequestTracker` из `@studio/shared` и использоваться и мостом, и клиентом виджета. Новые реализации «карты ожидающих запросов» MUST NOT появляться.
+### Requirement: Shared request correlation
+Request correlation (id allocation, timeout, settle on response, bulk rejection) SHALL be implemented once in `RequestTracker` from `@studio/shared` and used by both the bridge and the widget client. New "pending request map" implementations MUST NOT appear.
 
-#### Scenario: Ответ с ошибкой
-- **WHEN** трекер получает ответ `{ id, error: { code, message, data } }` для известного id
-- **THEN** соответствующий промис отклоняется `RpcError` с этими `code`, `message`, `data`
+#### Scenario: Error response
+- **WHEN** the tracker receives `{ id, error: { code, message, data } }` for a known id
+- **THEN** the matching promise rejects with an `RpcError` carrying that `code`, `message`, `data`
 
-#### Scenario: Settle уже завершённого запроса
-- **WHEN** трекер получает второй ответ на тот же id
-- **THEN** `settle` возвращает `false` и ничего не меняет
+#### Scenario: Settling an already settled request
+- **WHEN** the tracker receives a second response for the same id
+- **THEN** `settle` returns `false` and changes nothing

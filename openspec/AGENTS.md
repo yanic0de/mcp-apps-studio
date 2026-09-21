@@ -1,99 +1,97 @@
-# Инструкции OpenSpec для ИИ-ассистентов
+# OpenSpec Instructions for AI Assistants
 
-Этот каталог — спецификации проекта в формате OpenSpec. Инструкции по работе с кодом (команды, архитектура, ограничения) — в корневом `CLAUDE.md`; здесь только о спецификациях.
+This directory holds the project's specifications in OpenSpec format. Instructions for working with the code (commands, architecture, constraints) live in the root `CLAUDE.md`; this file is only about specs.
 
-## Структура
+## Structure
 
 ```
 openspec/
-├── project.md            # контекст проекта: назначение, стек, конвенции, глоссарий
-├── AGENTS.md             # этот файл
-├── specs/                # текущая правда: что УЖЕ построено
+├── project.md            # project context: purpose, stack, conventions, glossary
+├── AGENTS.md             # this file
+├── specs/                # current truth: what IS built
 │   └── <capability>/
 │       └── spec.md
-└── changes/              # предложения: что ДОЛЖНО измениться
+└── changes/              # proposals: what SHOULD change
     ├── <change-id>/
-    │   ├── proposal.md   # зачем и что меняем
-    │   ├── tasks.md      # чекбоксы реализации
-    │   ├── design.md     # опционально: технические решения
-    │   └── specs/<capability>/spec.md   # дельты к спецификациям
-    └── archive/          # завершённые изменения, слитые в specs/
+    │   ├── proposal.md   # why and what changes
+    │   ├── tasks.md      # implementation checkboxes
+    │   ├── design.md     # optional: technical decisions
+    │   └── specs/<capability>/spec.md   # spec deltas
+    └── archive/          # completed changes, merged into specs/
 ```
 
-## Когда что делать
+## When to Do What
 
-- **Правка поведения, новая возможность, изменение контракта** → сначала `changes/<change-id>/` с proposal, tasks и дельтами спецификаций. Реализация — по tasks.md. После слияния в `main` дельты применяются к `specs/`, каталог переезжает в `archive/`.
-- **Исправление опечатки, рефакторинг без изменения поведения, чистка тестов** → без proposal, но если спецификация расходится с кодом, её нужно поправить в том же коммите.
-- **Вопрос «как это работает сейчас»** → читать `specs/`, не `changes/`.
+- **Behavior change, new capability, contract change** → first `changes/<change-id>/` with a proposal, tasks and spec deltas. Implement by tasks.md. After merging into `main`, apply the deltas to `specs/` and move the directory to `archive/`.
+- **Typo fix, refactor without behavior change, test cleanup** → no proposal, but if a spec disagrees with the code, fix the spec in the same commit.
+- **"How does this work today?"** → read `specs/`, not `changes/`.
 
-Идентификатор изменения — kebab-case глагол + объект: `add-pending-mock-kind`, `lazy-load-mcp-sdk`.
+A change id is a kebab-case verb + object: `add-pending-mock-kind`, `lazy-load-mcp-sdk`.
 
-## Формат spec.md
-
-Язык текста — русский. Структурные маркеры — английские, по ним работает `openspec validate`:
+## spec.md Format
 
 ```markdown
-# <Название возможности>
+# <Capability name>
 
 ## Purpose
-Один-два абзаца: зачем возможность существует.
+One or two paragraphs: why the capability exists.
 
 ## Requirements
 
-### Requirement: <короткое имя требования>
-<Субъект> SHALL <нормативное поведение>. Ключевое слово SHALL (или MUST) обязательно.
+### Requirement: <short requirement name>
+<Subject> SHALL <normative behavior>. The keyword SHALL (or MUST) is mandatory.
 
-#### Scenario: <имя сценария>
-- **WHEN** <условие или действие>
-- **THEN** <наблюдаемый результат>
-- **AND** <дополнительный результат, опционально>
+#### Scenario: <scenario name>
+- **WHEN** <condition or action>
+- **THEN** <observable result>
+- **AND** <additional result, optional>
 ```
 
-Правила валидатора:
+Validator rules:
 
-- у каждого `### Requirement:` минимум один `#### Scenario:`;
-- текст требования содержит `SHALL` или `MUST`;
-- заголовки строго `## Purpose`, `## Requirements`, `### Requirement:`, `#### Scenario:`;
-- шаги сценария — маркированный список с жирными `WHEN`/`THEN`/`AND`.
+- every `### Requirement:` has at least one `#### Scenario:`;
+- the requirement text contains `SHALL` or `MUST`;
+- headings are exactly `## Purpose`, `## Requirements`, `### Requirement:`, `#### Scenario:`;
+- scenario steps are a bulleted list with bold `WHEN`/`THEN`/`AND`.
 
-## Формат дельт в changes/<id>/specs/<capability>/spec.md
+## Delta Format in changes/<id>/specs/<capability>/spec.md
 
 ```markdown
 ## ADDED Requirements
-### Requirement: <новое требование>
-...полный текст со сценариями...
+### Requirement: <new requirement>
+...full text with scenarios...
 
 ## MODIFIED Requirements
-### Requirement: <имя существующего требования, без изменений>
-...полный новый текст требования со сценариями...
+### Requirement: <name of the existing requirement, unchanged>
+...full new text of the requirement with scenarios...
 
 ## REMOVED Requirements
-### Requirement: <имя удаляемого>
-**Reason**: почему удаляем.
-**Migration**: что делать потребителям.
+### Requirement: <name being removed>
+**Reason**: why it is removed.
+**Migration**: what consumers should do.
 
 ## RENAMED Requirements
-- FROM: `### Requirement: старое имя`
-- TO: `### Requirement: новое имя`
+- FROM: `### Requirement: old name`
+- TO: `### Requirement: new name`
 ```
 
-В `MODIFIED` имя требования должно совпадать с существующим побуквенно — так дельта находит, что заменять.
+In `MODIFIED`, the requirement name must match the existing one character for character — that is how the delta finds what to replace.
 
-## Команды
+## Commands
 
 ```bash
-export OPENSPEC_TELEMETRY=0                          # CLI собирает анонимную статистику; выключаем
-npx @fission-ai/openspec list --specs                # спецификации и число требований
-npx @fission-ai/openspec list                        # активные изменения
-npx @fission-ai/openspec validate --all --strict     # проверка всех specs и changes (без --all в CI ничего не проверит)
-npx @fission-ai/openspec show <change-id>            # просмотр изменения
-npx @fission-ai/openspec archive <change-id>         # применить дельты к specs/ и убрать в archive/
+export OPENSPEC_TELEMETRY=0                          # the CLI collects anonymous stats; opt out
+npx @fission-ai/openspec list --specs                # specs and their requirement counts
+npx @fission-ai/openspec list                        # active changes
+npx @fission-ai/openspec validate --all --strict     # validate all specs and changes (without --all, nothing is checked in CI)
+npx @fission-ai/openspec show <change-id>            # inspect a change
+npx @fission-ai/openspec archive <change-id>         # apply deltas to specs/ and move to archive/
 ```
 
-Валидатор запускается после каждой правки в `openspec/`; коммит с падающей валидацией не делаем.
+Run the validator after every edit under `openspec/`; never commit with a failing validation.
 
-## Связь с кодом
+## Relation to the Code
 
-- Одна возможность ≈ один пакет (см. таблицу в `project.md`), плюс `protocol` (константы SEP-1865) и `tool-mocks` (схема моков и роутер).
-- Сценарии должны быть проверяемыми: у каждого есть или должен появиться тест в `src/*.test.ts` либо в `e2e/tests/`.
-- Если код и спецификация расходятся, а изменение не было оформлено через `changes/`, приоритет у кода: спецификацию приводят к коду и отмечают расхождение в коммите.
+- One capability ≈ one package (see the table in `project.md`), plus `protocol` (SEP-1865 constants) and `tool-mocks` (mock schema and router).
+- Scenarios must be verifiable: each has, or should get, a test in `src/*.test.ts` or `e2e/tests/`.
+- If the code and a spec disagree and the change was not made through `changes/`, the code wins: bring the spec in line with the code and note the discrepancy in the commit.

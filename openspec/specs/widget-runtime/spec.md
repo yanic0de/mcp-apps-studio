@@ -1,108 +1,108 @@
-# Рантайм виджета
+# Widget Runtime
 
 ## Purpose
 
-`@studio/widget-runtime` — единственный разрешённый канал общения виджета с хостом. `WidgetClient` выполняет handshake, вызывает инструменты, следит за контекстом хоста; `applyHostContextToDocument` переносит тему и CSS-переменные в документ; React-хуки в подпути `./react` оборачивают клиент для компонентов. Главная точка входа остаётся свободной от React ради vanilla-виджетов.
+`@studio/widget-runtime` is the only sanctioned channel between a widget and the host. `WidgetClient` performs the handshake, calls tools and tracks host context; `applyHostContextToDocument` carries theme and CSS variables into the document; React hooks under the `./react` subpath wrap the client for components. The main entry stays React-free for vanilla widgets.
 
 ## Requirements
 
 ### Requirement: Handshake
-`connect()` SHALL отправить `ui/initialize` с `protocolVersion` (константа протокола) и `appCapabilities: {}`, сохранить `hostContext` из результата и вернуть его.
+`connect()` SHALL send `ui/initialize` with `protocolVersion` (the protocol constant) and `appCapabilities: {}`, store `hostContext` from the result and return it.
 
-#### Scenario: Успешная инициализация
-- **WHEN** хост отвечает `{ protocolVersion, hostContext: { theme: 'dark', ... } }`
-- **THEN** `connect()` резолвится этим контекстом
-- **AND** `getHostContext()` возвращает его же
+#### Scenario: Successful initialization
+- **WHEN** the host answers `{ protocolVersion, hostContext: { theme: 'dark', ... } }`
+- **THEN** `connect()` resolves with that context
+- **AND** `getHostContext()` returns the same
 
-### Requirement: Вызов инструмента
-`callTool(name, args?)` SHALL отправить `tools/call` с `{ name, arguments: args ?? {} }` и вернуть `result` ответа. Ответ с `error` SHALL отклонять промис `RpcError` с `code`, `message` и `data` хоста.
+### Requirement: Tool call
+`callTool(name, args?)` SHALL send `tools/call` with `{ name, arguments: args ?? {} }` and return the response `result`. A response with `error` SHALL reject the promise with an `RpcError` carrying the host's `code`, `message` and `data`.
 
-#### Scenario: Успешный вызов
-- **WHEN** хост отвечает `{ result: { value: 1 } }`
-- **THEN** промис резолвится `{ value: 1 }`
+#### Scenario: Successful call
+- **WHEN** the host answers `{ result: { value: 1 } }`
+- **THEN** the promise resolves with `{ value: 1 }`
 
-#### Scenario: Ошибка инструмента
-- **WHEN** хост отвечает `{ error: { code: -32000, message: 'boom' } }`
-- **THEN** промис отклоняется экземпляром `RpcError` с `code === -32000`
+#### Scenario: Tool error
+- **WHEN** the host answers `{ error: { code: -32000, message: 'boom' } }`
+- **THEN** the promise rejects with an `RpcError` instance whose `code === -32000`
 
-### Requirement: Таймаут и корреляция
-Клиент SHALL коррелировать ответы через `RequestTracker` с префиксом `w`, отклонять запрос по таймауту (по умолчанию 30 000 мс) и MUST NOT срабатывать таймаутом после полученного ответа.
+### Requirement: Timeout and correlation
+The client SHALL correlate responses through `RequestTracker` with prefix `w`, reject a request on timeout (default 30 000 ms) and MUST NOT fire the timeout after a response arrived.
 
-#### Scenario: Нет ответа
-- **WHEN** хост не отвечает в течение `requestTimeoutMs`
-- **THEN** промис отклоняется ошибкой с текстом `timed out`
+#### Scenario: No answer
+- **WHEN** the host does not answer within `requestTimeoutMs`
+- **THEN** the promise rejects with an error containing `timed out`
 
-#### Scenario: Ответ пришёл раньше таймаута
-- **WHEN** ответ получен, затем проходит время больше таймаута
-- **THEN** промис остаётся резолвленным, повторного отклонения нет
+#### Scenario: Answer before the timeout
+- **WHEN** a response is received and then more than the timeout elapses
+- **THEN** the promise stays resolved; there is no second rejection
 
-### Requirement: Сбой отправки
-Если `postMessage` бросает исключение (например `DataCloneError` для несериализуемых аргументов), промис вызова SHALL отклоняться этим исключением.
+### Requirement: Send failure
+If `postMessage` throws (e.g. `DataCloneError` for non-serializable arguments), the call's promise SHALL reject with that exception.
 
-#### Scenario: Функция в аргументах
-- **WHEN** `callTool('x', { fn: () => 1 })` и `postMessage` бросает
-- **THEN** промис отклоняется с текстом исключения, не дожидаясь таймаута
+#### Scenario: Function in arguments
+- **WHEN** `callTool('x', { fn: () => 1 })` and `postMessage` throws
+- **THEN** the promise rejects with the exception text without waiting for the timeout
 
-### Requirement: Контекст хоста
-Уведомление `host-context-changed` SHALL сливаться в сохранённый контекст, а подписчики `onHostContextChanged` SHALL получать патч. Функция отписки SHALL прекращать уведомления.
+### Requirement: Host context
+A `host-context-changed` notification SHALL merge into the stored context, and `onHostContextChanged` subscribers SHALL receive the patch. The unsubscribe function SHALL stop notifications.
 
-#### Scenario: Смена темы
-- **WHEN** после `connect()` приходит `{ params: { theme: 'light' } }`
-- **THEN** `getHostContext()` содержит `theme: 'light'` и прежний `locale`
-- **AND** подписчик получает `{ theme: 'light' }`
+#### Scenario: Theme change
+- **WHEN** `{ params: { theme: 'light' } }` arrives after `connect()`
+- **THEN** `getHostContext()` contains `theme: 'light'` and the previous `locale`
+- **AND** the subscriber receives `{ theme: 'light' }`
 
-### Requirement: Уведомление о размере
-`sendSizeChanged({ width?, height? })` SHALL отправить уведомление `ui/notifications/size-changed` с этими параметрами.
+### Requirement: Size notification
+`sendSizeChanged({ width?, height? })` SHALL send a `ui/notifications/size-changed` notification with those params.
 
-#### Scenario: Виджет сообщает размер
-- **WHEN** вызывается `sendSizeChanged({ width: 320, height: 200 })`
-- **THEN** хост получает `{ jsonrpc: '2.0', method: 'ui/notifications/size-changed', params: { width: 320, height: 200 } }`
+#### Scenario: Widget reports its size
+- **WHEN** `sendSizeChanged({ width: 320, height: 200 })` is called
+- **THEN** the host receives `{ jsonrpc: '2.0', method: 'ui/notifications/size-changed', params: { width: 320, height: 200 } }`
 
-### Requirement: Освобождение клиента
-`dispose()` SHALL снять слушатель окна, отклонить ожидающие запросы ошибкой с текстом `disposed` и очистить подписчиков. Запрос на освобождённом клиенте SHALL отклоняться той же ошибкой.
+### Requirement: Client disposal
+`dispose()` SHALL remove the window listener, reject pending requests with an error containing `disposed` and clear subscribers. A request on a disposed client SHALL reject with the same error.
 
-#### Scenario: Вызов во время dispose
-- **WHEN** `callTool('slow')` ожидает ответа и вызывается `dispose()`
-- **THEN** промис отклоняется ошибкой `/disposed/`
-- **AND** слушателей на окне не остаётся
+#### Scenario: Call during dispose
+- **WHEN** `callTool('slow')` is awaiting an answer and `dispose()` is called
+- **THEN** the promise rejects with an error matching `/disposed/`
+- **AND** no listeners remain on the window
 
-### Requirement: Игнорирование мусора
-Невалидные сообщения и ответы с неизвестным id SHALL игнорироваться без исключений.
+### Requirement: Ignoring garbage
+Invalid messages and responses with unknown ids SHALL be ignored without exceptions.
 
-#### Scenario: Мусор
-- **WHEN** приходят `null`, `{ evil: true }`, `{ jsonrpc: '2.0', id: 'unknown', result: 1 }`
-- **THEN** исключений нет, контекст остаётся `null`
+#### Scenario: Garbage
+- **WHEN** `null`, `{ evil: true }`, `{ jsonrpc: '2.0', id: 'unknown', result: 1 }` arrive
+- **THEN** no exceptions; the context stays `null`
 
-### Requirement: Тестируемость в node
-Конструктор SHALL принимать duck-typed `WidgetWindow` (`addEventListener`, `removeEventListener`, `parent.postMessage`), по умолчанию — глобальный `window`, вычисляемый лениво.
+### Requirement: Testability in Node
+The constructor SHALL accept a duck-typed `WidgetWindow` (`addEventListener`, `removeEventListener`, `parent.postMessage`), defaulting to the global `window`, evaluated lazily.
 
-#### Scenario: Импорт в node
-- **WHEN** модуль импортируется в node без `window`
-- **THEN** импорт не падает; `window` нужен только при создании клиента без аргументов
+#### Scenario: Import in Node
+- **WHEN** the module is imported in Node without `window`
+- **THEN** the import does not fail; `window` is needed only when constructing a client with no arguments
 
-### Requirement: Применение контекста к документу
-`applyHostContextToDocument(ctx, doc?)` SHALL выставить `data-theme` на корневом элементе при наличии `ctx.theme` и установить каждую переменную из `ctx.styles.variables` через `style.setProperty`.
+### Requirement: Applying context to the document
+`applyHostContextToDocument(ctx, doc?)` SHALL set `data-theme` on the root element when `ctx.theme` is present and set every variable from `ctx.styles.variables` via `style.setProperty`.
 
-#### Scenario: Тема и переменные
+#### Scenario: Theme and variables
 - **WHEN** `ctx = { theme: 'dark', styles: { variables: { '--color-bg': '#111' } } }`
 - **THEN** `documentElement.dataset.theme === 'dark'`
-- **AND** `--color-bg` равна `#111`
+- **AND** `--color-bg` equals `#111`
 
-#### Scenario: Пустой патч
+#### Scenario: Empty patch
 - **WHEN** `ctx = {}`
-- **THEN** ничего не меняется и исключение не выбрасывается
+- **THEN** nothing changes and no exception is thrown
 
-### Requirement: React-обёртки
-Подпуть `./react` SHALL предоставлять `WidgetProvider`, `useWidgetClient` (бросает вне провайдера), `useHostContext` и `useToolCall(name)` с полями `data`, `error`, `loading`, `call`. Главная точка входа `.` MUST NOT импортировать React.
+### Requirement: React wrappers
+The `./react` subpath SHALL provide `WidgetProvider`, `useWidgetClient` (throws outside the provider), `useHostContext` and `useToolCall(name)` with `data`, `error`, `loading`, `call`. The main entry `.` MUST NOT import React.
 
-#### Scenario: Хук вне провайдера
-- **WHEN** `useWidgetClient()` вызывается без `WidgetProvider`
-- **THEN** выбрасывается ошибка с текстом про `<WidgetProvider>`
+#### Scenario: Hook outside the provider
+- **WHEN** `useWidgetClient()` is called without a `WidgetProvider`
+- **THEN** an error mentioning `<WidgetProvider>` is thrown
 
-### Requirement: Последний вызов побеждает
-`useToolCall` (через `createToolCaller`) SHALL гарантировать, что при перекрывающихся вызовах завершение более раннего не перезаписывает состояние более позднего.
+### Requirement: Latest call wins
+`useToolCall` (via `createToolCaller`) SHALL guarantee that with overlapping calls, the settlement of an earlier call never overwrites the state of a later one.
 
-#### Scenario: Медленный первый, быстрый второй
-- **WHEN** первый `call()` ещё ожидает, второй завершился с данными B
-- **THEN** состояние содержит `data: B, loading: false`
-- **AND** завершение первого вызова состояние не меняет
+#### Scenario: Slow first, fast second
+- **WHEN** the first `call()` is still pending and the second completed with data B
+- **THEN** the state holds `data: B, loading: false`
+- **AND** the first call's completion does not change the state

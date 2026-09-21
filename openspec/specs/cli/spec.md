@@ -2,88 +2,88 @@
 
 ## Purpose
 
-CLI обнаруживает story-файлы в проекте пользователя, собирает из них манифест и отдаёт собранную студию по локальному HTTP с одноразовым токеном. Подкоманда `add` копирует компонент из реестра в проект. Локальный dev-инструмент остаётся поверхностью атаки, поэтому сервер защищён по умолчанию.
+The CLI discovers story files in the user's project, builds a manifest from them and serves the built studio over local HTTP with a one-time token. The `add` subcommand copies a component from the registry into the project. A local dev tool is still an attack surface, so the server is locked down by default.
 
 ## Requirements
 
-### Requirement: Обнаружение story-файлов
-`findStoryFiles(root)` SHALL рекурсивно находить файлы `*.stories.mcp.ts`, пропуская каталоги `node_modules`, `dist`, `build` и скрытые (начинающиеся с точки), и возвращать отсортированный список.
+### Requirement: Story discovery
+`findStoryFiles(root)` SHALL recursively find `*.stories.mcp.ts` files, skipping `node_modules`, `dist`, `build` and dot-directories, and return a sorted list.
 
-#### Scenario: Ловушка в node_modules
-- **WHEN** `node_modules/dep/evil.stories.mcp.ts` существует рядом с `src/kpi.stories.mcp.ts`
-- **THEN** найден только `src/kpi.stories.mcp.ts`
+#### Scenario: Decoy in node_modules
+- **WHEN** `node_modules/dep/evil.stories.mcp.ts` exists next to `src/kpi.stories.mcp.ts`
+- **THEN** only `src/kpi.stories.mcp.ts` is found
 
-### Requirement: Загрузка и валидация story
-`discoverStories` SHALL транспилировать story esbuild-ом, записать временный `.mjs` рядом с файлом (чтобы импорты story резолвились из проекта пользователя), импортировать его и удалить временный файл даже при ошибке. Default-экспорт SHALL проверяться схемой `widgetStoryConfigSchema`; ошибка SHALL называть файл и путь до поля.
+### Requirement: Loading and validating a story
+`discoverStories` SHALL transpile a story with esbuild, write a temporary `.mjs` next to the file (so the story's own imports resolve from the user's project), import it, and remove the temporary file even on error. The default export SHALL be validated with `widgetStoryConfigSchema`; the error SHALL name the file and the path to the field.
 
-#### Scenario: Опечатка в моке
-- **WHEN** story содержит `mocks: { get_data: { kind: 'statik' } }`
-- **THEN** discovery отклоняется ошибкой, содержащей имя файла и `scenarios.default.mocks.get_data.kind`
+#### Scenario: Typo in a mock
+- **WHEN** a story contains `mocks: { get_data: { kind: 'statik' } }`
+- **THEN** discovery rejects with an error containing the file name and `scenarios.default.mocks.get_data.kind`
 
-#### Scenario: Нет default-экспорта
-- **WHEN** story экспортирует только `const x = 1`
-- **THEN** ошибка называет файл и говорит об отсутствии default-экспорта
+#### Scenario: No default export
+- **WHEN** a story exports only `const x = 1`
+- **THEN** the error names the file and says a default export is missing
 
-#### Scenario: Чистка временных файлов
-- **WHEN** discovery завершилось
-- **THEN** рядом со story нет файлов `.mjs`
+#### Scenario: Temporary file cleanup
+- **WHEN** discovery has finished
+- **THEN** no `.mjs` files remain next to the story
 
-### Requirement: Манифест из story
-Каждая story SHALL превращаться в `WidgetManifestEntry`: `id` — имя файла без суффикса, `title`, `html` — содержимое файла по пути `widget` относительно story, `scenarios` — с `mocks`, нормализованными к `{}` при отсутствии.
+### Requirement: Manifest from stories
+Every story SHALL become a `WidgetManifestEntry`: `id` — the file name without the suffix, `title`, `html` — the contents of the file at `widget` relative to the story, `scenarios` — with `mocks` normalized to `{}` when absent.
 
-#### Scenario: Сценарий без моков
-- **WHEN** story содержит `scenarios: { empty: {} }`
-- **THEN** манифест содержит `scenarios.empty === { mocks: {} }`
+#### Scenario: Scenario without mocks
+- **WHEN** a story contains `scenarios: { empty: {} }`
+- **THEN** the manifest contains `scenarios.empty === { mocks: {} }`
 
-### Requirement: Только localhost и токен на каждый запрос
-Сервер SHALL слушать только `127.0.0.1`. Каждый запрос SHALL нести токен: в `?token=` (тогда сервер ставит cookie `HttpOnly; SameSite=Strict`) либо в cookie. Сравнение SHALL быть в постоянное время (хэш обеих сторон + `timingSafeEqual`). Без верного токена ответ SHALL быть `401`.
+### Requirement: Localhost only, token on every request
+The server SHALL listen on `127.0.0.1` only. Every request SHALL carry the token: in `?token=` (the server then sets an `HttpOnly; SameSite=Strict` cookie) or in the cookie. Comparison SHALL be constant-time (hash both sides + `timingSafeEqual`). Without a valid token the answer SHALL be `401`.
 
-#### Scenario: Без токена
-- **WHEN** запрос `/` без токена и cookie
-- **THEN** статус `401`
+#### Scenario: No token
+- **WHEN** `/` is requested without a token or cookie
+- **THEN** the status is `401`
 
-#### Scenario: Неверный токен
-- **WHEN** запрос с `?token=` другой строкой той же длины
-- **THEN** статус `401`
+#### Scenario: Wrong token
+- **WHEN** the request carries `?token=` with a different string of the same length
+- **THEN** the status is `401`
 
-#### Scenario: Первый заход по ссылке из консоли
-- **WHEN** запрос `/?token=<верный>`
-- **THEN** статус `200`, заголовок `Set-Cookie` содержит `HttpOnly`
-- **AND** последующие запросы с cookie проходят без `?token=`
+#### Scenario: First visit via the printed link
+- **WHEN** `/?token=<valid>` is requested
+- **THEN** the status is `200` and `Set-Cookie` contains `HttpOnly`
+- **AND** subsequent requests with the cookie pass without `?token=`
 
-### Requirement: Манифест по запросу
-`GET /api/manifest` SHALL заново выполнять discovery при каждом запросе (правки story видны по обновлению страницы), отвечать JSON `{ widgets }` с `cache-control: no-store`; сбой discovery SHALL давать `500` с текстом ошибки, не завершая процесс.
+### Requirement: Manifest on demand
+`GET /api/manifest` SHALL rerun discovery on every request (story edits show up on refresh), answer JSON `{ widgets }` with `cache-control: no-store`; a discovery failure SHALL yield `500` with the error text without terminating the process.
 
-#### Scenario: Story правится
-- **WHEN** два запроса подряд, а между ними story изменена
-- **THEN** второй ответ отражает изменение
+#### Scenario: Story being edited
+- **WHEN** two consecutive requests are made with a story edited in between
+- **THEN** the second response reflects the edit
 
-#### Scenario: Story сломана на середине правки
-- **WHEN** discovery бросает ошибку
-- **THEN** статус `500` с текстом ошибки
-- **AND** следующий запрос `/` отвечает `200`
+#### Scenario: Story broken mid-edit
+- **WHEN** discovery throws
+- **THEN** the status is `500` with the error text
+- **AND** the next `/` request answers `200`
 
-### Requirement: Статика студии
-Сервер SHALL отдавать файлы из `dist` студии с MIME по расширению; путь вне `dist` SHALL давать `403`; некорректное percent-кодирование — `400`; отсутствующий файл с известным расширением — `404`; прочие пути — `index.html` (SPA-fallback).
+### Requirement: Studio static files
+The server SHALL serve files from the studio `dist` with MIME by extension; a path outside `dist` SHALL yield `403`; malformed percent-encoding `400`; a missing file with a known extension `404`; any other path `index.html` (SPA fallback).
 
-#### Scenario: Обход каталога
-- **WHEN** запрос `/..%2f..%2fetc%2fpasswd`
-- **THEN** содержимое файла вне `dist` не отдаётся
+#### Scenario: Path traversal
+- **WHEN** `/..%2f..%2fetc%2fpasswd` is requested
+- **THEN** no file outside `dist` is served
 
-#### Scenario: Опечатка в имени ассета
-- **WHEN** запрос `/assets/typo.js`
-- **THEN** статус `404`, а не `index.html`
+#### Scenario: Typo in an asset name
+- **WHEN** `/assets/typo.js` is requested
+- **THEN** the status is `404`, not `index.html`
 
-### Requirement: Точка входа bin
-`bin` SHALL принимать корневой каталог проекта, `--port` (по умолчанию 4400), `--token` (только для автоматизации; по умолчанию случайный), требовать собранную студию и печатать URL с токеном. При отсутствии story SHALL сообщить, что будет показан демо-виджет.
+### Requirement: bin entry point
+`bin` SHALL accept the project root directory, `--port` (default 4400), `--token` (automation only; default random), require a built studio and print the URL with the token. With no stories it SHALL say the demo widget will be shown.
 
-#### Scenario: Студия не собрана
-- **WHEN** `dist/index.html` студии отсутствует
-- **THEN** процесс завершается с подсказкой `pnpm -F @studio/app build`
+#### Scenario: Studio not built
+- **WHEN** the studio's `dist/index.html` is missing
+- **THEN** the process exits with the hint `pnpm -F @studio/app build`
 
-### Requirement: Подкоманда add
-`add <name> [--dir <dir>]` SHALL скопировать файлы компонента из `registry.json` в `<dir>/<name>/` (по умолчанию `src/components`) и напомнить о зависимости `@studio/widget-runtime`. Неизвестное имя SHALL давать ошибку с перечнем доступных компонентов.
+### Requirement: add subcommand
+`add <name> [--dir <dir>]` SHALL copy the component's files from `registry.json` into `<dir>/<name>/` (default `src/components`) and remind about the `@studio/widget-runtime` dependency. An unknown name SHALL yield an error listing the available components.
 
-#### Scenario: Неизвестный компонент
-- **WHEN** выполняется `add nope`
-- **THEN** ошибка перечисляет `kpi-card` и `data-table`
+#### Scenario: Unknown component
+- **WHEN** `add nope` runs
+- **THEN** the error lists `kpi-card` and `data-table`

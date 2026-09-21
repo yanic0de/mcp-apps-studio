@@ -1,69 +1,69 @@
-# Адаптер хоста
+# Host Adapter
 
 ## Purpose
 
-`HostAdapter` — чистый переводчик между wire-сообщениями конкретного диалекта (сейчас только MCP Apps) и семантическими действиями эмулятора. Без доступа к транспорту и без побочных эффектов: это делает адаптеры проверяемыми на «золотых» логах и позволяет подключить будущий `openai-apps` без правок эмулятора и студии.
+`HostAdapter` is a pure translator between the wire messages of one protocol dialect (currently only MCP Apps) and the emulator's semantic actions. No transport access, no side effects: this makes adapters testable against golden logs and lets a future `openai-apps` adapter plug in without touching the emulator or the studio.
 
 ## Requirements
 
-### Requirement: Контракт адаптера
-Адаптер SHALL реализовывать `id`, `buildIframeEnv`, `handleWidgetMessage`, `pushHostEvent`, `buildInitializeResult`, `capabilities` и MUST NOT обращаться к транспорту, DOM или изменяемому состоянию.
+### Requirement: Adapter contract
+An adapter SHALL implement `id`, `buildIframeEnv`, `handleWidgetMessage`, `pushHostEvent`, `buildInitializeResult`, `capabilities` and MUST NOT access the transport, the DOM or mutable state.
 
-#### Scenario: Один и тот же вход даёт один и тот же выход
-- **WHEN** `handleWidgetMessage` вызывается дважды с одинаковым сообщением
-- **THEN** результаты структурно равны
+#### Scenario: Same input, same output
+- **WHEN** `handleWidgetMessage` is called twice with the same message
+- **THEN** the results are structurally equal
 
-### Requirement: Перевод сообщений виджета в действия
-`McpAppsAdapter.handleWidgetMessage` SHALL переводить: `ui/initialize` → `{ type: 'initialize' }`; `tools/call` → `{ type: 'tool-call', toolName, args }`; `resources/read` → `{ type: 'resource-read', uri }`; `ui/notifications/size-changed` → `{ type: 'size-changed', width?, height? }`; прочие методы → `{ type: 'unsupported', method }`. Действия MUST NOT содержать идентификатор запроса: отвечать по исходному `id` — обязанность моста.
+### Requirement: Translating widget messages into actions
+`McpAppsAdapter.handleWidgetMessage` SHALL translate: `ui/initialize` → `{ type: 'initialize' }`; `tools/call` → `{ type: 'tool-call', toolName, args }`; `resources/read` → `{ type: 'resource-read', uri }`; `ui/notifications/size-changed` → `{ type: 'size-changed', width?, height? }`; any other method → `{ type: 'unsupported', method }`. Actions MUST NOT carry a request id: answering with the original `id` is the bridge's job.
 
-#### Scenario: Вызов инструмента
-- **WHEN** приходит `tools/call` с `{ name: 'get_metrics', arguments: { q: 1 } }`
-- **THEN** действие равно `{ type: 'tool-call', toolName: 'get_metrics', args: { q: 1 } }`
+#### Scenario: Tool call
+- **WHEN** `tools/call` arrives with `{ name: 'get_metrics', arguments: { q: 1 } }`
+- **THEN** the action equals `{ type: 'tool-call', toolName: 'get_metrics', args: { q: 1 } }`
 
-#### Scenario: Неизвестный метод
-- **WHEN** приходит запрос с методом `wat/ever`
-- **THEN** действие равно `{ type: 'unsupported', method: 'wat/ever' }`
+#### Scenario: Unknown method
+- **WHEN** a request with method `wat/ever` arrives
+- **THEN** the action equals `{ type: 'unsupported', method: 'wat/ever' }`
 
-### Requirement: Валидация параметров
-Для методов со схемой параметров адаптер SHALL проверять `params` соответствующей zod-схемой и при неуспехе возвращать `{ type: 'invalid-params', method, error }`, где `error` — читаемый список проблем вида `путь: сообщение`, называющий поле.
+### Requirement: Parameter validation
+For methods with a parameter schema the adapter SHALL validate `params` with the matching zod schema and on failure return `{ type: 'invalid-params', method, error }`, where `error` is a readable list of issues in the form `path: message` naming the field.
 
-#### Scenario: tools/call без имени
-- **WHEN** приходит `tools/call` с `{ arguments: {} }`
-- **THEN** действие имеет тип `invalid-params`
-- **AND** `error` упоминает поле `name`
+#### Scenario: tools/call without a name
+- **WHEN** `tools/call` arrives with `{ arguments: {} }`
+- **THEN** the action has type `invalid-params`
+- **AND** `error` mentions the `name` field
 
-#### Scenario: size-changed со строкой
-- **WHEN** приходит `size-changed` с `{ width: 'wide' }`
-- **THEN** действие имеет тип `invalid-params` и `method` равен имени метода
+#### Scenario: size-changed with a string
+- **WHEN** `size-changed` arrives with `{ width: 'wide' }`
+- **THEN** the action has type `invalid-params` and `method` equals the method name
 
-### Requirement: События хоста в wire-уведомления
-`pushHostEvent({ type: 'context-changed', context })` SHALL возвращать уведомление `ui/notifications/host-context-changed` с `params`, равным переданному патчу контекста. Для неизвестных событий SHALL возвращаться `null`.
+### Requirement: Host events into wire notifications
+`pushHostEvent({ type: 'context-changed', context })` SHALL return a `ui/notifications/host-context-changed` notification whose `params` equal the given context patch. For unknown events it SHALL return `null`.
 
-#### Scenario: Смена темы
-- **WHEN** хост публикует `{ type: 'context-changed', context: { theme: 'dark' } }`
-- **THEN** возвращается `{ jsonrpc: '2.0', method: 'ui/notifications/host-context-changed', params: { theme: 'dark' } }`
+#### Scenario: Theme change
+- **WHEN** the host publishes `{ type: 'context-changed', context: { theme: 'dark' } }`
+- **THEN** `{ jsonrpc: '2.0', method: 'ui/notifications/host-context-changed', params: { theme: 'dark' } }` is returned
 
-### Requirement: Результат инициализации
-`buildInitializeResult(ctx)` SHALL возвращать объект с `protocolVersion` (константа протокола), `hostCapabilities`, `hostInfo: { name: 'mcp-apps-studio', version }` и `hostContext: ctx`.
+### Requirement: Initialize result
+`buildInitializeResult(ctx)` SHALL return an object with `protocolVersion` (the protocol constant), `hostCapabilities`, `hostInfo: { name: 'mcp-apps-studio', version }` and `hostContext: ctx`.
 
-#### Scenario: Контекст по умолчанию
-- **WHEN** вызывается с `defaultHostContext`
+#### Scenario: Default context
+- **WHEN** called with `defaultHostContext`
 - **THEN** `hostContext.theme === 'light'`, `locale === 'en'`, `displayMode === 'inline'`
 
-### Requirement: Окружение iframe
-`buildIframeEnv` SHALL возвращать для источника `resource` режим `srcdoc` с HTML, для источника `dev` — режим `src` с URL; в обоих случаях `sandbox` равен `['allow-scripts']`. Значение `allow-same-origin` MUST NOT появляться в `sandbox`. Опциональное поле `csp` передаётся в атрибут `csp` iframe (работает только в Chromium).
+### Requirement: Iframe environment
+`buildIframeEnv` SHALL return, for a `resource` source, mode `srcdoc` with the HTML; for a `dev` source, mode `src` with the URL; in both cases `sandbox` equals `['allow-scripts']`. The value `allow-same-origin` MUST NOT appear in `sandbox`. The optional `csp` field is passed to the iframe `csp` attribute (Chromium only).
 
-#### Scenario: Виджет из ресурса
-- **WHEN** источник `{ kind: 'resource', uri, html }`
-- **THEN** окружение равно `{ mode: 'srcdoc', content: html, sandbox: ['allow-scripts'] }`
+#### Scenario: Widget from a resource
+- **WHEN** the source is `{ kind: 'resource', uri, html }`
+- **THEN** the environment equals `{ mode: 'srcdoc', content: html, sandbox: ['allow-scripts'] }`
 
-#### Scenario: Dev-виджет по URL
-- **WHEN** источник `{ kind: 'dev', url }`
-- **THEN** окружение равно `{ mode: 'src', content: url, sandbox: ['allow-scripts'] }`
+#### Scenario: Dev widget by URL
+- **WHEN** the source is `{ kind: 'dev', url }`
+- **THEN** the environment equals `{ mode: 'src', content: url, sandbox: ['allow-scripts'] }`
 
-### Requirement: Возможности хоста
-`capabilities()` SHALL перечислять поддерживаемые режимы отображения `inline`, `fullscreen`, `pip`. UI студии SHALL строить селектор режимов из этого списка.
+### Requirement: Host capabilities
+`capabilities()` SHALL list the supported display modes `inline`, `fullscreen`, `pip`. The studio UI SHALL build its display-mode selector from this list.
 
-#### Scenario: Селектор режимов
-- **WHEN** студия рендерит панель управления
-- **THEN** список опций «Display» совпадает с `adapter.capabilities().displayModes`
+#### Scenario: Display-mode selector
+- **WHEN** the studio renders the controls
+- **THEN** the "Display" options equal `adapter.capabilities().displayModes`

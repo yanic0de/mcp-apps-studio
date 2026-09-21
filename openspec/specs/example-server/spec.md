@@ -1,43 +1,43 @@
-# Справочный сервер (example-server)
+# Reference Server (example-server)
 
 ## Purpose
 
-`@studio/example-server` — эталонный MCP Apps сервер на публичных SDK, намеренно без workspace-зависимостей: его можно скопировать как отправную точку. Даёт один инструмент и один UI-ресурс; его `kpi-card.html` одновременно служит демо-виджетом студии.
+`@studio/example-server` is the reference MCP Apps server on the public SDKs, intentionally free of workspace dependencies: it can be copied as a starting point. It exposes one tool and one UI resource; its `kpi-card.html` doubles as the studio's demo widget.
 
 ## Requirements
 
-### Requirement: Без workspace-зависимостей
-Пакет MUST NOT зависеть от других пакетов монорепо; допустимы только `@modelcontextprotocol/sdk`, `@modelcontextprotocol/ext-apps`, `express`, `zod`.
+### Requirement: No workspace dependencies
+The package MUST NOT depend on other monorepo packages; only `@modelcontextprotocol/sdk`, `@modelcontextprotocol/ext-apps`, `express`, `zod` are allowed.
 
-#### Scenario: Копирование в чужой проект
-- **WHEN** каталог пакета копируется вне монорепо
-- **THEN** `pnpm install && pnpm dev` работает без правок импортов
+#### Scenario: Copying into another project
+- **WHEN** the package directory is copied outside the monorepo
+- **THEN** `pnpm install && pnpm dev` works without editing imports
 
-### Requirement: Инструмент get_metrics
-Сервер SHALL регистрировать `get_metrics` с `_meta.ui.resourceUri`, указывающим на UI-ресурс, и возвращать одновременно текстовый `content` (обязательный fallback для хостов без UI) и `structuredContent: { value, delta, label }`.
+### Requirement: The get_metrics tool
+The server SHALL register `get_metrics` with `_meta.ui.resourceUri` pointing at the UI resource, returning both a text `content` (the mandatory fallback for hosts without UI) and `structuredContent: { value, delta, label }`.
 
-#### Scenario: Вызов инструмента
-- **WHEN** клиент вызывает `get_metrics`
-- **THEN** `structuredContent` содержит числовые `value`, `delta` и строковый `label`
-- **AND** `content[0].text` содержит `Monthly active users`
+#### Scenario: Tool call
+- **WHEN** a client calls `get_metrics`
+- **THEN** `structuredContent` holds numeric `value`, `delta` and a string `label`
+- **AND** `content[0].text` contains `Monthly active users`
 
-### Requirement: UI-ресурс
-Сервер SHALL отдавать `ui://example/kpi-card.html` с MIME `text/html;profile=mcp-app`, читая HTML из файла рядом с исходником.
+### Requirement: UI resource
+The server SHALL serve `ui://example/kpi-card.html` with MIME `text/html;profile=mcp-app`, reading the HTML from the file next to the source.
 
-#### Scenario: Чтение ресурса
-- **WHEN** клиент читает `ui://example/kpi-card.html`
-- **THEN** `mimeType` равен константе SDK `RESOURCE_MIME_TYPE`, текст содержит `ui/initialize`
+#### Scenario: Reading the resource
+- **WHEN** a client reads `ui://example/kpi-card.html`
+- **THEN** `mimeType` equals the SDK constant `RESOURCE_MIME_TYPE` and the text contains `ui/initialize`
 
-### Requirement: Один файл виджета
-`kpi-card.html` SHALL экспортироваться как `./kpi-card.html` и быть единственным источником демо-виджета студии; MUST NOT существовать второй копии этого файла в репозитории.
+### Requirement: One widget file
+`kpi-card.html` SHALL be exported as `./kpi-card.html` and be the single source of the studio's demo widget; a second copy of this file MUST NOT exist in the repository.
 
-#### Scenario: Правка виджета
-- **WHEN** меняется `kpi-card.html`
-- **THEN** изменение видно и в live-режиме, и в демо-режиме `vite dev`
+#### Scenario: Editing the widget
+- **WHEN** `kpi-card.html` changes
+- **THEN** the change is visible both in live mode and in `vite dev` demo mode
 
-### Requirement: Stateless HTTP с CORS
-`main.ts` SHALL поднимать express на `PORT` (по умолчанию 3100), отдавать `/health`, для каждого `POST /mcp` создавать новые `McpServer` и `StreamableHTTPServerTransport` без session id, и выставлять CORS-заголовки, включая `mcp-session-id` и `mcp-protocol-version`, чтобы студия с другого origin могла подключиться.
+### Requirement: Stateless HTTP with CORS
+`main.ts` SHALL start express on `PORT` (default 3100), serve `/health`, create a fresh `McpServer` and `StreamableHTTPServerTransport` without a session id for every `POST /mcp`, and set CORS headers including `mcp-session-id` and `mcp-protocol-version` so the studio on another origin can connect.
 
-#### Scenario: Preflight из браузера
-- **WHEN** приходит `OPTIONS /mcp`
-- **THEN** статус `204` с заголовками `Access-Control-Allow-*`
+#### Scenario: Browser preflight
+- **WHEN** `OPTIONS /mcp` arrives
+- **THEN** the status is `204` with `Access-Control-Allow-*` headers

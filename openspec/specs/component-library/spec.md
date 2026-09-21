@@ -1,62 +1,62 @@
-# Библиотека компонентов
+# Component Library
 
 ## Purpose
 
-`@studio/components` — распространяемая исходниками библиотека виджетов (модель shadcn): компонент копируется в проект пользователя командой `mcp-apps-studio add`, а не подключается зависимостью. Каждый компонент соблюдает единый контракт: тематизация через CSS-переменные хоста, текстовый fallback, story-файл со сценариями, общение с хостом только через `@studio/widget-runtime`.
+`@studio/components` is a source-distributed widget library (shadcn model): a component is copied into the user's project by `mcp-apps-studio add` rather than depended on. Every component follows one contract: theming through host CSS variables, a text fallback, a story file with scenarios, host communication only through `@studio/widget-runtime`.
 
 ## Requirements
 
-### Requirement: Контракт компонента
-Каждый компонент SHALL: тематизироваться только через переменные `--widget-*` с запасными значениями и селектор `[data-theme='dark']`; экспортировать текстовую функцию-fallback; иметь `*.stories.mcp.ts` со сценариями `default`, `loading` или `empty`, и `error`; MUST NOT обращаться к `window.parent` напрямую.
+### Requirement: Component contract
+Every component SHALL: theme itself only through `--widget-*` variables with fallback values and the `[data-theme='dark']` selector; export a text fallback function; ship a `*.stories.mcp.ts` with `default`, `loading` or `empty`, and `error` scenarios; and MUST NOT touch `window.parent` directly.
 
-#### Scenario: Тёмная тема
-- **WHEN** хост присылает `theme: 'dark'` и рантайм ставит `data-theme="dark"`
-- **THEN** компонент меняет фон и цвет текста без перезагрузки
+#### Scenario: Dark theme
+- **WHEN** the host sends `theme: 'dark'` and the runtime sets `data-theme="dark"`
+- **THEN** the component switches background and text color without a reload
 
-#### Scenario: Хост без поддержки UI
-- **WHEN** сервер отвечает только текстом
-- **THEN** функция-fallback компонента даёт эквивалентное текстовое представление
+#### Scenario: Host without UI support
+- **WHEN** the server answers with text only
+- **THEN** the component's fallback function yields an equivalent text representation
 
-### Requirement: Самодостаточная сборка
-`build.mjs` SHALL собирать каждый компонент в один файл `dist/<name>.html` (vite + singlefile, target es2022, точки входа используют top-level await). Story-файлы указывают на `dist`, поэтому сборка SHALL предшествовать показу библиотеки в студии.
+### Requirement: Self-contained build
+`build.mjs` SHALL bundle each component into a single `dist/<name>.html` (vite + singlefile, target es2022; entries use top-level await). Story files point at `dist`, so the build SHALL precede showing the library in the studio.
 
-#### Scenario: Сборка библиотеки
-- **WHEN** выполняется `pnpm -F @studio/components build`
-- **THEN** появляются `dist/kpi-card.html` и `dist/data-table.html`
-- **AND** каждый файл рендерится в sandboxed iframe без внешних запросов
+#### Scenario: Library build
+- **WHEN** `pnpm -F @studio/components build` runs
+- **THEN** `dist/kpi-card.html` and `dist/data-table.html` appear
+- **AND** each file renders in a sandboxed iframe with no external requests
 
-### Requirement: Точка входа виджета
-Точка входа компонента SHALL создать `WidgetClient`, дождаться `connect()`, применить контекст к документу, подписаться на его изменения, смонтировать компонент внутри `WidgetProvider` и сообщить хосту размер.
+### Requirement: Widget entry point
+A component's entry SHALL create a `WidgetClient`, await `connect()`, apply the context to the document, subscribe to its changes, mount the component inside `WidgetProvider` and report the size to the host.
 
-#### Scenario: Загрузка в студии
-- **WHEN** iframe с собранным компонентом загружается
-- **THEN** в трассе появляются `ui/initialize`, `tools/call` и `size-changed` от виджета
+#### Scenario: Loading in the studio
+- **WHEN** the iframe with the bundled component loads
+- **THEN** `ui/initialize`, `tools/call` and `size-changed` from the widget appear in the trace
 
 ### Requirement: KPI Card
-`KpiCard` SHALL при монтировании вызвать инструмент (по умолчанию `get_metrics`), показывать `value` через `toLocaleString`, подпись с `label` и направлением `delta`, состояние `loading…`, текст ошибки и кнопку `Refresh` с `type="button"`.
+`KpiCard` SHALL call a tool on mount (default `get_metrics`), show `value` via `toLocaleString`, a caption with `label` and the direction of `delta`, a `loading…` state, the error text, and a `Refresh` button with `type="button"`.
 
-#### Scenario: Данные получены
-- **WHEN** инструмент вернул `{ value: 12840, delta: 8.3, label: 'Monthly active users' }`
-- **THEN** значение отображается как `12,840`, статус содержит `Monthly active users ▲8.3%`
+#### Scenario: Data received
+- **WHEN** the tool returns `{ value: 12840, delta: 8.3, label: 'Monthly active users' }`
+- **THEN** the value renders as `12,840` and the status contains `Monthly active users ▲8.3%`
 
-#### Scenario: Ошибка инструмента
-- **WHEN** инструмент отклонён с сообщением `Metrics backend unavailable`
-- **THEN** статус содержит это сообщение и класс ошибки
+#### Scenario: Tool error
+- **WHEN** the tool rejects with the message `Metrics backend unavailable`
+- **THEN** the status contains that message and the error class
 
 ### Requirement: Data Table
-`DataTable` SHALL вызвать инструмент (по умолчанию `get_rows`), ожидать `{ columns: [{ key, label }], rows }`, показывать таблицу с заголовками из `columns`, состояние `loading…`, сообщение `No rows.` для пустого списка и текст ошибки. Fallback `dataTableTextFallback(data, maxRows)` SHALL выводить заголовок и первые `maxRows` строк с пометкой о скрытых.
+`DataTable` SHALL call a tool (default `get_rows`), expect `{ columns: [{ key, label }], rows }`, render a table with headers from `columns`, a `loading…` state, the `No rows.` message for an empty list, and the error text. The fallback `dataTableTextFallback(data, maxRows)` SHALL print the header and the first `maxRows` rows with a note about the hidden ones.
 
-#### Scenario: Пустой результат
-- **WHEN** инструмент вернул `rows: []`
-- **THEN** отображается `No rows.`
+#### Scenario: Empty result
+- **WHEN** the tool returns `rows: []`
+- **THEN** `No rows.` is shown
 
-#### Scenario: Текстовый fallback с усечением
-- **WHEN** три строки и `maxRows = 2`
-- **THEN** текст содержит две строки и пометку `1 more row`
+#### Scenario: Truncated text fallback
+- **WHEN** there are three rows and `maxRows = 2`
+- **THEN** the text contains two rows and the note `1 more row`
 
-### Requirement: Реестр
-`registry.json` SHALL перечислять компоненты с полями `name`, `title`, `description`, `files` (пути исходников) и `dependencies` (`@studio/widget-runtime`). Команда `add` SHALL копировать именно перечисленные файлы.
+### Requirement: Registry
+`registry.json` SHALL list components with `name`, `title`, `description`, `files` (source paths) and `dependencies` (`@studio/widget-runtime`). The `add` command SHALL copy exactly the listed files.
 
-#### Scenario: Добавление kpi-card
-- **WHEN** выполняется `mcp-apps-studio add kpi-card`
-- **THEN** в целевой каталог копируются `KpiCard.tsx`, `kpi-card.css`, `fallback.ts`
+#### Scenario: Adding kpi-card
+- **WHEN** `mcp-apps-studio add kpi-card` runs
+- **THEN** `KpiCard.tsx`, `kpi-card.css`, `fallback.ts` are copied into the target directory
