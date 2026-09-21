@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { HostEmulator, IframeTransport, McpAppsAdapter } from '@studio/host-emulator';
+import { HostEmulator, IframeTransport } from '@studio/host-emulator';
+import type { WidgetSource } from '@studio/shared';
+import { adapter } from '../adapter.js';
 import { connectMcpServer, type LiveConnection } from '../mcp-client.js';
 import { selectActiveWidget, useStudioStore } from '../store.js';
 
@@ -43,7 +45,7 @@ export function Canvas() {
     if (!iframe || !activeWidget || waitingForServer) return;
     const transport = new IframeTransport(iframe);
     const emulator = new HostEmulator({
-      adapter: new McpAppsAdapter(),
+      adapter,
       transport,
       mocks: activeWidget.scenarios[scenario]?.mocks ?? {},
       passthrough: live?.callTool,
@@ -89,10 +91,16 @@ export function Canvas() {
   if (waitingForServer) {
     return (
       <main className="canvas">
-        <p className="canvas-note">Connecting to example server…</p>
+        <p className="canvas-note">Connecting to MCP server…</p>
       </main>
     );
   }
+
+  // Manifest widgets have no server-side uri; a studio-local one keeps WidgetSource honest.
+  const source: WidgetSource = live
+    ? { kind: 'resource', uri: live.widgetUri, html: live.widgetHtml }
+    : { kind: 'resource', uri: `ui://studio/${activeWidget.id}`, html: activeWidget.html };
+  const env = adapter.buildIframeEnv(source, hostContext);
 
   return (
     <main className="canvas">
@@ -101,8 +109,9 @@ export function Canvas() {
           key={`${activeWidget.id}:${scenario}`}
           ref={iframeRef}
           title="widget under test"
-          sandbox="allow-scripts"
-          srcDoc={isLive && live ? live.widgetHtml : activeWidget.html}
+          sandbox={env.sandbox.join(' ')}
+          {...(env.mode === 'srcdoc' ? { srcDoc: env.content } : { src: env.content })}
+          {...(env.csp ? { csp: env.csp } : {})}
         />
       </div>
     </main>

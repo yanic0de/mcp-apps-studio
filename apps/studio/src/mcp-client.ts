@@ -12,6 +12,8 @@ export function liveServerUrl(): string {
 }
 
 export interface LiveConnection {
+  /** ui:// uri of the resource the widget HTML came from. */
+  widgetUri: string;
   widgetHtml: string;
   callTool: PassthroughHandler;
   close: () => Promise<void>;
@@ -54,7 +56,7 @@ export async function connectMcpServer(url: string = liveServerUrl()): Promise<L
       return result.structuredContent ?? result;
     };
 
-    return { widgetHtml, callTool, close: () => client.close() };
+    return { widgetUri: uiResource.uri, widgetHtml, callTool, close: () => client.close() };
   } catch (err) {
     await client.close();
     throw err;
