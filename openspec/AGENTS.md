@@ -82,11 +82,15 @@ openspec/
 ## Команды
 
 ```bash
-npx @fission-ai/openspec list                 # активные изменения
-npx @fission-ai/openspec validate --strict    # проверка всех specs и changes
-npx @fission-ai/openspec show <change-id>     # просмотр изменения
-npx @fission-ai/openspec archive <change-id>  # применить дельты к specs/ и убрать в archive/
+export OPENSPEC_TELEMETRY=0                          # CLI собирает анонимную статистику; выключаем
+npx @fission-ai/openspec list --specs                # спецификации и число требований
+npx @fission-ai/openspec list                        # активные изменения
+npx @fission-ai/openspec validate --all --strict     # проверка всех specs и changes (без --all в CI ничего не проверит)
+npx @fission-ai/openspec show <change-id>            # просмотр изменения
+npx @fission-ai/openspec archive <change-id>         # применить дельты к specs/ и убрать в archive/
 ```
+
+Валидатор запускается после каждой правки в `openspec/`; коммит с падающей валидацией не делаем.
 
 ## Связь с кодом
 
