@@ -1,20 +1,28 @@
+import type { ZodType } from 'zod';
 import {
   JSON_RPC_VERSION,
   MCP_APPS_METHODS,
   MCP_APPS_PROTOCOL_VERSION,
+  formatZodIssues,
   resourcesReadParamsSchema,
   sizeChangedParamsSchema,
   toolsCallParamsSchema,
   type HostContext,
-  type JsonRpcId,
   type JsonRpcNotification,
   type JsonRpcRequest,
   type WidgetSource,
 } from '@studio/shared';
 import type { AdapterAction, HostAdapter, HostCapabilities, HostEvent, IframeEnv } from './adapter.js';
 
-function requestId(msg: JsonRpcRequest | JsonRpcNotification): JsonRpcId | undefined {
-  return 'id' in msg ? msg.id : undefined;
+type WireMessage = JsonRpcRequest | JsonRpcNotification;
+
+/** Validates `msg.params` against `schema`; malformed params become an `invalid-params` action. */
+function withParams<T>(msg: WireMessage, schema: ZodType<T>, build: (params: T) => AdapterAction): AdapterAction {
+  const parsed = schema.safeParse(msg.params);
+  if (!parsed.success) {
+    return { type: 'invalid-params', method: msg.method, error: formatZodIssues(parsed.error) };
+  }
+  return build(parsed.data);
 }
 
 export class McpAppsAdapter implements HostAdapter {
@@ -26,28 +34,18 @@ export class McpAppsAdapter implements HostAdapter {
       : { mode: 'src', content: widget.url, sandbox: ['allow-scripts'] };
   }
 
-  handleWidgetMessage(msg: JsonRpcRequest | JsonRpcNotification): AdapterAction {
-    const id = requestId(msg);
+  handleWidgetMessage(msg: WireMessage): AdapterAction {
     switch (msg.method) {
       case MCP_APPS_METHODS.uiInitialize:
-        return { type: 'initialize', requestId: id ?? 0 };
-      case MCP_APPS_METHODS.toolsCall: {
-        const p = toolsCallParamsSchema.safeParse(msg.params);
-        if (!p.success) return { type: 'invalid-params', requestId: id ?? 0, method: msg.method, error: p.error.message };
-        return { type: 'tool-call', requestId: id ?? 0, toolName: p.data.name, args: p.data.arguments };
-      }
-      case MCP_APPS_METHODS.resourcesRead: {
-        const p = resourcesReadParamsSchema.safeParse(msg.params);
-        if (!p.success) return { type: 'invalid-params', requestId: id ?? 0, method: msg.method, error: p.error.message };
-        return { type: 'resource-read', requestId: id ?? 0, uri: p.data.uri };
-      }
-      case MCP_APPS_METHODS.sizeChanged: {
-        const p = sizeChangedParamsSchema.safeParse(msg.params);
-        if (!p.success) return { type: 'invalid-params', requestId: id ?? 0, method: msg.method, error: p.error.message };
-        return { type: 'size-changed', ...p.data };
-      }
+        return { type: 'initialize' };
+      case MCP_APPS_METHODS.toolsCall:
+        return withParams(msg, toolsCallParamsSchema, (p) => ({ type: 'tool-call', toolName: p.name, args: p.arguments }));
+      case MCP_APPS_METHODS.resourcesRead:
+        return withParams(msg, resourcesReadParamsSchema, (p) => ({ type: 'resource-read', uri: p.uri }));
+      case MCP_APPS_METHODS.sizeChanged:
+        return withParams(msg, sizeChangedParamsSchema, (p) => ({ type: 'size-changed', ...p }));
       default:
-        return { type: 'unsupported', method: msg.method, ...(id !== undefined ? { requestId: id } : {}) };
+        return { type: 'unsupported', method: msg.method };
     }
   }
 

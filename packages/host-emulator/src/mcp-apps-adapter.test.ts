@@ -9,14 +9,12 @@ describe('McpAppsAdapter.handleWidgetMessage', () => {
   it('maps ui/initialize to initialize action', () => {
     expect(adapter.handleWidgetMessage(req(1, MCP_APPS_METHODS.uiInitialize, { appCapabilities: {} }))).toEqual({
       type: 'initialize',
-      requestId: 1,
     });
   });
 
   it('maps tools/call to tool-call action', () => {
     expect(adapter.handleWidgetMessage(req(2, MCP_APPS_METHODS.toolsCall, { name: 'get_metrics', arguments: { q: 1 } }))).toEqual({
       type: 'tool-call',
-      requestId: 2,
       toolName: 'get_metrics',
       args: { q: 1 },
     });
@@ -24,13 +22,13 @@ describe('McpAppsAdapter.handleWidgetMessage', () => {
 
   it('maps malformed tools/call params to invalid-params', () => {
     const action = adapter.handleWidgetMessage(req(3, MCP_APPS_METHODS.toolsCall, { arguments: {} }));
-    expect(action).toMatchObject({ type: 'invalid-params', requestId: 3, method: MCP_APPS_METHODS.toolsCall });
+    expect(action).toMatchObject({ type: 'invalid-params', method: MCP_APPS_METHODS.toolsCall });
+    expect((action as { error: string }).error).toMatch(/name/); // names the offending field
   });
 
   it('maps resources/read to resource-read', () => {
     expect(adapter.handleWidgetMessage(req(4, MCP_APPS_METHODS.resourcesRead, { uri: 'ui://kpi' }))).toEqual({
       type: 'resource-read',
-      requestId: 4,
       uri: 'ui://kpi',
     });
   });
@@ -51,7 +49,7 @@ describe('McpAppsAdapter.handleWidgetMessage', () => {
   });
 
   it('maps unknown method to unsupported', () => {
-    expect(adapter.handleWidgetMessage(req(5, 'wat/ever'))).toEqual({ type: 'unsupported', method: 'wat/ever', requestId: 5 });
+    expect(adapter.handleWidgetMessage(req(5, 'wat/ever'))).toEqual({ type: 'unsupported', method: 'wat/ever' });
   });
 });
 
