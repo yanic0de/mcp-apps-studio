@@ -7,8 +7,9 @@ test('live scenario renders the widget served by the real MCP example server', a
 
   await page.getByLabel('Scenario').selectOption('live');
 
-  // Widget HTML now comes from resources/read; tool call is proxied over streamable HTTP.
-  await expect(frame.locator('.label')).toHaveText('KPI · example-server');
+  // No mocks in `live`: the value can only come from get_metrics proxied over streamable HTTP.
+  // (The HTML swap itself is proven by test-server.spec, whose widget differs from the demo.)
   await expect(frame.locator('#value')).toHaveText('12,840');
   await expect(frame.locator('#status')).toContainText('Monthly active users');
+  await expect(page.locator('.trace-row').filter({ hasText: 'tools/call' }).first()).toBeVisible();
 });
