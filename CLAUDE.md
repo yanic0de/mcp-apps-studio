@@ -13,6 +13,8 @@ pnpm test                                  # all tests (vitest, single root conf
 pnpm vitest run packages/host-emulator     # tests for one package/dir
 pnpm vitest run packages/shared/src/json-rpc.test.ts -t 'classifies'  # single test
 pnpm typecheck                             # tsc --noEmit per package via turbo
+pnpm lint                                  # biome: format + lint + import order check (biome.json at root)
+pnpm lint:fix                              # biome check --write (safe fixes only)
 pnpm -F @studio/app dev                    # studio dev server (Vite), demo widget fallback
 pnpm -F @studio/app build                  # studio production build
 pnpm -F @studio/example-server dev         # reference MCP server on :3100 (live scenario default)
@@ -55,4 +57,4 @@ Layering (dependencies point down, never up):
 
 ## Workflow
 
-Implementation plans live in `docs/superpowers/plans/` (checkbox format, one per phase). TDD per task: failing test → implement → commit. MVP roadmap complete: core → studio → example-server → CLI → widget-runtime/components/registry → e2e. Candidate next steps: publish story (build + changesets), openai-apps adapter, design brief (see memory).
+Implementation plans live in `docs/superpowers/plans/` (checkbox format, one per phase). TDD per task: failing test → implement → `pnpm lint` → commit. Suppress a Biome rule only with a `biome-ignore` comment that states the reason (see `Canvas.tsx`, `DataTable.tsx`). MVP roadmap complete: core → studio → example-server → CLI → widget-runtime/components/registry → e2e. Candidate next steps: publish story (build + changesets), openai-apps adapter, design brief (see memory).

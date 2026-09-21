@@ -6,9 +6,12 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "turbo run typecheck",
-    "e2e": "playwright test --config e2e/playwright.config.ts"
+    "e2e": "playwright test --config e2e/playwright.config.ts",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write ."
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
     "@playwright/test": "^1.61.1",
     "turbo": "^2.5.0",
     "typescript": "~5.8.0",
