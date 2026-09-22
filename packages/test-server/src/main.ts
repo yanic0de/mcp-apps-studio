@@ -1,10 +1,10 @@
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import express from 'express';
+import { createMcpExpressApp } from '@modelcontextprotocol/express';
+import { NodeStreamableHTTPServerTransport } from '@modelcontextprotocol/node';
 import { createTestServer } from './server.js';
 
 const PORT = Number(process.env.PORT ?? 3200);
-const app = express();
-app.use(express.json());
+// MCP SDK v2 express app: JSON body parsing + localhost host/origin validation (DNS-rebinding protection).
+const app = createMcpExpressApp();
 
 // Browser studio runs on another origin; MCP streamable HTTP needs these headers.
 app.use((req, res, next) => {
@@ -29,7 +29,7 @@ app.get('/health', (_req, res) => {
 // Stateless mode: fresh server + transport per request (counter state is module-level).
 app.post('/mcp', async (req, res) => {
   const server = createTestServer();
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  const transport = new NodeStreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   res.on('close', () => {
     void transport.close();
     void server.close();

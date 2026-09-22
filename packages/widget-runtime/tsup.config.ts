@@ -7,5 +7,5 @@ export default defineConfig({
   dts: true,
   clean: true,
   target: 'es2022',
-  external: ['@modelcontextprotocol/ext-apps', '@modelcontextprotocol/sdk', 'zod', 'react'],
+  external: ['@modelcontextprotocol/ext-apps', '@modelcontextprotocol/client', 'zod', 'react'],
 });

@@ -55,6 +55,8 @@ Layering (dependencies point down, never up):
 
 ## Constraints that are easy to violate
 
+- MCP stack is ext-apps 2.x on MCP SDK v2 (`@modelcontextprotocol/client` / `server` / `node` / `express`); `@modelcontextprotocol/sdk` (v1) must not come back. Reference servers use `createMcpExpressApp` + per-request `NodeStreamableHTTPServerTransport`; tool `inputSchema` is a `z.object`.
+- The root package is `mcp-apps-studio-monorepo` on purpose: sharing the CLI's name made `pnpm -F mcp-apps-studio …` also run root scripts.
 - Protocol ground truth is the installed `@modelcontextprotocol/ext-apps` SDK (`dist/src/spec.types.d.ts`), never memory. `packages/host-emulator/src/sdk-conformance.test.ts` drives the official `App` against `HostEmulator`; a new wire method goes into `protocol.ts` and gets a conformance case.
 - `tools/call` answers a full MCP `CallToolResult` (mock and live alike); tool failures are `isError` results, JSON-RPC errors are only for protocol failures (`rpc-error` mock kind).
 - Published: ONLY `mcp-apps-studio` (CLI, bundles every `@studio/*` package + `dist/studio` + `dist/registry`) and `@mcp-apps-studio/widget-runtime` (SDK + React are peers). Everything else stays `private`. Published manifests come from `publishConfig`; dev keeps TS-source exports. The CLI's public API is `src/public.ts` only (story types derived from the schema so `.d.ts` is self-contained). `scripts/pack-smoke.mjs` is the definition of installable.

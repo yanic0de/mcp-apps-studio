@@ -1,6 +1,6 @@
 // Proves the release is installable: pack both public packages, install the tarballs into an empty
 // project with one vanilla widget, then `mcp-apps-studio init` + `mcp-apps-studio test` must pass.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -63,7 +63,8 @@ await fs.writeFile(
 </script></body></html>`,
 );
 
-run(
+// Latest SDK exactly as the ext-apps README tells users to install it: our peers must accept it.
+const install = spawnSync(
   'npm',
   [
     'install',
@@ -71,12 +72,22 @@ run(
     '--no-fund',
     cliTgz,
     runtimeTgz,
-    '@modelcontextprotocol/ext-apps@^1.7.4',
-    '@modelcontextprotocol/sdk@^1.29.0',
-    'zod@^4',
+    '@modelcontextprotocol/ext-apps',
+    '@modelcontextprotocol/client',
+    'zod',
   ],
-  project,
+  { cwd: project, encoding: 'utf8', shell: process.platform === 'win32' },
 );
+process.stdout.write(install.stdout);
+process.stderr.write(install.stderr);
+if (install.status !== 0) fail('npm install failed');
+if (
+  /Could not resolve dependency|ERESOLVE|unmet peer/i.test(install.stderr) &&
+  install.stderr.includes('@mcp-apps-studio')
+) {
+  fail('npm reports an unmet peer dependency for our packages');
+}
+
 run(
   'node',
   [

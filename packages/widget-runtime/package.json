@@ -44,10 +44,10 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@modelcontextprotocol/ext-apps": "^1.7.4",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/ext-apps": "^2.0.0",
     "react": "^18.0.0 || ^19.0.0",
-    "zod": "^3.25.0 || ^4.0.0"
+    "zod": "^4.2.0"
   },
   "peerDependenciesMeta": {
     "react": {
@@ -55,15 +55,15 @@
     }
   },
   "devDependencies": {
-    "@modelcontextprotocol/ext-apps": "^1.7.4",
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "react": "^19.1.0",
-    "zod": "^4.4.3",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/ext-apps": "^2.0.0",
     "@studio/host-emulator": "workspace:*",
     "@studio/shared": "workspace:*",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.2.3",
+    "react": "^19.1.0",
     "react-dom": "^19.2.7",
-    "typescript": "~5.8.0"
+    "typescript": "~5.8.0",
+    "zod": "^4.4.3"
   }
 }

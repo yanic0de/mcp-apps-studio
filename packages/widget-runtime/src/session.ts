@@ -1,3 +1,4 @@
+import type { Transport } from '@modelcontextprotocol/client';
 import {
   App,
   applyDocumentTheme,
@@ -6,7 +7,6 @@ import {
   type McpUiAppCapabilities,
   type McpUiHostContext,
 } from '@modelcontextprotocol/ext-apps';
-import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { createToolLifecycleStore, type ToolLifecycleStore } from './lifecycle-store.js';
 
 export interface ConnectWidgetOptions {

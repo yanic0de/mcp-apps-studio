@@ -1,4 +1,4 @@
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import type { CallToolResult } from '@modelcontextprotocol/client';
 
 /**
  * Unwraps a `CallToolResult` for UI code: `structuredContent` (or null) on success;

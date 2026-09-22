@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { RESOURCE_MIME_TYPE, registerAppResource, registerAppTool } from '@modelcontextprotocol/ext-apps/server';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
 export const INSPECTOR_RESOURCE_URI = 'ui://test/inspector.html';
@@ -26,7 +26,7 @@ export function createTestServer(): McpServer {
     {
       title: 'Echo',
       description: 'Returns its arguments back as structuredContent.',
-      inputSchema: { message: z.string().default('ping') },
+      inputSchema: z.object({ message: z.string().default('ping') }),
       annotations: { readOnlyHint: true },
       ...ui,
     },
@@ -42,7 +42,7 @@ export function createTestServer(): McpServer {
     {
       title: 'Slow metrics',
       description: 'Returns KPI metrics after a configurable delay — for loading states against a real server.',
-      inputSchema: { delayMs: z.number().int().min(0).max(10_000).default(1500) },
+      inputSchema: z.object({ delayMs: z.number().int().min(0).max(10_000).default(1500) }),
       annotations: { readOnlyHint: true },
       ...ui,
     },
@@ -62,7 +62,7 @@ export function createTestServer(): McpServer {
     {
       title: 'Fail',
       description: 'Always fails with a tool error (isError result).',
-      inputSchema: { message: z.string().default('Intentional failure') },
+      inputSchema: z.object({ message: z.string().default('Intentional failure') }),
       ...ui,
     },
     async (args) => ({
@@ -77,10 +77,10 @@ export function createTestServer(): McpServer {
     {
       title: 'Get rows',
       description: 'Deterministic paginated table data.',
-      inputSchema: {
+      inputSchema: z.object({
         page: z.number().int().min(1).default(1),
         pageSize: z.number().int().min(1).max(100).default(10),
-      },
+      }),
       annotations: { readOnlyHint: true },
       ...ui,
     },
@@ -113,7 +113,7 @@ export function createTestServer(): McpServer {
     {
       title: 'Counter',
       description: 'Increments server-side state shared across calls.',
-      inputSchema: { by: z.number().int().default(1) },
+      inputSchema: z.object({ by: z.number().int().default(1) }),
       ...ui,
     },
     async (args) => {

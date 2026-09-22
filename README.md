@@ -267,7 +267,7 @@ Conventions: TDD per task, tests next to source, core packages must stay runnabl
 
 - [x] npm packaging: `npx mcp-apps-studio` in any project (first release pending)
 - [x] Headless story runner (`mcp-apps-studio test`)
-- [ ] Upgrade to `@modelcontextprotocol/ext-apps` 2.x (MCP SDK v2 packages)
+- [x] `@modelcontextprotocol/ext-apps` 2.x on MCP SDK v2
 - [ ] Widget from a dev server with HMR; visual diffs + GitHub Action
 - [ ] `openai-apps` adapter for the OpenAI Apps SDK dialect
 - [ ] `pending` mock kind (never resolves) instead of the one-hour delay idiom

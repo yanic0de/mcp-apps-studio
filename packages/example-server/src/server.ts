@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import { RESOURCE_MIME_TYPE, registerAppResource, registerAppTool } from '@modelcontextprotocol/ext-apps/server';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from '@modelcontextprotocol/server';
+import { z } from 'zod';
 
 export const KPI_RESOURCE_URI = 'ui://example/kpi-card.html';
 
@@ -13,7 +14,7 @@ export function createExampleServer(): McpServer {
     {
       title: 'Get metrics',
       description: 'Returns the current KPI metrics.',
-      inputSchema: {},
+      inputSchema: z.object({}),
       annotations: { readOnlyHint: true },
       _meta: { ui: { resourceUri: KPI_RESOURCE_URI } },
     },

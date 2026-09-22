@@ -1,5 +1,4 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import type { PassthroughHandler } from '@studio/host-emulator';
 import { ERROR_CODES, MCP_APPS_RESOURCE_MIME, RpcError } from '@studio/shared';
 

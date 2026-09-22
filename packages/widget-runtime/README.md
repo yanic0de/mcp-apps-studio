@@ -1,9 +1,9 @@
 # @mcp-apps-studio/widget-runtime
 
-Studio conveniences on top of the official MCP Apps SDK ([`@modelcontextprotocol/ext-apps`](https://github.com/modelcontextprotocol/ext-apps)). No protocol code of its own: the widget side is the SDK's `App`.
+Studio conveniences on top of the official MCP Apps SDK ([`@modelcontextprotocol/ext-apps`](https://github.com/modelcontextprotocol/ext-apps) 2.x, MCP SDK v2). No protocol code of its own: the widget side is the SDK's `App`.
 
 ```bash
-npm i @mcp-apps-studio/widget-runtime @modelcontextprotocol/ext-apps @modelcontextprotocol/sdk zod
+npm i @mcp-apps-studio/widget-runtime @modelcontextprotocol/ext-apps @modelcontextprotocol/client zod
 ```
 
 ```ts

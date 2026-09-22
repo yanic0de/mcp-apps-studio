@@ -25,7 +25,7 @@ if (args[0] === 'add') {
   for (const file of copied) console.log(`  ${path.relative(process.cwd(), file)}`);
   console.log('\nComponent uses @mcp-apps-studio/widget-runtime. Install it with its peers:');
   console.log(
-    '  npm i @mcp-apps-studio/widget-runtime @modelcontextprotocol/ext-apps @modelcontextprotocol/sdk zod react react-dom',
+    '  npm i @mcp-apps-studio/widget-runtime @modelcontextprotocol/ext-apps @modelcontextprotocol/client zod react react-dom',
   );
   process.exit(0);
 }
