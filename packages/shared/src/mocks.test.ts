@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatZodIssues } from './json-rpc.js';
-import { mockConfigSchema, toolMockSchema } from './mocks.js';
+import { mockConfigSchema, scenarioSchema, toolMockSchema } from './mocks.js';
 
 describe('toolMockSchema', () => {
   it('accepts the four mock kinds', () => {
@@ -48,5 +48,34 @@ describe('mockConfigSchema', () => {
     const r = mockConfigSchema.safeParse({ ok: { kind: 'passthrough' }, bad: { kind: 'rpc-error', error: {} } });
     expect(r.success).toBe(false);
     if (!r.success) expect(formatZodIssues(r.error)).toMatch(/bad\.error\./);
+  });
+});
+
+describe('scenarioSchema', () => {
+  it('accepts a scenario with a tool call whose result is delayed', () => {
+    const scenario = {
+      mocks: {},
+      toolCall: {
+        name: 'get_metrics',
+        input: { q: 1 },
+        partialInputs: [{ q: 'a' }],
+        result: { kind: 'static', structuredContent: {}, delayMs: 3_600_000 },
+      },
+    };
+    expect(scenarioSchema.parse(scenario)).toEqual(scenario);
+  });
+
+  it('accepts a cancelled result and a scenario without mocks', () => {
+    expect(scenarioSchema.safeParse({ toolCall: { result: { kind: 'cancelled', reason: 'user' } } }).success).toBe(
+      true,
+    );
+  });
+
+  it('rejects rpc-error as a lifecycle result, naming toolCall.result', () => {
+    const r = scenarioSchema.safeParse({
+      toolCall: { name: 't', result: { kind: 'rpc-error', error: { code: 1, message: 'x' } } },
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(formatZodIssues(r.error)).toMatch(/toolCall\.result/);
   });
 });

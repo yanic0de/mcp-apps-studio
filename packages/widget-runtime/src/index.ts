@@ -2,4 +2,5 @@
 export { type CallToolResult, RpcError } from '@studio/shared';
 export * from './client.js';
 export * from './dom.js';
+export * from './tool-lifecycle.js';
 export * from './tool-result.js';

@@ -117,6 +117,31 @@ describe('McpAppsAdapter host-side translation', () => {
     });
   });
 
+  it('translates tool lifecycle events to wire notifications', () => {
+    expect(adapter.pushHostEvent({ type: 'tool-input-partial', arguments: { q: 'a' } })).toEqual({
+      jsonrpc: '2.0',
+      method: MCP_APPS_METHODS.toolInputPartial,
+      params: { arguments: { q: 'a' } },
+    });
+    expect(adapter.pushHostEvent({ type: 'tool-input', arguments: { q: 1 } })).toEqual({
+      jsonrpc: '2.0',
+      method: MCP_APPS_METHODS.toolInput,
+      params: { arguments: { q: 1 } },
+    });
+    const result = { content: [], structuredContent: { v: 1 } };
+    expect(adapter.pushHostEvent({ type: 'tool-result', result })).toEqual({
+      jsonrpc: '2.0',
+      method: MCP_APPS_METHODS.toolResult,
+      params: result,
+    });
+    expect(adapter.pushHostEvent({ type: 'tool-cancelled', reason: 'user' })).toEqual({
+      jsonrpc: '2.0',
+      method: MCP_APPS_METHODS.toolCancelled,
+      params: { reason: 'user' },
+    });
+    expect(adapter.pushHostEvent({ type: 'tool-cancelled' })).toMatchObject({ params: {} });
+  });
+
   it('builds spec-shaped initialize result', () => {
     const result = adapter.buildInitializeResult(defaultHostContext) as {
       hostContext: Record<string, unknown>;

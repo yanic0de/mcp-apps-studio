@@ -15,6 +15,8 @@ export interface LiveConnection {
   /** ui:// uri of the resource the widget HTML came from. */
   widgetUri: string;
   widgetHtml: string;
+  /** First tool whose `_meta.ui.resourceUri` points at the widget: the call the "model" makes in live mode. */
+  linkedTool?: { name: string; [key: string]: unknown };
   callTool: PassthroughHandler;
   close: () => Promise<void>;
 }
@@ -55,7 +57,12 @@ export async function connectMcpServer(url: string = liveServerUrl()): Promise<L
       }
     };
 
-    return { widgetUri: uiResource.uri, widgetHtml, callTool, close: () => client.close() };
+    const { tools } = await client.listTools();
+    const linkedTool = tools.find(
+      (t) => (t._meta?.ui as { resourceUri?: unknown } | undefined)?.resourceUri === uiResource.uri,
+    );
+
+    return { widgetUri: uiResource.uri, widgetHtml, linkedTool, callTool, close: () => client.close() };
   } catch (err) {
     await client.close();
     throw err;

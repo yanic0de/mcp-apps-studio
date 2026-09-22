@@ -76,10 +76,25 @@ export class McpAppsAdapter implements HostAdapter {
   }
 
   pushHostEvent(ev: HostEvent): JsonRpcNotification | null {
-    if (ev.type === 'context-changed') {
-      return { jsonrpc: JSON_RPC_VERSION, method: MCP_APPS_METHODS.hostContextChanged, params: ev.context };
+    const wire = (method: string, params: unknown): JsonRpcNotification => ({
+      jsonrpc: JSON_RPC_VERSION,
+      method,
+      params,
+    });
+    switch (ev.type) {
+      case 'context-changed':
+        return wire(MCP_APPS_METHODS.hostContextChanged, ev.context);
+      case 'tool-input-partial':
+        return wire(MCP_APPS_METHODS.toolInputPartial, { arguments: ev.arguments });
+      case 'tool-input':
+        return wire(MCP_APPS_METHODS.toolInput, { arguments: ev.arguments });
+      case 'tool-result':
+        return wire(MCP_APPS_METHODS.toolResult, ev.result);
+      case 'tool-cancelled':
+        return wire(MCP_APPS_METHODS.toolCancelled, ev.reason === undefined ? {} : { reason: ev.reason });
+      default:
+        return null;
     }
-    return null;
   }
 
   buildInitializeResult(ctx: HostContext): unknown {

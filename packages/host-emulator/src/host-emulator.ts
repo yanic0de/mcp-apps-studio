@@ -1,4 +1,5 @@
 import {
+  type CallToolResult,
   defaultHostContext,
   ERROR_CODES,
   type HostContext,
@@ -7,8 +8,9 @@ import {
   type MockConfig,
   RpcError,
   type RpcLogEvent,
+  type ToolCall,
 } from '@studio/shared';
-import type { HostAdapter, WidgetIntent } from './adapter.js';
+import type { HostAdapter, HostEvent, WidgetIntent } from './adapter.js';
 
 import { MessageBridge } from './message-bridge.js';
 import { MockRouter, type PassthroughHandler } from './mock-router.js';
@@ -28,13 +30,20 @@ export interface HostEmulatorOptions {
   onWidgetIntent?: (intent: WidgetIntent) => void;
   /** Context changes the WIDGET initiated (e.g. an accepted display-mode request); the full new context. */
   onHostContextChanged?: (context: HostContext) => void;
+  /** The tool call that rendered the widget, played after `initialized`. */
+  toolCall?: ToolCall;
+  /** Definition of that tool (e.g. from tools/list) for `hostContext.toolInfo`. */
+  toolDefinition?: { name: string; [key: string]: unknown };
 }
+
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export class HostEmulator {
   private readonly bridge: MessageBridge;
   private readonly mockRouter: MockRouter;
   private context: HostContext;
   private ready = false;
+  private running = false;
 
   constructor(private readonly opts: HostEmulatorOptions) {
     this.context = opts.hostContext ?? defaultHostContext;
@@ -48,10 +57,12 @@ export class HostEmulator {
   }
 
   start(): void {
+    this.running = true;
     this.bridge.start();
   }
 
   stop(): void {
+    this.running = false;
     this.bridge.stop();
   }
 
@@ -78,7 +89,8 @@ export class HostEmulator {
     const action = this.opts.adapter.handleWidgetMessage(req);
     switch (action.type) {
       case 'initialize':
-        return this.opts.adapter.buildInitializeResult(this.context);
+        // toolInfo belongs to this widget instance only, so it never enters the shared context.
+        return this.opts.adapter.buildInitializeResult({ ...this.context, ...this.toolInfo() });
       case 'tool-call':
         return this.mockRouter.call(action.toolName, action.args);
       case 'resource-read': {
@@ -116,7 +128,9 @@ export class HostEmulator {
         this.opts.onSizeChanged?.({ width: action.width, height: action.height });
         return;
       case 'initialized':
+        if (this.ready) return; // tool-input is sent exactly once
         this.ready = true;
+        void this.playToolCall();
         return;
       case 'log':
       case 'request-teardown':
@@ -131,6 +145,43 @@ export class HostEmulator {
         return;
       default:
         return;
+    }
+  }
+
+  private push(ev: HostEvent): void {
+    if (!this.running) return;
+    const wire = this.opts.adapter.pushHostEvent(ev);
+    if (wire) this.bridge.notify(wire.method, wire.params);
+  }
+
+  private toolInfo(): { toolInfo?: { tool: Record<string, unknown> } } {
+    const name = this.opts.toolCall?.name;
+    if (!name) return {};
+    const tool = this.opts.toolDefinition ?? { name, inputSchema: { type: 'object' } };
+    return { toolInfo: { tool } };
+  }
+
+  /** Host side of the model's tool call: partial inputs → input → result | cancelled (SEP-1865 ordering). */
+  private async playToolCall(): Promise<void> {
+    const call = this.opts.toolCall;
+    if (!call) return;
+    for (const partial of call.partialInputs ?? []) this.push({ type: 'tool-input-partial', arguments: partial });
+    const input = call.input ?? {};
+    this.push({ type: 'tool-input', arguments: input });
+    const result = call.result;
+    if (!result) return;
+    if (result.kind === 'cancelled') {
+      if (result.delayMs) await delay(result.delayMs);
+      this.push({ type: 'tool-cancelled', reason: result.reason });
+      return;
+    }
+    const name = call.name ?? 'tool';
+    try {
+      // One-entry router: same CallToolResult shaping, delay and passthrough as tools/call.
+      const value = await new MockRouter({ [name]: result }, this.opts.passthrough).call(name, input);
+      this.push({ type: 'tool-result', result: value as CallToolResult });
+    } catch (err) {
+      this.push({ type: 'tool-cancelled', reason: err instanceof Error ? err.message : String(err) });
     }
   }
 

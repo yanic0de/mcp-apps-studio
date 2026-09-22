@@ -1,4 +1,11 @@
-import type { ContentBlock, HostContext, JsonRpcNotification, JsonRpcRequest, WidgetSource } from '@studio/shared';
+import type {
+  CallToolResult,
+  ContentBlock,
+  HostContext,
+  JsonRpcNotification,
+  JsonRpcRequest,
+  WidgetSource,
+} from '@studio/shared';
 
 export type AdapterId = 'mcp-apps' | 'openai-apps' | 'mcp-ui-legacy';
 
@@ -33,7 +40,12 @@ export type AdapterAction =
   | { type: 'invalid-params'; method: string; error: string }
   | { type: 'unsupported'; method: string };
 
-export type HostEvent = { type: 'context-changed'; context: Partial<HostContext> };
+export type HostEvent =
+  | { type: 'context-changed'; context: Partial<HostContext> }
+  | { type: 'tool-input-partial'; arguments: Record<string, unknown> }
+  | { type: 'tool-input'; arguments: Record<string, unknown> }
+  | { type: 'tool-result'; result: CallToolResult }
+  | { type: 'tool-cancelled'; reason?: string };
 
 export interface HostCapabilities {
   displayModes: HostContext['displayMode'][];

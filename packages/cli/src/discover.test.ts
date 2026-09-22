@@ -13,6 +13,7 @@ export default {
   scenarios: {
     default: { mocks: { get_data: { kind: 'static', structuredContent: { n: 1 } } } },
     empty: {},
+    called: { toolCall: { name: 'get_data', input: { q: 1 } } },
   },
 };
 `;
@@ -48,6 +49,7 @@ describe('discoverStories', () => {
     });
     expect(entries[0]?.scenarios.default?.mocks.get_data).toMatchObject({ kind: 'static' });
     expect(entries[0]?.scenarios.empty).toEqual({ mocks: {} });
+    expect(entries[0]?.scenarios.called).toEqual({ mocks: {}, toolCall: { name: 'get_data', input: { q: 1 } } });
   });
 
   it('rejects a story without default export, naming the file', async () => {

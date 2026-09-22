@@ -1,36 +1,40 @@
 // Single source: the reference vanilla widget shipped by the example server.
 import widgetHtml from '@studio/example-server/kpi-card.html?raw';
-import type { WidgetManifestEntry } from '@studio/shared';
+import type { ToolMock, WidgetManifestEntry } from '@studio/shared';
 
-/** Built-in fallback widget: used when no CLI manifest is served (plain `vite dev`). */
+const metrics = {
+  kind: 'static',
+  structuredContent: { value: 12840, delta: 8.3, label: 'Monthly active users' },
+} as const;
+const failure: ToolMock = { kind: 'error', message: 'Metrics backend unavailable' };
+
+/**
+ * Built-in fallback widget: used when no CLI manifest is served (plain `vite dev`).
+ * `toolCall` is the model's call that rendered the widget (pushed as tool-input → tool-result);
+ * `mocks` answer the widget's own calls (the Refresh button).
+ */
 export const demoWidget: WidgetManifestEntry = {
   id: 'demo-kpi',
   title: 'KPI Card (demo)',
   html: widgetHtml,
   scenarios: {
     default: {
-      mocks: {
-        get_metrics: {
-          kind: 'static',
-          structuredContent: { value: 12840, delta: 8.3, label: 'Monthly active users' },
-        },
-      },
+      toolCall: { name: 'get_metrics', result: metrics },
+      mocks: { get_metrics: metrics },
     },
     loading: {
-      mocks: {
-        get_metrics: {
-          kind: 'static',
-          structuredContent: { value: 12840, delta: 8.3, label: 'Monthly active users' },
-          delayMs: 3_600_000,
-        },
-      },
+      toolCall: { name: 'get_metrics', result: { ...metrics, delayMs: 3_600_000 } },
+      mocks: { get_metrics: { ...metrics, delayMs: 3_600_000 } },
     },
     error: {
-      mocks: {
-        get_metrics: { kind: 'error', message: 'Metrics backend unavailable' },
-      },
+      toolCall: { name: 'get_metrics', result: failure },
+      mocks: { get_metrics: failure },
     },
-    // Live: no mocks — every tool call is proxied to the example server (passthrough).
+    cancelled: {
+      toolCall: { name: 'get_metrics', result: { kind: 'cancelled', reason: 'user stopped the response' } },
+      mocks: { get_metrics: metrics },
+    },
+    // Live: no mocks — the linked tool is called on the example server and every widget call is proxied.
     live: { mocks: {} },
   },
 };

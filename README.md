@@ -66,8 +66,15 @@ export default {
   widget: './kpi-card.html', // path relative to this file
   scenarios: {
     default: {
+      // the model's call that rendered the widget: pushed as tool-input → tool-result after initialized
+      toolCall: {
+        name: 'get_metrics',
+        input: { period: '30d' },
+        result: { kind: 'static', structuredContent: { value: 12840, delta: 8.3, label: 'MAU' } },
+      },
       mocks: {
-        // answered as a CallToolResult; `content` defaults to a JSON text block of structuredContent
+        // the widget's own tools/call, answered as a CallToolResult
+        // (`content` defaults to a JSON text block of structuredContent)
         get_metrics: { kind: 'static', structuredContent: { value: 12840, delta: 8.3, label: 'MAU' } },
       },
     },
@@ -78,7 +85,9 @@ export default {
       // a tool failure (isError result); use kind: 'rpc-error' for a JSON-RPC protocol error
       mocks: { get_metrics: { kind: 'error', message: 'Metrics backend unavailable' } },
     },
-    live: { mocks: {} }, // no mocks → every tool call is proxied to the server from ?server=
+    cancelled: { toolCall: { name: 'get_metrics', result: { kind: 'cancelled', reason: 'user' } } },
+    // no mocks → the linked tool is called on the server from ?server= and every widget call is proxied
+    live: { mocks: {} },
   },
 };
 ```

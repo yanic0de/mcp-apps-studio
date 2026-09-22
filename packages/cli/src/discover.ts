@@ -57,7 +57,10 @@ export async function discoverStories(rootDir: string): Promise<WidgetManifestEn
       title: config.title,
       html,
       scenarios: Object.fromEntries(
-        Object.entries(config.scenarios).map(([name, sc]) => [name, { mocks: sc.mocks ?? {} }]),
+        Object.entries(config.scenarios).map(([name, sc]) => [
+          name,
+          { mocks: sc.mocks ?? {}, ...(sc.toolCall ? { toolCall: sc.toolCall } : {}) },
+        ]),
       ),
     });
   }

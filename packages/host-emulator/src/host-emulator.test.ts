@@ -1,5 +1,5 @@
 import { ERROR_CODES, MCP_APPS_METHODS, MCP_APPS_PROTOCOL_VERSION, type RpcLogEvent } from '@studio/shared';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { HostEmulator, type HostEmulatorOptions } from './host-emulator.js';
 import { McpAppsAdapter } from './mcp-apps-adapter.js';
 import { createInMemoryTransportPair, type Transport } from './transport.js';
@@ -209,5 +209,117 @@ describe('HostEmulator', () => {
     expect(log.filter((e) => e.kind === 'invalid')).toHaveLength(1);
     const resp = await widget.request(MCP_APPS_METHODS.toolsCall, { name: 't' });
     expect(resp.result.structuredContent).toEqual({ ok: true });
+  });
+
+  describe('tool lifecycle', () => {
+    const lifecycle = (inbox: WireMessage[]) =>
+      inbox.filter((m) => m.method?.startsWith('ui/notifications/tool-')).map((m) => [m.method, m.params]);
+
+    async function initialize(widget: ReturnType<typeof fakeWidget>) {
+      await widget.request(MCP_APPS_METHODS.uiInitialize, { appCapabilities: {} });
+      widget.notify(MCP_APPS_METHODS.initialized);
+      await flush();
+      await flush();
+    }
+
+    it('sends nothing before initialized and plays partials → input → result after it', async () => {
+      const { widget } = setup({
+        toolCall: {
+          name: 'get_metrics',
+          input: { q: 'ab' },
+          partialInputs: [{ q: 'a' }, { q: 'ab' }],
+          result: { kind: 'static', structuredContent: { v: 1 } },
+        },
+      });
+      await widget.request(MCP_APPS_METHODS.uiInitialize, { appCapabilities: {} });
+      expect(lifecycle(widget.inbox)).toEqual([]);
+      widget.notify(MCP_APPS_METHODS.initialized);
+      await flush();
+      await flush();
+      expect(lifecycle(widget.inbox)).toEqual([
+        [MCP_APPS_METHODS.toolInputPartial, { arguments: { q: 'a' } }],
+        [MCP_APPS_METHODS.toolInputPartial, { arguments: { q: 'ab' } }],
+        [MCP_APPS_METHODS.toolInput, { arguments: { q: 'ab' } }],
+        [MCP_APPS_METHODS.toolResult, { content: [{ type: 'text', text: '{"v":1}' }], structuredContent: { v: 1 } }],
+      ]);
+    });
+
+    it('sends only tool-input (default {}) when the call has no result', async () => {
+      const { widget } = setup({ toolCall: { name: 'get_metrics' } });
+      await initialize(widget);
+      expect(lifecycle(widget.inbox)).toEqual([[MCP_APPS_METHODS.toolInput, { arguments: {} }]]);
+    });
+
+    it('sends an isError tool-result for an error result', async () => {
+      const { widget } = setup({ toolCall: { name: 't', result: { kind: 'error', message: 'db down' } } });
+      await initialize(widget);
+      expect(lifecycle(widget.inbox).at(-1)).toEqual([
+        MCP_APPS_METHODS.toolResult,
+        { isError: true, content: [{ type: 'text', text: 'db down' }] },
+      ]);
+    });
+
+    it('sends tool-cancelled with the reason for a cancelled result', async () => {
+      const { widget } = setup({ toolCall: { name: 't', result: { kind: 'cancelled', reason: 'user' } } });
+      await initialize(widget);
+      expect(lifecycle(widget.inbox).at(-1)).toEqual([MCP_APPS_METHODS.toolCancelled, { reason: 'user' }]);
+    });
+
+    it('passes input to passthrough and turns its failure into tool-cancelled', async () => {
+      const calls: unknown[] = [];
+      const { widget } = setup({
+        toolCall: { name: 'live_tool', input: { a: 1 }, result: { kind: 'passthrough' } },
+        passthrough: async (name, args) => {
+          calls.push([name, args]);
+          throw new Error('boom');
+        },
+      });
+      await initialize(widget);
+      expect(calls).toEqual([['live_tool', { a: 1 }]]);
+      expect(lifecycle(widget.inbox).at(-1)).toEqual([MCP_APPS_METHODS.toolCancelled, { reason: 'boom' }]);
+    });
+
+    it('does not send a pending result after stop', async () => {
+      vi.useFakeTimers();
+      try {
+        const { emulator, widget } = setup({
+          toolCall: { name: 't', result: { kind: 'static', structuredContent: {}, delayMs: 1000 } },
+        });
+        const init = widget.request(MCP_APPS_METHODS.uiInitialize, { appCapabilities: {} });
+        await vi.advanceTimersByTimeAsync(1);
+        await init;
+        widget.notify(MCP_APPS_METHODS.initialized);
+        await vi.advanceTimersByTimeAsync(10);
+        emulator.stop();
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(lifecycle(widget.inbox).map(([m]) => m)).toEqual([MCP_APPS_METHODS.toolInput]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('does not replay the lifecycle on a repeated initialized', async () => {
+      const { widget } = setup({ toolCall: { name: 't' } });
+      await initialize(widget);
+      widget.notify(MCP_APPS_METHODS.initialized);
+      await flush();
+      expect(lifecycle(widget.inbox)).toHaveLength(1);
+    });
+
+    it('puts toolInfo into the initialize result only', async () => {
+      const { emulator, widget } = setup({ toolCall: { name: 'get_metrics' } });
+      const resp = await widget.request(MCP_APPS_METHODS.uiInitialize, { appCapabilities: {} });
+      expect(resp.result.hostContext.toolInfo).toEqual({
+        tool: { name: 'get_metrics', inputSchema: { type: 'object' } },
+      });
+      expect(emulator.getHostContext()).not.toHaveProperty('toolInfo');
+    });
+
+    it('uses a provided tool definition for toolInfo', async () => {
+      const tool = { name: 'get_metrics', description: 'd', inputSchema: { type: 'object', properties: {} } };
+      const { widget } = setup({ toolCall: { name: 'get_metrics' }, toolDefinition: tool });
+      const resp = await widget.request(MCP_APPS_METHODS.uiInitialize, { appCapabilities: {} });
+      expect(resp.result.hostContext.toolInfo).toEqual({ tool });
+    });
   });
 });

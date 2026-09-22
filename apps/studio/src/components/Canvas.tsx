@@ -45,10 +45,21 @@ export function Canvas() {
     const iframe = iframeRef.current;
     if (!iframe || !activeWidget || waitingForServer) return;
     const transport = new IframeTransport(iframe);
+    const scenarioConfig = activeWidget.scenarios[scenario];
+    // Live: the "model" calls the tool linked to the widget through the real server, unless the scenario overrides it.
+    const toolCall = live
+      ? {
+          ...scenarioConfig?.toolCall,
+          name: scenarioConfig?.toolCall?.name ?? live.linkedTool?.name,
+          result: scenarioConfig?.toolCall?.result ?? { kind: 'passthrough' as const },
+        }
+      : scenarioConfig?.toolCall;
     const emulator = new HostEmulator({
       adapter,
       transport,
-      mocks: activeWidget.scenarios[scenario]?.mocks ?? {},
+      mocks: scenarioConfig?.mocks ?? {},
+      toolCall,
+      toolDefinition: live?.linkedTool?.name === toolCall?.name ? live?.linkedTool : undefined,
       passthrough: live?.callTool,
       hostContext: useStudioStore.getState().hostContext,
       onLog: (ev) => useStudioStore.getState().appendLog(ev),

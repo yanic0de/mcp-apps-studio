@@ -88,6 +88,44 @@ describe('WidgetClient', () => {
     expect(patches).toHaveLength(1);
   });
 
+  it('delivers tool lifecycle notifications to subscribers until they unsubscribe', () => {
+    const { win, reply } = fakeEnv();
+    const client = new WidgetClient(win);
+    const seen: unknown[] = [];
+    const offs = [
+      client.onToolInputPartial((a) => seen.push(['partial', a])),
+      client.onToolInput((a) => seen.push(['input', a])),
+      client.onToolResult((r) => seen.push(['result', r])),
+      client.onToolCancelled((c) => seen.push(['cancelled', c])),
+    ];
+    reply({ jsonrpc: '2.0', method: MCP_APPS_METHODS.toolInputPartial, params: { arguments: { q: 'a' } } });
+    reply({ jsonrpc: '2.0', method: MCP_APPS_METHODS.toolInput, params: {} });
+    reply({
+      jsonrpc: '2.0',
+      method: MCP_APPS_METHODS.toolResult,
+      params: { content: [], structuredContent: { v: 1 } },
+    });
+    reply({ jsonrpc: '2.0', method: MCP_APPS_METHODS.toolCancelled, params: { reason: 'user' } });
+    expect(seen).toEqual([
+      ['partial', { q: 'a' }],
+      ['input', {}],
+      ['result', { content: [], structuredContent: { v: 1 } }],
+      ['cancelled', { reason: 'user' }],
+    ]);
+    for (const off of offs) off();
+    reply({ jsonrpc: '2.0', method: MCP_APPS_METHODS.toolResult, params: { content: [] } });
+    expect(seen).toHaveLength(4);
+  });
+
+  it('ignores a malformed tool-result', () => {
+    const { win, reply } = fakeEnv();
+    const client = new WidgetClient(win);
+    const seen: unknown[] = [];
+    client.onToolResult((r) => seen.push(r));
+    reply({ jsonrpc: '2.0', method: MCP_APPS_METHODS.toolResult, params: { content: 'nope' } });
+    expect(seen).toEqual([]);
+  });
+
   it('sendSizeChanged posts the wire notification', () => {
     const { win, sent } = fakeEnv();
     new WidgetClient(win).sendSizeChanged({ width: 320, height: 200 });

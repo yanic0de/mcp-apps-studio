@@ -3,6 +3,8 @@ export default {
   widget: '../../dist/data-table.html',
   scenarios: {
     default: {
+      // The model's call that rendered the widget (tool-input + toolInfo); the component fetches its own data.
+      toolCall: { name: 'get_rows' },
       mocks: {
         get_rows: {
           kind: 'static',

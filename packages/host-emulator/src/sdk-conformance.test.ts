@@ -1,7 +1,7 @@
 import { App } from '@modelcontextprotocol/ext-apps';
 import type { Transport as SdkTransport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
-import type { HostContext, MockConfig, RpcLogEvent } from '@studio/shared';
+import type { HostContext, MockConfig, RpcLogEvent, ToolCall } from '@studio/shared';
 import { describe, expect, it } from 'vitest';
 import type { WidgetIntent } from './adapter.js';
 import { HostEmulator } from './host-emulator.js';
@@ -31,7 +31,9 @@ function sdkTransport(end: Transport): SdkTransport {
   return t;
 }
 
-async function connectApp(opts: { mocks?: MockConfig; hostContext?: HostContext } = {}) {
+async function connectApp(
+  opts: { mocks?: MockConfig; hostContext?: HostContext; toolCall?: ToolCall; beforeConnect?: (app: App) => void } = {},
+) {
   const [hostEnd, appEnd] = createInMemoryTransportPair();
   const log: RpcLogEvent[] = [];
   const intents: WidgetIntent[] = [];
@@ -40,11 +42,13 @@ async function connectApp(opts: { mocks?: MockConfig; hostContext?: HostContext 
     transport: hostEnd,
     mocks: opts.mocks,
     hostContext: opts.hostContext,
+    toolCall: opts.toolCall,
     onLog: (ev) => log.push(ev),
     onWidgetIntent: (i) => intents.push(i),
   });
   emulator.start();
   const app = new App({ name: 'conformance', version: '1.0.0' }, {}, { autoResize: false });
+  opts.beforeConnect?.(app);
   await app.connect(sdkTransport(appEnd));
   await new Promise((r) => setTimeout(r, 0)); // let `initialized` land
   return { app, emulator, log, intents };
@@ -95,5 +99,35 @@ describe('ext-apps App against HostEmulator', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(intents.map((i) => i.type)).toEqual(['open-link', 'message', 'update-model-context', 'log']);
     expect(invalid(log)).toEqual([]);
+  });
+
+  it('receives the tool lifecycle: input, then result, with toolInfo in the context', async () => {
+    const events: unknown[] = [];
+    const { app, log } = await connectApp({
+      toolCall: { name: 'get_metrics', input: { q: 1 }, result: { kind: 'static', structuredContent: { v: 1 } } },
+      beforeConnect: (a) => {
+        a.ontoolinput = (p) => events.push(['input', p.arguments]);
+        a.ontoolresult = (p) => events.push(['result', p.structuredContent]);
+      },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(events).toEqual([
+      ['input', { q: 1 }],
+      ['result', { v: 1 }],
+    ]);
+    expect(app.getHostContext()?.toolInfo?.tool.name).toBe('get_metrics');
+    expect(invalid(log)).toEqual([]);
+  });
+
+  it('receives tool-cancelled', async () => {
+    const reasons: unknown[] = [];
+    await connectApp({
+      toolCall: { name: 't', result: { kind: 'cancelled', reason: 'user' } },
+      beforeConnect: (a) => {
+        a.ontoolcancelled = (p) => reasons.push(p.reason);
+      },
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(reasons).toEqual(['user']);
   });
 });

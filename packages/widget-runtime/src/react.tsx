@@ -1,7 +1,13 @@
 import type { HostContext } from '@studio/shared';
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useReducer, useState } from 'react';
 import type { WidgetClient } from './client.js';
 import { createToolCaller, type ToolCallSnapshot } from './tool-caller.js';
+import {
+  initialToolLifecycle,
+  reduceToolLifecycle,
+  type ToolLifecycleEvent,
+  type ToolLifecycleState,
+} from './tool-lifecycle.js';
 import { toolResultData } from './tool-result.js';
 
 const WidgetClientContext = createContext<WidgetClient | null>(null);
@@ -45,4 +51,25 @@ export function useToolCall<T = unknown>(name: string): ToolCallState<T> {
   );
 
   return { ...state, call };
+}
+
+/** State of the tool call that rendered this widget, driven by the host's lifecycle notifications. */
+export function useToolLifecycle<T = unknown>(): ToolLifecycleState<T> {
+  const client = useWidgetClient();
+  const [state, dispatch] = useReducer(
+    (s: ToolLifecycleState<T>, ev: ToolLifecycleEvent) => reduceToolLifecycle(s, ev),
+    initialToolLifecycle,
+  );
+  useEffect(() => {
+    const offs = [
+      client.onToolInputPartial((args) => dispatch({ type: 'input-partial', arguments: args })),
+      client.onToolInput((args) => dispatch({ type: 'input', arguments: args })),
+      client.onToolResult((result) => dispatch({ type: 'result', result })),
+      client.onToolCancelled(({ reason }) => dispatch({ type: 'cancelled', reason })),
+    ];
+    return () => {
+      for (const off of offs) off();
+    };
+  }, [client]);
+  return state;
 }

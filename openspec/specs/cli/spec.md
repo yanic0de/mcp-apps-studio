@@ -29,11 +29,15 @@ The CLI discovers story files in the user's project, builds a manifest from them
 - **THEN** no `.mjs` files remain next to the story
 
 ### Requirement: Manifest from stories
-Every story SHALL become a `WidgetManifestEntry`: `id` — the file name without the suffix, `title`, `html` — the contents of the file at `widget` relative to the story, `scenarios` — with `mocks` normalized to `{}` when absent.
+Every story SHALL become a `WidgetManifestEntry`: `id` — the file name without the suffix, `title`, `html` — the contents of the file at `widget` relative to the story, `scenarios` — with `mocks` normalized to `{}` when absent and `toolCall` carried over unchanged when present.
 
 #### Scenario: Scenario without mocks
 - **WHEN** a story contains `scenarios: { empty: {} }`
 - **THEN** the manifest contains `scenarios.empty === { mocks: {} }`
+
+#### Scenario: Scenario with a tool call
+- **WHEN** a story scenario has `toolCall: { name: 'get_data', input: { q: 1 } }`
+- **THEN** the manifest scenario carries the same `toolCall`
 
 ### Requirement: Localhost only, token on every request
 The server SHALL listen on `127.0.0.1` only. Every request SHALL carry the token: in `?token=` (the server then sets an `HttpOnly; SameSite=Strict` cookie) or in the cookie. Comparison SHALL be constant-time (hash both sides + `timingSafeEqual`). Without a valid token the answer SHALL be `401`.

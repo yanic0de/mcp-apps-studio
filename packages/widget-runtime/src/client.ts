@@ -1,5 +1,6 @@
 import {
   type CallToolResult,
+  callToolResultSchema,
   ERROR_CODES,
   type HostContext,
   JSON_RPC_VERSION,
@@ -32,6 +33,12 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 export class WidgetClient {
   private readonly tracker: RequestTracker;
   private readonly contextListeners = new Set<(patch: Partial<HostContext>) => void>();
+  private readonly lifecycle = {
+    inputPartial: new Set<(args: Record<string, unknown>) => void>(),
+    input: new Set<(args: Record<string, unknown>) => void>(),
+    result: new Set<(result: CallToolResult) => void>(),
+    cancelled: new Set<(info: { reason?: string }) => void>(),
+  };
   private readonly listener: (ev: MessageEvent) => void;
   private context: HostContext | null = null;
   private disposed = false;
@@ -72,6 +79,25 @@ export class WidgetClient {
     return () => this.contextListeners.delete(cb);
   }
 
+  /** Streaming snapshots of the arguments of the tool call that rendered this widget. */
+  onToolInputPartial(cb: (args: Record<string, unknown>) => void): () => void {
+    return subscribe(this.lifecycle.inputPartial, cb);
+  }
+
+  /** Complete arguments of the tool call that rendered this widget (sent once, after initialized). */
+  onToolInput(cb: (args: Record<string, unknown>) => void): () => void {
+    return subscribe(this.lifecycle.input, cb);
+  }
+
+  /** Result of the tool call that rendered this widget. */
+  onToolResult(cb: (result: CallToolResult) => void): () => void {
+    return subscribe(this.lifecycle.result, cb);
+  }
+
+  onToolCancelled(cb: (info: { reason?: string }) => void): () => void {
+    return subscribe(this.lifecycle.cancelled, cb);
+  }
+
   sendSizeChanged(size: { width?: number; height?: number }): void {
     this.post({ jsonrpc: JSON_RPC_VERSION, method: MCP_APPS_METHODS.sizeChanged, params: size });
   }
@@ -81,6 +107,7 @@ export class WidgetClient {
     this.win.removeEventListener('message', this.listener);
     this.tracker.rejectAll(new RpcError(ERROR_CODES.INTERNAL_ERROR, 'WidgetClient disposed'));
     this.contextListeners.clear();
+    for (const set of Object.values(this.lifecycle)) set.clear();
   }
 
   /** Sandboxed widgets have a null origin, so the host can only be addressed with targetOrigin '*'. */
@@ -108,10 +135,43 @@ export class WidgetClient {
       this.tracker.settle(parsed.message);
       return;
     }
-    if (parsed.kind === 'notification' && parsed.message.method === MCP_APPS_METHODS.hostContextChanged) {
-      const patch = (parsed.message.params ?? {}) as Partial<HostContext>;
-      this.context = this.context ? { ...this.context, ...patch } : (patch as HostContext);
-      for (const cb of [...this.contextListeners]) cb(patch);
+    if (parsed.kind !== 'notification') return;
+    const params = (parsed.message.params ?? {}) as Record<string, unknown>;
+    switch (parsed.message.method) {
+      case MCP_APPS_METHODS.hostContextChanged: {
+        const patch = params as Partial<HostContext>;
+        this.context = this.context ? { ...this.context, ...patch } : (patch as HostContext);
+        for (const cb of [...this.contextListeners]) cb(patch);
+        return;
+      }
+      case MCP_APPS_METHODS.toolInputPartial:
+        emit(this.lifecycle.inputPartial, argumentsOf(params));
+        return;
+      case MCP_APPS_METHODS.toolInput:
+        emit(this.lifecycle.input, argumentsOf(params));
+        return;
+      case MCP_APPS_METHODS.toolResult: {
+        const result = callToolResultSchema.safeParse(params);
+        if (result.success) emit(this.lifecycle.result, result.data);
+        return;
+      }
+      case MCP_APPS_METHODS.toolCancelled:
+        emit(this.lifecycle.cancelled, typeof params.reason === 'string' ? { reason: params.reason } : {});
+        return;
     }
   }
+}
+
+function subscribe<T>(set: Set<(v: T) => void>, cb: (v: T) => void): () => void {
+  set.add(cb);
+  return () => set.delete(cb);
+}
+
+function emit<T>(set: Set<(v: T) => void>, value: T): void {
+  for (const cb of [...set]) cb(value);
+}
+
+function argumentsOf(params: Record<string, unknown>): Record<string, unknown> {
+  const args = params.arguments;
+  return typeof args === 'object' && args !== null && !Array.isArray(args) ? (args as Record<string, unknown>) : {};
 }

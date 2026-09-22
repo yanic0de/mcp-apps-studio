@@ -3,6 +3,8 @@ export default {
   widget: '../../dist/kpi-card.html',
   scenarios: {
     default: {
+      // The model's call that rendered the widget (tool-input + toolInfo); the component fetches its own data.
+      toolCall: { name: 'get_metrics' },
       mocks: {
         get_metrics: { kind: 'static', structuredContent: { value: 12840, delta: 8.3, label: 'Monthly active users' } },
       },
