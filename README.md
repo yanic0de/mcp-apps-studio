@@ -204,7 +204,7 @@ pnpm e2e                  # playwright (chromium); starts vite, both servers and
 pnpm -F @studio/components build   # bundle library widgets to dist/<name>.html
 ```
 
-Conventions: TDD per task, tests next to source, core packages must stay runnable in Node. Behavior changes go through `openspec/changes/` first — see [`openspec/AGENTS.md`](openspec/AGENTS.md). [`CLAUDE.md`](CLAUDE.md) holds the constraints that are easy to violate; read it before your first PR.
+Conventions: TDD per task, tests next to source, core packages must stay runnable in Node. Behavior changes go through `openspec/changes/` first — see [`openspec/config.yaml`](openspec/config.yaml) and the `/opsx:propose` → `/opsx:apply` → `/opsx:archive` workflow. [`CLAUDE.md`](CLAUDE.md) holds the constraints that are easy to violate; read it before your first PR.
 
 ## Roadmap
 

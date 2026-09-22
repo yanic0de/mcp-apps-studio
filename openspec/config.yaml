@@ -1,0 +1,71 @@
+schema: spec-driven
+
+# Shown to the AI on every OpenSpec request. Commands, architecture and code-level
+# constraints live in the root CLAUDE.md; this is the planning context only.
+context: |
+  Project: MCP Apps Studio — a "fake host" for MCP widgets. Everything a real host
+  (Claude, ChatGPT) does to a widget — sandboxed iframe render, JSON-RPC bridge,
+  theme and context delivery, tool calls — is reproduced locally and made observable.
+  Target: the MCP Apps extension (SEP-1865), protocol version 2026-01-26. The source
+  of truth for wire methods and fields is the installed @modelcontextprotocol/ext-apps
+  SDK (see packages/example-server), never memory.
+
+  Stack: TypeScript (strict, noUncheckedIndexedAccess), ESM, pnpm workspaces + turbo,
+  zod 4 (schemas are the single source for types AND runtime checks), React 19 +
+  Zustand + Vite for the studio, vitest in Node (no jsdom), Playwright e2e
+  (chromium only), Biome for format + lint. Packages export TS source directly.
+
+  Layers (dependencies point down only):
+  - application: apps/studio (@studio/app) — studio SPA: canvas, controls, trace
+  - tool: packages/cli (mcp-apps-studio) — story discovery, local studio server, `add`
+  - host core: packages/host-emulator — bridge, adapter, mock router, emulator, iframe transport
+  - widget side: packages/widget-runtime — the only sanctioned widget ↔ host channel
+  - library: packages/components — source-distributed components (shadcn model)
+  - shared: packages/shared — schemas, types, protocol constants, RpcError, RequestTracker
+  - reference servers: packages/example-server, packages/test-server — no workspace deps
+  Capabilities in openspec/specs/: one per package, plus `protocol` (SEP-1865
+  constants) and `tool-mocks` (mock schema and router).
+
+  Conventions:
+  - TDD per task: failing test → implementation → `pnpm lint` → commit. Tests sit next to source.
+  - The core runs in Node: no window/document outside IframeTransport and widget-runtime defaults.
+  - The widget is untrusted code: every incoming message passes zod before dispatch.
+  - One source of truth: wire method names only in packages/shared/src/protocol.ts; mock
+    kinds only in toolMockSchema; UI options from hostContextSchema and adapter.capabilities().
+  - Do not reinvent: request correlation is only RequestTracker; bridge errors are only RpcError.
+  - Conventional commits (feat|fix|refactor|chore|docs|style(scope): ...).
+
+  Constraints that are easy to violate:
+  - Deliberate MVP cuts (do not add): server-api backend, docs site, openai/legacy adapters,
+    Tailwind, changesets. Registry is static JSON, sessions go to localStorage, traces live
+    in the Zustand log.
+  - CLI security: 127.0.0.1 only, token on every request, constant-time compare, path
+    traversal blocked. Do not weaken (MCPJam Inspector RCE lesson).
+  - Sandbox: allow-scripts only, never allow-same-origin. The only trust signal for an
+    incoming message is event.source === iframe.contentWindow.
+  - CSP emulation via the iframe `csp` attribute works only in Chromium.
+
+  Glossary:
+  - Host — the app showing the widget; here HostEmulator plays that role.
+  - Widget — HTML in a sandboxed iframe, talking JSON-RPC 2.0 over postMessage.
+  - Adapter — pure translator between wire messages and semantic actions. One per dialect.
+  - Story — a *.stories.mcp.ts file, default export { title, widget, scenarios }.
+  - Scenario — named set of tool mocks; `live` with no mocks proxies to a real MCP server.
+  - Mock — the emulator's answer to tools/call: static, error or passthrough.
+  - Manifest — WidgetManifestEntry[] served by the CLI at /api/manifest.
+  - Trace — the log of RpcLogEvents in both directions, including invalid messages.
+
+rules:
+  proposal:
+    - Change id is kebab-case verb + object (add-pending-mock-kind, lazy-load-mcp-sdk).
+    - Behavior, capability or contract changes need a change; typo fixes and pure refactors do not (but fix a disagreeing spec in the same commit).
+    - Name the capabilities (openspec/specs/<name>) the change touches.
+  specs:
+    - Every requirement text contains SHALL or MUST and has at least one "#### Scenario:".
+    - Scenario steps are a bulleted list with bold WHEN / THEN / AND.
+    - In MODIFIED, the requirement name matches the existing one character for character, and the full new text is given.
+    - REMOVED requirements carry **Reason** and **Migration**.
+    - Every scenario must be verifiable by a test in src/*.test.ts or e2e/tests/.
+  tasks:
+    - Each task is a TDD step (failing test → implement → pnpm lint) small enough for one commit.
+    - Finish with running `openspec validate --all --strict`, `pnpm test`, `pnpm typecheck`, `pnpm lint`.
