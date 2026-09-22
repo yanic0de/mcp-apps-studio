@@ -107,4 +107,15 @@ describe('studio store', () => {
     expect(s.hostContext).toMatchObject({ platform: 'mobile', deviceCapabilities: { touch: true, hover: false } });
     expect(s.hostContext.theme).toBe('light');
   });
+
+  it('addScenario adds a uniquely named recorded scenario to the active widget and selects it', () => {
+    useStudioStore.getState().setWidgets(widgets);
+    const first = useStudioStore.getState().addScenario({ mocks: {} });
+    const second = useStudioStore.getState().addScenario({ mocks: { t: { kind: 'error', message: 'x' } } });
+    expect([first, second]).toEqual(['recorded-1', 'recorded-2']);
+    const s = useStudioStore.getState();
+    expect(s.scenario).toBe('recorded-2');
+    expect(Object.keys(s.widgets[0]?.scenarios ?? {})).toEqual(['default', 'error', 'recorded-1', 'recorded-2']);
+    expect(s.widgets[1]?.scenarios).toEqual(widgets[1]?.scenarios);
+  });
 });

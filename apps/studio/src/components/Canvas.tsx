@@ -52,6 +52,7 @@ export function Canvas() {
         if (cancelled) return void c.close();
         connection = c;
         setLive(c);
+        useStudioStore.getState().setLiveToolName(c.linkedTool?.name ?? null);
       })
       .catch((e: unknown) => {
         if (!cancelled) setLiveError(e instanceof Error ? e.message : String(e));
