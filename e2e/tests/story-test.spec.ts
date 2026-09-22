@@ -35,3 +35,45 @@ test('`mcp-apps-studio test` passes on the component library and writes a report
   for (const r of report.results) await expect(fs.stat(path.join(out, r.screenshot))).resolves.toBeTruthy();
   await fs.rm(out, { recursive: true, force: true });
 });
+
+test('visual regression: baselines, unchanged pass, a color change fails with a diff and an HTML report', async () => {
+  test.setTimeout(180_000);
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), 'visual-'));
+  const widget = (color: string) => `<!doctype html><html><body style="margin:0">
+<div id="box" style="width:200px;height:120px;background:${color}"></div><script>
+  let id = 0; const pending = new Map();
+  const request = (method, params) => new Promise((resolve) => { const i = ++id; pending.set(i, resolve);
+    parent.postMessage({ jsonrpc: '2.0', id: i, method, params }, '*'); });
+  addEventListener('message', (ev) => { const m = ev.data;
+    if (m && m.id !== undefined && pending.has(m.id)) { pending.get(m.id)(m.result); pending.delete(m.id); } });
+  request('ui/initialize', { protocolVersion: '2026-01-26', appInfo: { name: 'box', version: '1' }, appCapabilities: {} })
+    .then(() => parent.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/initialized' }, '*'));
+</script></body></html>`;
+  await fs.writeFile(path.join(project, 'box.html'), widget('rgb(20, 120, 220)'));
+  await fs.writeFile(
+    path.join(project, 'box.stories.mcp.ts'),
+    `export default { title: 'Box', widget: './box.html', scenarios: { default: {} } };\n`,
+  );
+  const out = path.join(project, 'out');
+  const run = (...extra: string[]) =>
+    promisify(execFile)('pnpm', ['-F', 'mcp-apps-studio', 'start', 'test', project, '--out', out, ...extra], {
+      cwd: repoRoot,
+    });
+
+  await run('--update-snapshots');
+  await expect(fs.stat(path.join(project, 'mcp-studio-snapshots', 'box', 'default.light.png'))).resolves.toBeTruthy();
+  await run(); // unchanged → exit 0
+
+  await fs.writeFile(path.join(project, 'box.html'), widget('rgb(220, 40, 40)'));
+  const failed = await run().then(
+    () => null,
+    (e: { code: number; stdout: string }) => e,
+  );
+  expect(failed?.code).toBe(1);
+  expect(failed?.stdout).toMatch(/pixels differ/);
+  await expect(fs.stat(path.join(out, 'box', 'default.light.diff.png'))).resolves.toBeTruthy();
+  const html = await fs.readFile(path.join(out, 'report.html'), 'utf8');
+  expect(html).toContain('default.light.diff.png');
+  expect(html).toContain('mcp-studio-snapshots/box/default.light.png');
+  await fs.rm(project, { recursive: true, force: true });
+});

@@ -18,7 +18,10 @@ export interface RunResult {
   theme: Theme;
   ok: boolean;
   failures: string[];
+  /** Paths relative to the output directory. */
   screenshot?: string;
+  baseline?: string;
+  diff?: string;
 }
 
 /** One run per widget × scenario × theme; `live` needs a real server, so it is skipped. */

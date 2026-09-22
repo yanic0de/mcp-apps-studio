@@ -3,14 +3,18 @@ import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import type { DiscoveryError, RpcLogEvent } from '@studio/shared';
 import { discoverStories } from './discover.js';
+import { renderHtmlReport, renderMarkdownSummary } from './report.js';
 import { createStudioServer, generateToken } from './server.js';
 import { buildTestPlan, evaluateRun, type RunResult, type Theme } from './test-plan.js';
+import { compareWithBaseline, type VisualOptions } from './visual.js';
 
 export interface StoryTestOptions {
   rootDir: string;
   studioDist: string;
   outDir: string;
   themes: Theme[];
+  /** Visual baselines: written with `update`, compared when the directory exists. */
+  snapshots?: { dir: string; update: boolean } & VisualOptions;
   onResult?: (result: RunResult) => void;
 }
 
@@ -44,6 +48,14 @@ export async function runStoryTests(
     throw new NoBrowserError(err instanceof Error ? err.message : String(err));
   }
 
+  const snapshots = opts.snapshots;
+  const compare =
+    snapshots &&
+    !snapshots.update &&
+    (await fs.stat(snapshots.dir).then(
+      (st) => st.isDirectory(),
+      () => false,
+    ));
   const results: RunResult[] = [];
   try {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -80,6 +92,26 @@ export async function runStoryTests(
         ...verdict,
         screenshot: run.screenshot,
       };
+      const baseline = snapshots ? path.join(snapshots.dir, run.screenshot) : undefined;
+      if (
+        snapshots?.update &&
+        baseline &&
+        (await fs.stat(file).then(
+          () => true,
+          () => false,
+        ))
+      ) {
+        await fs.mkdir(path.dirname(baseline), { recursive: true });
+        await fs.copyFile(file, baseline);
+      } else if (compare && baseline && snapshots) {
+        const visual = await compareWithBaseline(file, baseline, snapshots);
+        result.baseline = path.relative(opts.outDir, baseline).split(path.sep).join('/');
+        if (!visual.ok) {
+          result.ok = false;
+          result.failures.push(visual.reason ?? 'visual change');
+          if (visual.diffImage) result.diff = path.relative(opts.outDir, visual.diffImage).split(path.sep).join('/');
+        }
+      }
       results.push(result);
       opts.onResult?.(result);
       await page.close();
@@ -94,5 +126,10 @@ export async function runStoryTests(
     path.join(opts.outDir, 'report.json'),
     `${JSON.stringify({ results, errors: manifest.errors }, null, 2)}\n`,
   );
+  await fs.writeFile(path.join(opts.outDir, 'report.html'), renderHtmlReport(results, manifest.errors));
+  // GitHub Actions job summary, when running there.
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    await fs.appendFile(process.env.GITHUB_STEP_SUMMARY, renderMarkdownSummary(results, manifest.errors));
+  }
   return { results, errors: manifest.errors };
 }

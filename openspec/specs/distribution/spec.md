@@ -32,3 +32,10 @@ The published packages SHALL target the current major of `@modelcontextprotocol/
 #### Scenario: Installing with the SDK's own instructions
 - **WHEN** a project installs `@modelcontextprotocol/ext-apps @modelcontextprotocol/client zod` (latest) and `@mcp-apps-studio/widget-runtime`
 - **THEN** npm reports no unmet peer dependency for widget-runtime
+
+### Requirement: GitHub Action
+The repository SHALL provide a composite GitHub Action (`action.yml`) with inputs `directory` (default `.`), `version` (default `latest`) and `args` (extra `test` flags) that installs the Chromium build matching the CLI's Playwright (`mcp-apps-studio install-browser`), runs `mcp-apps-studio test` in `directory`, uploads the output directory as an artifact even on failure, and fails the step when the test fails.
+
+#### Scenario: Using the action
+- **WHEN** a workflow uses the action with `directory: widgets`
+- **THEN** the job runs every story headlessly, attaches the report and screenshots, and is red on any failed run

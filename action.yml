@@ -1,0 +1,40 @@
+name: MCP Apps Studio — story tests
+description: Run every MCP Apps widget story headlessly (protocol checks + visual regression) and attach the report.
+author: yanic0de
+branding:
+  icon: check-square
+  color: blue
+
+inputs:
+  directory:
+    description: Project directory containing *.stories.mcp.ts files.
+    default: .
+  version:
+    description: mcp-apps-studio version to run (npm dist-tag or semver).
+    default: latest
+  args:
+    description: Extra flags for `mcp-apps-studio test` (e.g. `--themes light --max-diff-pixels 20`).
+    default: ''
+  artifact-name:
+    description: Name of the uploaded report artifact.
+    default: mcp-studio-report
+
+runs:
+  using: composite
+  steps:
+    - name: Install Chromium
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      run: npx --yes mcp-apps-studio@${{ inputs.version }} install-browser --with-deps
+    - name: Run story tests
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      # The CLI appends a Markdown table to $GITHUB_STEP_SUMMARY on its own.
+      run: npx --yes mcp-apps-studio@${{ inputs.version }} test --out .mcp-studio/test ${{ inputs.args }}
+    - name: Upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.directory }}/.mcp-studio/test
+        if-no-files-found: ignore

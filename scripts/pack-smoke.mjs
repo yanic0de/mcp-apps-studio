@@ -96,6 +96,7 @@ run(
   ],
   project,
 );
+run('npx', ['mcp-apps-studio', 'install-browser'], project);
 run('npx', ['mcp-apps-studio', 'init', 'widgets/hello.html', '--tool', 'get_hello'], project);
 run('npx', ['mcp-apps-studio', 'test', '--out', 'out'], project);
 

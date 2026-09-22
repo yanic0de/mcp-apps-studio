@@ -43,7 +43,7 @@ In your MCP Apps project (Node 20.11+):
 ```bash
 npx mcp-apps-studio init                 # scaffold a *.stories.mcp.ts next to every widget HTML it finds
 npx mcp-apps-studio                      # the studio over your stories → http://127.0.0.1:4400/?token=…
-npx playwright install chromium          # once, for headless runs
+npx mcp-apps-studio install-browser      # once: Chromium matching the bundled Playwright
 npx mcp-apps-studio test                 # every story × theme in headless Chromium; exit 1 on failure
 ```
 
@@ -144,7 +144,7 @@ Deep links open a given state directly: `?widget=kpi-card&scenario=error&theme=d
 ### 3. Test every story headlessly
 
 ```bash
-npx playwright install chromium                 # once
+npx mcp-apps-studio install-browser             # once
 pnpm -F mcp-apps-studio start test /path/to/your/project --out .mcp-studio/test
 #   ✓ kpi-card/default [light]
 #   ✗ kpi-card/error [dark]
@@ -152,7 +152,20 @@ pnpm -F mcp-apps-studio start test /path/to/your/project --out .mcp-studio/test
 #   11 passed, 1 failed
 ```
 
-Every widget × scenario (except `live`) × theme runs in headless Chromium: the SDK handshake must complete and the trace must have no invalid messages. A screenshot per run and `report.json` land in `--out`; the exit code is `1` on any failure, so it drops into CI as is.
+Every widget × scenario (except `live`) × theme runs in headless Chromium: the SDK handshake must complete and the trace must have no invalid messages. Screenshots, `report.json` and a reviewable `report.html` land in `--out`; the exit code is `1` on any failure, so it drops into CI as is.
+
+**Visual regression (opt-in).** `test --update-snapshots` writes baselines to `mcp-studio-snapshots/` (commit them). From then on every run is diffed against its baseline (`--threshold 0.1`, `--max-diff-pixels 0` by default); a change fails the run and `report.html` shows baseline, actual and diff side by side. Fonts and antialiasing differ between OSes — generate baselines on the platform CI uses.
+
+**GitHub Actions.** One step; the report is attached as an artifact and summarized on the run page:
+
+```yaml
+- uses: actions/setup-node@v4
+  with: { node-version: 22 }
+- run: npm ci
+- uses: yanic0de/mcp-app-proba@main   # MCP Apps Studio story tests
+  with:
+    directory: .                        # where your *.stories.mcp.ts live
+```
 
 ### Scenario reference
 

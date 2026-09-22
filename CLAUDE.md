@@ -24,7 +24,8 @@ pnpm -F @studio/test-server dev            # test polygon MCP server on :3200 (e
 pnpm -F mcp-apps-studio start [dir]        # CLI: serve built studio + discovered widgets (needs app build first)
 pnpm -F @studio/components build           # bundle library widgets to dist/<name>.html (needed by their stories)
 pnpm -F mcp-apps-studio start add <name>   # copy a registry component into a project (shadcn model)
-pnpm -F mcp-apps-studio start test [dir]   # headless story matrix (scenario × theme): handshake + no invalid msgs, screenshots + report.json (needs app build + chromium)
+pnpm -F mcp-apps-studio start test [dir]   # headless story matrix (scenario × theme): handshake + no invalid msgs + visual diff vs mcp-studio-snapshots/ (opt-in, --update-snapshots); report.json/html
+pnpm -F mcp-apps-studio start install-browser  # Chromium matching the bundled playwright-core (never plain `npx playwright install` for users)
 pnpm e2e                                   # Playwright (chromium-only), spins up vite dev + example-server + CLI itself
 pnpm build                                 # turbo: studio, components, widget-runtime (tsup), CLI (tsup + copies studio/registry into dist)
 pnpm smoke:pack                            # pack both public packages, install tarballs in a temp project, run init + test
@@ -59,7 +60,7 @@ Layering (dependencies point down, never up):
 - The root package is `mcp-apps-studio-monorepo` on purpose: sharing the CLI's name made `pnpm -F mcp-apps-studio …` also run root scripts.
 - Protocol ground truth is the installed `@modelcontextprotocol/ext-apps` SDK (`dist/src/spec.types.d.ts`), never memory. `packages/host-emulator/src/sdk-conformance.test.ts` drives the official `App` against `HostEmulator`; a new wire method goes into `protocol.ts` and gets a conformance case.
 - `tools/call` answers a full MCP `CallToolResult` (mock and live alike); tool failures are `isError` results, JSON-RPC errors are only for protocol failures (`rpc-error` mock kind).
-- Published: ONLY `mcp-apps-studio` (CLI, bundles every `@studio/*` package + `dist/studio` + `dist/registry`) and `@mcp-apps-studio/widget-runtime` (SDK + React are peers). Everything else stays `private`. Published manifests come from `publishConfig`; dev keeps TS-source exports. The CLI's public API is `src/public.ts` only (story types derived from the schema so `.d.ts` is self-contained). `scripts/pack-smoke.mjs` is the definition of installable.
+- Published: ONLY `mcp-apps-studio` (CLI, bundles every `@studio/*` package + `dist/studio` + `dist/registry`) and `@mcp-apps-studio/widget-runtime` (SDK + React are peers). Everything else stays `private`. Published manifests come from `publishConfig`; dev keeps TS-source exports. The CLI's public API is `src/public.ts` only (story types derived from the schema so `.d.ts` is self-contained). `scripts/pack-smoke.mjs` is the definition of installable. `action.yml` (repo root) is the composite GitHub Action users adopt: install-browser → test → upload report; the CLI itself appends to `$GITHUB_STEP_SUMMARY`.
 - Deliberate cuts (do not "helpfully" add): server-api backend, docs site, openai/legacy adapters, Tailwind. Registry is static JSON, sessions go to localStorage, traces live in the Zustand log.
 - E2E (`e2e/`, Playwright) is chromium-only by design; the CLI web server rebuilds app+components each run and uses the `--token` bin flag (automation-only) so tests can authenticate.
 - CSP emulation via the iframe `csp` attribute only works in Chromium — treat CSP checks as Chromium-only.

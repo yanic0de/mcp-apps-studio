@@ -25,3 +25,10 @@
 #### Scenario: GitHub job summary
 - **WHEN** `GITHUB_STEP_SUMMARY` is set
 - **THEN** the file gains a table with one row per run and a pass/fail count
+
+### Requirement: install-browser subcommand
+`install-browser [--with-deps]` SHALL install the Chromium build that matches the CLI's bundled `playwright-core`, and the "no browser" error of `test` SHALL point to it.
+
+#### Scenario: Fresh machine
+- **WHEN** `mcp-apps-studio install-browser` runs
+- **THEN** `mcp-apps-studio test` can launch Chromium afterwards
