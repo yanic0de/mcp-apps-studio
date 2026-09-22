@@ -5,6 +5,8 @@ import path from 'node:path';
 import { addComponent, listComponents } from './add.js';
 import { discoverStories } from './discover.js';
 import { createStudioServer, generateToken } from './server.js';
+import { summarize, type Theme } from './test-plan.js';
+import { NoBrowserError, runStoryTests } from './test-runner.js';
 
 const args = process.argv.slice(2);
 
@@ -22,6 +24,48 @@ if (args[0] === 'add') {
   for (const file of copied) console.log(`  ${path.relative(process.cwd(), file)}`);
   console.log('\nComponent uses @studio/widget-runtime — add it to your dependencies.');
   process.exit(0);
+}
+
+function resolveStudioDist(): string {
+  const require = createRequire(import.meta.url);
+  const dist = path.join(path.dirname(require.resolve('@studio/app/package.json')), 'dist');
+  if (!fs.existsSync(path.join(dist, 'index.html'))) {
+    console.error('Studio build not found. Run: pnpm -F @studio/app build');
+    process.exit(1);
+  }
+  return dist;
+}
+
+if (args[0] === 'test') {
+  let dir = process.cwd();
+  let outDir = '.mcp-studio/test';
+  let themes: Theme[] = ['light', 'dark'];
+  for (let i = 1; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--out') outDir = args[++i] ?? outDir;
+    else if (arg === '--themes') {
+      const list = (args[++i] ?? '').split(',').filter(Boolean);
+      if (list.length === 0 || list.some((t) => t !== 'light' && t !== 'dark')) {
+        console.error('Invalid --themes value (use light,dark)');
+        process.exit(1);
+      }
+      themes = list as Theme[];
+    } else if (arg && !arg.startsWith('-')) dir = path.resolve(arg);
+  }
+  const out = path.resolve(outDir);
+  try {
+    const results = await runStoryTests({ rootDir: dir, studioDist: resolveStudioDist(), outDir: out, themes });
+    console.log(summarize(results));
+    console.log(`\nReport and screenshots: ${out}`);
+    process.exit(results.every((r) => r.ok) ? 0 : 1);
+  } catch (err) {
+    if (err instanceof NoBrowserError) {
+      console.error(`No Chromium for headless runs: ${err.message.split('\n')[0]}`);
+      console.error('Install it once with: npx playwright install chromium');
+      process.exit(2);
+    }
+    throw err;
+  }
 }
 
 let port = 4400;
@@ -48,12 +92,7 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-const require = createRequire(import.meta.url);
-const studioDist = path.join(path.dirname(require.resolve('@studio/app/package.json')), 'dist');
-if (!fs.existsSync(path.join(studioDist, 'index.html'))) {
-  console.error('Studio build not found. Run: pnpm -F @studio/app build');
-  process.exit(1);
-}
+const studioDist = resolveStudioDist();
 
 const manifest = await discoverStories(rootDir);
 if (manifest.length === 0) {

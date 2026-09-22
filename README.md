@@ -107,39 +107,67 @@ pnpm -F mcp-apps-studio start /path/to/your/project
 
 Stories are rediscovered on every page refresh, so edits land without restarting. The server binds `127.0.0.1` only and requires the printed token on every request (query once, then an `HttpOnly` cookie).
 
-### Mock reference
+Deep links open a given state directly: `?widget=kpi-card&scenario=error&theme=dark&display=fullscreen&device=mobile`. In the `live` scenario, **Save scenario** turns the real session into an offline `recorded-<n>` scenario and copies a paste-ready story snippet.
 
-| `kind` | Fields | Behavior |
+### 3. Test every story headlessly
+
+```bash
+npx playwright install chromium                 # once
+pnpm -F mcp-apps-studio start test /path/to/your/project --out .mcp-studio/test
+#   ✓ kpi-card/default [light]
+#   ✗ kpi-card/error [dark]
+#       invalid message: Unsupported notification: wat
+#   11 passed, 1 failed
+```
+
+Every widget × scenario (except `live`) × theme runs in headless Chromium: the SDK handshake must complete and the trace must have no invalid messages. A screenshot per run and `report.json` land in `--out`; the exit code is `1` on any failure, so it drops into CI as is.
+
+### Scenario reference
+
+| Field | Meaning |
+|---|---|
+| `toolCall` | The model's call that rendered the widget: `{ name, input?, partialInputs?, result? }`. Played after `ui/notifications/initialized` as `tool-input-partial`* → `tool-input` → `tool-result` or `tool-cancelled`. |
+| `mocks` | Answers to the widget's own `tools/call`, keyed by tool name. |
+
+| Mock `kind` | Fields | Answer |
 |---|---|---|
-| `static` | `result`, `delayMs?` | Resolve `tools/call` with `result` after the optional delay |
-| `error` | `error: { code, message }`, `delayMs?` | Reject with a JSON-RPC error carrying that code |
+| `static` | `structuredContent?`, `content?`, `delayMs?` | `CallToolResult`; `content` defaults to a JSON text block of `structuredContent` |
+| `error` | `message`, `delayMs?` | `CallToolResult` with `isError: true` — how servers report tool failures |
+| `rpc-error` | `error: { code, message }`, `delayMs?` | JSON-RPC error (protocol failure); not allowed as a `toolCall.result` |
 | `passthrough` | — | Forward to the connected MCP server (same as no mock in `live`) |
+| `cancelled` | `reason?`, `delayMs?` | `toolCall.result` only: `tool-cancelled` |
 
 ## Write widgets that will work on real hosts
 
 Use `@studio/widget-runtime` instead of touching `window.parent` yourself. It does the `ui/initialize` handshake, correlates requests, applies timeouts, and keeps host context in sync.
 
 ```ts
-import { WidgetClient, applyHostContextToDocument } from '@studio/widget-runtime';
+import { WidgetClient, applyHostContextToDocument, toolResultData } from '@studio/widget-runtime';
 
 const client = new WidgetClient();
-const ctx = await client.connect();          // ui/initialize → host context
+const ctx = await client.connect();          // ui/initialize → host context, then ui/notifications/initialized
 applyHostContextToDocument(ctx);              // data-theme + --host CSS variables
 client.onHostContextChanged(() => applyHostContextToDocument(client.getHostContext()!));
 
-const metrics = await client.callTool('get_metrics', {}); // rejects with RpcError on failure
+client.onToolResult((result) => render(toolResultData(result)));   // the call that rendered the widget
+const result = await client.callTool('get_metrics', {}); // CallToolResult; isError for tool failures
+const metrics = toolResultData(result);                   // structuredContent, throws the isError text
 client.sendSizeChanged({ width: 360, height: 220 });
 ```
 
 React:
 
 ```tsx
-import { WidgetProvider, useToolCall } from '@studio/widget-runtime/react';
+import { WidgetProvider, useToolCall, useToolLifecycle } from '@studio/widget-runtime/react';
 
 function KpiCard() {
-  const { data, error, loading, call } = useToolCall<Metrics>('get_metrics');
+  const { data, error, loading, call } = useToolCall<Metrics>('get_metrics'); // data = structuredContent
   useEffect(() => void call(), [call]);
   // latest call wins: an overlapping stale response never overwrites newer state
+}
+
+function FromHost() {
+  const { status, input, data, error } = useToolLifecycle<Metrics>(); // tool-input → tool-result
 }
 ```
 

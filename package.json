@@ -19,5 +19,8 @@
     "turbo": "^2.5.0",
     "typescript": "~5.8.0",
     "vitest": "^3.2.0"
+  },
+  "dependencies": {
+    "playwright-core": "1.61.1"
   }
 }
