@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`@studio/widget-runtime` is the only sanctioned channel between a widget and the host. `WidgetClient` performs the handshake, calls tools and tracks host context; `applyHostContextToDocument` carries theme and CSS variables into the document; React hooks under the `./react` subpath wrap the client for components. The main entry stays React-free for vanilla widgets.
+`@mcp-apps-studio/widget-runtime` is the only sanctioned channel between a widget and the host. `WidgetClient` performs the handshake, calls tools and tracks host context; `applyHostContextToDocument` carries theme and CSS variables into the document; React hooks under the `./react` subpath wrap the client for components. The main entry stays React-free for vanilla widgets.
 
 ## Requirements
 

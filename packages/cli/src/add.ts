@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import path from 'node:path';
+import { locateAssets } from './assets.js';
 
 interface RegistryItem {
   name: string;
@@ -15,8 +15,7 @@ interface Registry {
 }
 
 async function readRegistry(): Promise<{ pkgRoot: string; registry: Registry }> {
-  const require = createRequire(import.meta.url);
-  const pkgRoot = path.dirname(require.resolve('@studio/components/package.json'));
+  const pkgRoot = locateAssets().registryRoot;
   const registry = JSON.parse(await fs.readFile(path.join(pkgRoot, 'registry.json'), 'utf8')) as Registry;
   return { pkgRoot, registry };
 }

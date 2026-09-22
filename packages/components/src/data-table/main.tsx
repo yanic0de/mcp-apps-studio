@@ -1,5 +1,5 @@
-import { connectWidget } from '@studio/widget-runtime';
-import { WidgetProvider } from '@studio/widget-runtime/react';
+import { connectWidget } from '@mcp-apps-studio/widget-runtime';
+import { WidgetProvider } from '@mcp-apps-studio/widget-runtime/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DataTable } from './DataTable.js';

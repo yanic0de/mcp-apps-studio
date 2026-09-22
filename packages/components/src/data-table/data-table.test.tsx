@@ -1,5 +1,5 @@
-import { App, createToolLifecycleStore } from '@studio/widget-runtime';
-import { WidgetProvider } from '@studio/widget-runtime/react';
+import { App, createToolLifecycleStore } from '@mcp-apps-studio/widget-runtime';
+import { WidgetProvider } from '@mcp-apps-studio/widget-runtime/react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DataTable } from './DataTable.js';

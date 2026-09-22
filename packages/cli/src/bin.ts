@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import { addComponent, listComponents } from './add.js';
+import { locateAssets } from './assets.js';
 import { discoverStories } from './discover.js';
+import { findWidgetFiles, initStories } from './init.js';
 import { createStudioServer, generateToken } from './server.js';
 import { summarize, type Theme } from './test-plan.js';
 import { NoBrowserError, runStoryTests } from './test-runner.js';
@@ -22,18 +23,43 @@ if (args[0] === 'add') {
   const copied = await addComponent(name, path.resolve(process.cwd(), dir));
   console.log(`Added "${name}":`);
   for (const file of copied) console.log(`  ${path.relative(process.cwd(), file)}`);
-  console.log('\nComponent uses @studio/widget-runtime — add it to your dependencies.');
+  console.log('\nComponent uses @mcp-apps-studio/widget-runtime. Install it with its peers:');
+  console.log(
+    '  npm i @mcp-apps-studio/widget-runtime @modelcontextprotocol/ext-apps @modelcontextprotocol/sdk zod react react-dom',
+  );
   process.exit(0);
 }
 
 function resolveStudioDist(): string {
-  const require = createRequire(import.meta.url);
-  const dist = path.join(path.dirname(require.resolve('@studio/app/package.json')), 'dist');
+  const dist = locateAssets().studioDist;
   if (!fs.existsSync(path.join(dist, 'index.html'))) {
     console.error('Studio build not found. Run: pnpm -F @studio/app build');
     process.exit(1);
   }
   return dist;
+}
+
+if (args[0] === 'init') {
+  const root = process.cwd();
+  let tool: string | undefined;
+  const files: string[] = [];
+  for (let i = 1; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--tool') tool = args[++i];
+    else if (arg && !arg.startsWith('-')) files.push(path.resolve(arg));
+  }
+  const widgets = files.length > 0 ? files : await findWidgetFiles(root);
+  if (widgets.length === 0) {
+    console.error('No MCP Apps widget HTML found. Pass the file: mcp-apps-studio init path/to/widget.html');
+    process.exit(1);
+  }
+  const { created, skipped } = await initStories(root, widgets, { tool });
+  for (const f of created) console.log(`  + ${path.relative(root, f)}`);
+  for (const f of skipped) console.log(`  = ${path.relative(root, f)} (exists, left untouched)`);
+  console.log(
+    '\nNext: set the tool name and data in the story, then run `mcp-apps-studio` (studio) or `mcp-apps-studio test` (CI).',
+  );
+  process.exit(0);
 }
 
 if (args[0] === 'test') {

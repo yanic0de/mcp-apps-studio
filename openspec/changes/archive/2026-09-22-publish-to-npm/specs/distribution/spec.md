@@ -5,7 +5,7 @@ Defines what MCP Apps Studio publishes to npm and how a release is proven instal
 ## ADDED Requirements
 
 ### Requirement: Published packages
-The repository SHALL publish exactly `mcp-apps-studio` (CLI) and `@mcp-apps-studio/widget-runtime`. Their published manifests MUST NOT reference `workspace:` versions or unpublished `@studio/*` packages, and SHALL point `exports`/`bin`/`types` at built JavaScript and declarations.
+The repository SHALL publish exactly `mcp-apps-studio` (CLI) and `@mcp-apps-studio/widget-runtime`. The runtime dependency fields of their published manifests (`dependencies`, `peerDependencies`, `optionalDependencies`) MUST NOT reference `workspace:` versions or unpublished `@studio/*` packages, and SHALL point `exports`/`bin`/`types` at built JavaScript and declarations.
 
 #### Scenario: Packed manifest
 - **WHEN** the CLI package is packed

@@ -14,11 +14,15 @@
 ## ADDED Requirements
 
 ### Requirement: init subcommand
-`init [widget.html…]` SHALL write `<name>.stories.mcp.ts` next to each given widget (default: every `*.html` under the current directory that mentions `ui/initialize` or `@modelcontextprotocol/ext-apps`, skipping `node_modules`, `dist`, `build` and dot-directories) with scenarios `default`, `loading`, `error` and `live`, and MUST NOT overwrite an existing story.
+`init [widget.html…] [--tool <name>]` SHALL write `<name>.stories.mcp.ts` for each given widget (default: every `*.html` under the current directory containing `ui/initialize` or `@modelcontextprotocol/ext-apps`, skipping `node_modules` and dot-directories) with scenarios `default`, `loading`, `error` and `live` whose `toolCall.name` is `--tool` (default `my_tool`). The story SHALL be placed next to the widget, or under `<root>/stories/` when the widget sits inside a `dist` or `build` directory (build output is wiped on rebuild). It MUST NOT overwrite an existing story.
 
 #### Scenario: Scaffold a story
 - **WHEN** `init widgets/weather.html` runs in a project without a story
 - **THEN** `widgets/weather.stories.mcp.ts` exists, discovery loads it, and it has the four scenarios
+
+#### Scenario: Built widget
+- **WHEN** `init dist/bundle.html` runs
+- **THEN** `stories/bundle.stories.mcp.ts` is written with `widget: '../dist/bundle.html'`
 
 #### Scenario: Story already exists
 - **WHEN** `init` targets a widget whose story file exists

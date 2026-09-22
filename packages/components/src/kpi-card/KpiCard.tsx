@@ -1,4 +1,4 @@
-import { useToolCall } from '@studio/widget-runtime/react';
+import { useToolCall } from '@mcp-apps-studio/widget-runtime/react';
 import { useEffect } from 'react';
 import type { KpiMetrics } from './fallback.js';
 

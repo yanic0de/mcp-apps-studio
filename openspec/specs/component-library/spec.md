@@ -55,7 +55,7 @@ A component's entry SHALL call `connectWidget({ appInfo })` from `@studio/widget
 - **THEN** the text contains two rows and the note `1 more row`
 
 ### Requirement: Registry
-`registry.json` SHALL list components with `name`, `title`, `description`, `files` (source paths) and `dependencies` (`@studio/widget-runtime`). The `add` command SHALL copy exactly the listed files.
+`registry.json` SHALL list components with `name`, `title`, `description`, `files` (source paths) and `dependencies` (`@mcp-apps-studio/widget-runtime`). The `add` command SHALL copy exactly the listed files, from the registry bundled with the CLI when installed.
 
 #### Scenario: Adding kpi-card
 - **WHEN** `mcp-apps-studio add kpi-card` runs

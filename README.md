@@ -6,7 +6,7 @@ Develop widgets component-first against stories and mocks — no server, no chat
 
 Targets the MCP Apps extension (SEP-1865), spec version `2026-01-26`.
 
-> **Status: pre-release.** Runs from source today (see Quick start). Publishing to npm is the next milestone.
+> **Status: pre-release (0.x).** Packaged for npm; the first release is pending.
 
 ## Why
 
@@ -36,7 +36,20 @@ MCP Apps Studio replaces the host with a controllable one:
 | `packages/example-server` | Reference MCP Apps server on the public SDKs, no workspace deps. Copy it to start your own |
 | `packages/test-server` | Test polygon: one tool per host behavior (`echo`, `slow_metrics`, `fail`, `get_rows`, `counter`) plus a "Protocol Inspector" widget |
 
-## Quick start
+## Install
+
+In your MCP Apps project (Node 20.11+):
+
+```bash
+npx mcp-apps-studio init                 # scaffold a *.stories.mcp.ts next to every widget HTML it finds
+npx mcp-apps-studio                      # the studio over your stories → http://127.0.0.1:4400/?token=…
+npx playwright install chromium          # once, for headless runs
+npx mcp-apps-studio test                 # every story × theme in headless Chromium; exit 1 on failure
+```
+
+Building widgets with the SDK? `@mcp-apps-studio/widget-runtime` adds `connectWidget` and React hooks on top of the official `App` (see below).
+
+## Develop from source
 
 Requires Node 22+ and pnpm.
 
@@ -143,10 +156,10 @@ Every widget × scenario (except `live`) × theme runs in headless Chromium: the
 
 ## Write widgets that will work on real hosts
 
-Widgets talk to the host through the official MCP Apps SDK, [`@modelcontextprotocol/ext-apps`](https://github.com/modelcontextprotocol/ext-apps) — its `App` class is the reference implementation of the widget side of SEP-1865, so a widget that works here works in any MCP Apps host. `@studio/widget-runtime` adds only what the SDK leaves to you: `connectWidget` records the originating tool call **before** the handshake (hosts send `tool-result` right after it, often before your UI mounts) and keeps the document in sync with the host theme, style variables and fonts.
+Widgets talk to the host through the official MCP Apps SDK, [`@modelcontextprotocol/ext-apps`](https://github.com/modelcontextprotocol/ext-apps) — its `App` class is the reference implementation of the widget side of SEP-1865, so a widget that works here works in any MCP Apps host. `@mcp-apps-studio/widget-runtime` adds only what the SDK leaves to you: `connectWidget` records the originating tool call **before** the handshake (hosts send `tool-result` right after it, often before your UI mounts) and keeps the document in sync with the host theme, style variables and fonts.
 
 ```ts
-import { connectWidget, toolResultData } from '@studio/widget-runtime';
+import { connectWidget, toolResultData } from '@mcp-apps-studio/widget-runtime';
 
 const { app, lifecycle } = await connectWidget({ appInfo: { name: 'kpi-card', version: '1.0.0' } });
 // app is the SDK App: ui/initialize → ui/notifications/initialized done, auto-resize on
@@ -160,7 +173,7 @@ await app.openLink({ url: 'https://example.com' });                   // …and 
 React:
 
 ```tsx
-import { WidgetProvider, useToolCall, useToolLifecycle, useWidgetApp } from '@studio/widget-runtime/react';
+import { WidgetProvider, useToolCall, useToolLifecycle, useWidgetApp } from '@mcp-apps-studio/widget-runtime/react';
 
 createRoot(root).render(<WidgetProvider session={await connectWidget({ appInfo })}><KpiCard /></WidgetProvider>);
 
@@ -252,10 +265,11 @@ Conventions: TDD per task, tests next to source, core packages must stay runnabl
 
 ## Roadmap
 
-- [ ] npm publish: build step for the packages, `npx mcp-apps-studio` in any project
-- [ ] Headless conformance runner (`mcp-apps-studio test`): play every scenario in CI, golden-log diffs
+- [x] npm packaging: `npx mcp-apps-studio` in any project (first release pending)
+- [x] Headless story runner (`mcp-apps-studio test`)
+- [ ] Upgrade to `@modelcontextprotocol/ext-apps` 2.x (MCP SDK v2 packages)
+- [ ] Widget from a dev server with HMR; visual diffs + GitHub Action
 - [ ] `openai-apps` adapter for the OpenAI Apps SDK dialect
-- [ ] Widget follow-up messages, once the wire name is confirmed by the upstream SDK
 - [ ] `pending` mock kind (never resolves) instead of the one-hour delay idiom
 - [ ] Size / CSP assertions: flag widgets that exceed container dimensions or violate a host CSP
 

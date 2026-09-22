@@ -1,24 +1,64 @@
 {
-  "name": "@studio/widget-runtime",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@mcp-apps-studio/widget-runtime",
+  "version": "0.0.0",
+  "description": "Studio conveniences on top of the official MCP Apps SDK App: connectWidget (tool lifecycle recorded before the handshake, host theme applied) and React hooks.",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yanic0de/mcp-app-proba.git",
+    "directory": "packages/widget-runtime"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-apps",
+    "ext-apps",
+    "widget",
+    "react"
+  ],
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./react": "./src/react.tsx",
     "./package.json": "./package.json"
   },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./react": {
+        "types": "./dist/react.d.ts",
+        "import": "./dist/react.js"
+      },
+      "./package.json": "./package.json"
+    }
+  },
   "scripts": {
+    "build": "tsup",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.7.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "zod": "^3.25.0 || ^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
     "@modelcontextprotocol/ext-apps": "^1.7.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "react": "^19.1.0",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
+    "zod": "^4.4.3",
     "@studio/host-emulator": "workspace:*",
     "@studio/shared": "workspace:*",
     "@types/react": "^19.1.0",

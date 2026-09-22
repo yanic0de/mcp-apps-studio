@@ -10,12 +10,18 @@
     "e2e": "playwright test --config e2e/playwright.config.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "openspec": "OPENSPEC_TELEMETRY=0 openspec"
+    "openspec": "OPENSPEC_TELEMETRY=0 openspec",
+    "smoke:pack": "node scripts/pack-smoke.mjs",
+    "build": "turbo run build",
+    "changeset": "changeset",
+    "release": "pnpm build && changeset publish"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
+    "@changesets/cli": "^2.31.1",
     "@fission-ai/openspec": "1.13.1",
     "@playwright/test": "^1.61.1",
+    "tsup": "^8.5.1",
     "turbo": "^2.5.0",
     "typescript": "~5.8.0",
     "vitest": "^3.2.0"
