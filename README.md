@@ -25,7 +25,7 @@ MCP Apps Studio replaces the host with a controllable one:
 |---|---|
 | `apps/studio` | The studio UI: widget and scenario picker, theme / display-mode controls, sandboxed canvas, RPC trace panel |
 | `packages/host-emulator` | DOM-free host core: JSON-RPC bridge, protocol adapter, mock router, orchestrator. Usable from Node tests |
-| `packages/widget-runtime` | The widget side: `WidgetClient` (vanilla) and React hooks. The only sanctioned way for a widget to talk to a host |
+| `packages/widget-runtime` | Studio conveniences on top of the official `@modelcontextprotocol/ext-apps` `App`: `connectWidget` (lifecycle recorded before the handshake, host theme applied), React hooks |
 | `packages/cli` | `mcp-apps-studio`: discovers `*.stories.mcp.ts` in your project, serves the studio locally with token auth, copies components into your project |
 | `packages/components` | Source-distributed widget library (shadcn model): `kpi-card`, `data-table`, each with stories and a text fallback |
 | `packages/shared` | Protocol constants, zod schemas, `RpcError`, request correlation |
@@ -139,26 +139,26 @@ Every widget × scenario (except `live`) × theme runs in headless Chromium: the
 
 ## Write widgets that will work on real hosts
 
-Use `@studio/widget-runtime` instead of touching `window.parent` yourself. It does the `ui/initialize` handshake, correlates requests, applies timeouts, and keeps host context in sync.
+Widgets talk to the host through the official MCP Apps SDK, [`@modelcontextprotocol/ext-apps`](https://github.com/modelcontextprotocol/ext-apps) — its `App` class is the reference implementation of the widget side of SEP-1865, so a widget that works here works in any MCP Apps host. `@studio/widget-runtime` adds only what the SDK leaves to you: `connectWidget` records the originating tool call **before** the handshake (hosts send `tool-result` right after it, often before your UI mounts) and keeps the document in sync with the host theme, style variables and fonts.
 
 ```ts
-import { WidgetClient, applyHostContextToDocument, toolResultData } from '@studio/widget-runtime';
+import { connectWidget, toolResultData } from '@studio/widget-runtime';
 
-const client = new WidgetClient();
-const ctx = await client.connect();          // ui/initialize → host context, then ui/notifications/initialized
-applyHostContextToDocument(ctx);              // data-theme + --host CSS variables
-client.onHostContextChanged(() => applyHostContextToDocument(client.getHostContext()!));
+const { app, lifecycle } = await connectWidget({ appInfo: { name: 'kpi-card', version: '1.0.0' } });
+// app is the SDK App: ui/initialize → ui/notifications/initialized done, auto-resize on
 
-client.onToolResult((result) => render(toolResultData(result)));   // the call that rendered the widget
-const result = await client.callTool('get_metrics', {}); // CallToolResult; isError for tool failures
-const metrics = toolResultData(result);                   // structuredContent, throws the isError text
-client.sendSizeChanged({ width: 360, height: 220 });
+lifecycle.subscribe(() => render(lifecycle.getSnapshot()));           // tool-input → tool-result | cancelled
+const result = await app.callServerTool({ name: 'get_metrics', arguments: {} }); // CallToolResult
+const metrics = toolResultData(result);                               // structuredContent, throws the isError text
+await app.openLink({ url: 'https://example.com' });                   // …and every other SDK method
 ```
 
 React:
 
 ```tsx
-import { WidgetProvider, useToolCall, useToolLifecycle } from '@studio/widget-runtime/react';
+import { WidgetProvider, useToolCall, useToolLifecycle, useWidgetApp } from '@studio/widget-runtime/react';
+
+createRoot(root).render(<WidgetProvider session={await connectWidget({ appInfo })}><KpiCard /></WidgetProvider>);
 
 function KpiCard() {
   const { data, error, loading, call } = useToolCall<Metrics>('get_metrics'); // data = structuredContent
@@ -168,6 +168,7 @@ function KpiCard() {
 
 function FromHost() {
   const { status, input, data, error } = useToolLifecycle<Metrics>(); // tool-input → tool-result
+  const app = useWidgetApp();                                          // the SDK App for everything else
 }
 ```
 

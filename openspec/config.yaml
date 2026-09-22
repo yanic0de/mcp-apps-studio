@@ -19,7 +19,8 @@ context: |
   - application: apps/studio (@studio/app) — studio SPA: canvas, controls, trace
   - tool: packages/cli (mcp-apps-studio) — story discovery, local studio server, `add`
   - host core: packages/host-emulator — bridge, adapter, mock router, emulator, iframe transport
-  - widget side: packages/widget-runtime — the only sanctioned widget ↔ host channel
+  - widget side: the official @modelcontextprotocol/ext-apps App; packages/widget-runtime adds
+    connectWidget, the tool lifecycle store and React hooks on top (no protocol code of its own)
   - library: packages/components — source-distributed components (shadcn model)
   - shared: packages/shared — schemas, types, protocol constants, RpcError, RequestTracker
   - reference servers: packages/example-server, packages/test-server — no workspace deps

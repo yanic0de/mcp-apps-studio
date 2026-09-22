@@ -26,11 +26,11 @@ Every component SHALL: theme itself only through `--widget-*` variables with fal
 - **AND** each file renders in a sandboxed iframe with no external requests
 
 ### Requirement: Widget entry point
-A component's entry SHALL create a `WidgetClient`, await `connect()`, apply the context to the document, subscribe to its changes, mount the component inside `WidgetProvider` and report the size to the host.
+A component's entry SHALL call `connectWidget({ appInfo })` from `@studio/widget-runtime` (theme, variables and fonts are applied and size is reported by the SDK's auto-resize), then mount the component inside `WidgetProvider` with the returned session.
 
 #### Scenario: Loading in the studio
 - **WHEN** the iframe with the bundled component loads
-- **THEN** `ui/initialize`, `tools/call` and `size-changed` from the widget appear in the trace
+- **THEN** `ui/initialize`, `ui/notifications/initialized`, `tools/call` and `size-changed` from the widget appear in the trace
 
 ### Requirement: KPI Card
 `KpiCard` SHALL call a tool on mount (default `get_metrics`), show `structuredContent.value` via `toLocaleString`, a caption with `label` and the direction of `delta`, a `loading…` state, the error text, and a `Refresh` button with `type="button"`.

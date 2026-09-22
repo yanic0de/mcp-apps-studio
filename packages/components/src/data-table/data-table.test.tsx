@@ -1,20 +1,18 @@
-import { WidgetClient, type WidgetWindow } from '@studio/widget-runtime';
+import { App, createToolLifecycleStore } from '@studio/widget-runtime';
 import { WidgetProvider } from '@studio/widget-runtime/react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DataTable } from './DataTable.js';
 import { dataTableTextFallback } from './fallback.js';
 
-const fakeWin: WidgetWindow = {
-  addEventListener: () => {},
-  removeEventListener: () => {},
-  parent: { postMessage: () => {} },
-};
+// Not connected: server rendering only needs the session shape.
+const app = new App({ name: 'test', version: '0' }, {}, { autoResize: false });
+const session = { app, lifecycle: createToolLifecycleStore(app) };
 
 describe('DataTable', () => {
   it('renders caption and placeholder before data arrives', () => {
     const html = renderToString(
-      <WidgetProvider client={new WidgetClient(fakeWin)}>
+      <WidgetProvider session={session}>
         <DataTable caption="Users" />
       </WidgetProvider>,
     );

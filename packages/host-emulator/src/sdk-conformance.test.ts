@@ -1,35 +1,15 @@
 import { App } from '@modelcontextprotocol/ext-apps';
-import type { Transport as SdkTransport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import type { HostContext, MockConfig, RpcLogEvent, ToolCall } from '@studio/shared';
 import { describe, expect, it } from 'vitest';
 import type { WidgetIntent } from './adapter.js';
 import { HostEmulator } from './host-emulator.js';
 import { McpAppsAdapter } from './mcp-apps-adapter.js';
-import { createInMemoryTransportPair, type Transport } from './transport.js';
+import { createInMemoryTransportPair, toMcpTransport } from './transport.js';
 
 /**
  * The official ext-apps `App` is the reference View. If the SDK and the emulator
  * drift apart (method names, result shapes, capability schema), these tests fail.
  */
-
-/** Wraps our in-memory transport end in the MCP SDK Transport interface the App expects. */
-function sdkTransport(end: Transport): SdkTransport {
-  let off: (() => void) | undefined;
-  const t: SdkTransport = {
-    async start() {
-      off = end.onMessage((m) => t.onmessage?.(m as JSONRPCMessage));
-    },
-    async send(message) {
-      end.send(message);
-    },
-    async close() {
-      off?.();
-      t.onclose?.();
-    },
-  };
-  return t;
-}
 
 async function connectApp(
   opts: { mocks?: MockConfig; hostContext?: HostContext; toolCall?: ToolCall; beforeConnect?: (app: App) => void } = {},
@@ -49,7 +29,7 @@ async function connectApp(
   emulator.start();
   const app = new App({ name: 'conformance', version: '1.0.0' }, {}, { autoResize: false });
   opts.beforeConnect?.(app);
-  await app.connect(sdkTransport(appEnd));
+  await app.connect(toMcpTransport(appEnd));
   await new Promise((r) => setTimeout(r, 0)); // let `initialized` land
   return { app, emulator, log, intents };
 }

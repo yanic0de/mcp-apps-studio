@@ -13,11 +13,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@studio/shared": "workspace:*",
-    "react": "^19.1.0"
+    "@modelcontextprotocol/ext-apps": "^1.7.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "react": "^19.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@studio/host-emulator": "workspace:*",
+    "@studio/shared": "workspace:*",
     "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.2.3",
+    "react-dom": "^19.2.7",
     "typescript": "~5.8.0"
   }
 }

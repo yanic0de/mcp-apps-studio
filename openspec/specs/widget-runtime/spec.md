@@ -7,97 +7,51 @@
 ## Requirements
 
 ### Requirement: Handshake
-`connect()` SHALL send `ui/initialize` with `protocolVersion` (the protocol constant), `appInfo` (`{ name, version }` from the client options, defaulting to `{ name: 'studio-widget', version: '0.0.0' }`) and `appCapabilities: {}`, store `hostContext` from the result, then send `ui/notifications/initialized` and return the context.
+`connectWidget({ appInfo, capabilities?, transport?, autoResize? })` SHALL create an `App` from `@modelcontextprotocol/ext-apps` with `appInfo` and `capabilities` (default `{}`), attach the tool lifecycle store and the document applier, then connect it (default transport: the SDK's `postMessage` transport to `window.parent`; `autoResize` default `true`) and resolve with `{ app, lifecycle }`. The package MUST NOT implement JSON-RPC framing, request correlation or protocol method names itself.
 
 #### Scenario: Successful initialization
-- **WHEN** the host answers `{ protocolVersion, hostContext: { theme: 'dark', ... } }`
-- **THEN** `connect()` resolves with that context
-- **AND** `getHostContext()` returns the same
-- **AND** the host receives `ui/notifications/initialized` after the response
-
-### Requirement: Tool call
-`callTool(name, args?)` SHALL send `tools/call` with `{ name, arguments: args ?? {} }` and resolve with the `CallToolResult` from the response. A response with `error` SHALL reject the promise with an `RpcError` carrying the host's `code`, `message` and `data`.
-
-#### Scenario: Successful call
-- **WHEN** the host answers `{ result: { content: [], structuredContent: { value: 1 } } }`
-- **THEN** the promise resolves with that result
-
-#### Scenario: Tool error
-- **WHEN** the host answers `{ error: { code: -32000, message: 'boom' } }`
-- **THEN** the promise rejects with an `RpcError` instance whose `code === -32000`
-
-### Requirement: Timeout and correlation
-The client SHALL correlate responses through `RequestTracker` with prefix `w`, reject a request on timeout (default 30 000 ms) and MUST NOT fire the timeout after a response arrived.
-
-#### Scenario: No answer
-- **WHEN** the host does not answer within `requestTimeoutMs`
-- **THEN** the promise rejects with an error containing `timed out`
-
-#### Scenario: Answer before the timeout
-- **WHEN** a response is received and then more than the timeout elapses
-- **THEN** the promise stays resolved; there is no second rejection
-
-### Requirement: Send failure
-If `postMessage` throws (e.g. `DataCloneError` for non-serializable arguments), the call's promise SHALL reject with that exception.
-
-#### Scenario: Function in arguments
-- **WHEN** `callTool('x', { fn: () => 1 })` and `postMessage` throws
-- **THEN** the promise rejects with the exception text without waiting for the timeout
+- **WHEN** `connectWidget` connects to a host emulator with theme `dark`
+- **THEN** `app.getHostContext().theme === 'dark'`
+- **AND** the host reports the widget ready (it received `ui/notifications/initialized`)
 
 ### Requirement: Host context
-A `host-context-changed` notification SHALL merge into the stored context, and `onHostContextChanged` subscribers SHALL receive the patch. The unsubscribe function SHALL stop notifications.
+`useHostContext()` SHALL return the app's current host context and re-render when the host sends `host-context-changed`, reflecting the merged context.
 
 #### Scenario: Theme change
-- **WHEN** `{ params: { theme: 'light' } }` arrives after `connect()`
-- **THEN** `getHostContext()` contains `theme: 'light'` and the previous `locale`
-- **AND** the subscriber receives `{ theme: 'light' }`
-
-### Requirement: Size notification
-`sendSizeChanged({ width?, height? })` SHALL send a `ui/notifications/size-changed` notification with those params.
-
-#### Scenario: Widget reports its size
-- **WHEN** `sendSizeChanged({ width: 320, height: 200 })` is called
-- **THEN** the host receives `{ jsonrpc: '2.0', method: 'ui/notifications/size-changed', params: { width: 320, height: 200 } }`
-
-### Requirement: Client disposal
-`dispose()` SHALL remove the window listener, reject pending requests with an error containing `disposed` and clear subscribers. A request on a disposed client SHALL reject with the same error.
-
-#### Scenario: Call during dispose
-- **WHEN** `callTool('slow')` is awaiting an answer and `dispose()` is called
-- **THEN** the promise rejects with an error matching `/disposed/`
-- **AND** no listeners remain on the window
-
-### Requirement: Ignoring garbage
-Invalid messages and responses with unknown ids SHALL be ignored without exceptions.
-
-#### Scenario: Garbage
-- **WHEN** `null`, `{ evil: true }`, `{ jsonrpc: '2.0', id: 'unknown', result: 1 }` arrive
-- **THEN** no exceptions; the context stays `null`
+- **WHEN** the host changes the theme to `light` after connect
+- **THEN** `app.getHostContext()` contains `theme: 'light'` and the previous `locale`
 
 ### Requirement: Testability in Node
-The constructor SHALL accept a duck-typed `WidgetWindow` (`addEventListener`, `removeEventListener`, `parent.postMessage`), defaulting to the global `window`, evaluated lazily.
+Everything except the DOM applier SHALL run in Node with an injected MCP transport; the default `window.parent` transport SHALL only be used when no transport is given.
 
 #### Scenario: Import in Node
 - **WHEN** the module is imported in Node without `window`
-- **THEN** the import does not fail; `window` is needed only when constructing a client with no arguments
+- **THEN** the import does not fail
+
+#### Scenario: Against the emulator in Node
+- **WHEN** `connectWidget` is called in Node with a transport bound to a `HostEmulator`
+- **THEN** it connects without touching `window` or `document` (with the document applier disabled)
 
 ### Requirement: Applying context to the document
-`applyHostContextToDocument(ctx, doc?)` SHALL set `data-theme` on the root element when `ctx.theme` is present and set every variable from `ctx.styles.variables` via `style.setProperty`.
+When enabled (default), `connectWidget` SHALL apply the host context to the document on connect and on every change using the SDK helpers: `applyDocumentTheme(theme)` (sets `data-theme` and `color-scheme`), `applyHostStyleVariables(styles.variables)` and `applyHostFonts(styles.css.fonts)`.
 
 #### Scenario: Theme and variables
-- **WHEN** `ctx = { theme: 'dark', styles: { variables: { '--color-bg': '#111' } } }`
-- **THEN** `documentElement.dataset.theme === 'dark'`
-- **AND** `--color-bg` equals `#111`
+- **WHEN** the host context is `{ theme: 'dark', styles: { variables: { '--color-background-primary': '#111' } } }`
+- **THEN** the document root has `data-theme="dark"` and `--color-background-primary` equals `#111`
 
 #### Scenario: Empty patch
-- **WHEN** `ctx = {}`
+- **WHEN** a context change carries no theme and no styles
 - **THEN** nothing changes and no exception is thrown
 
+#### Scenario: Dark theme in a built component
+- **WHEN** the studio switches a library component to `dark`
+- **THEN** the component document root has `data-theme="dark"`
+
 ### Requirement: React wrappers
-The `./react` subpath SHALL provide `WidgetProvider`, `useWidgetClient` (throws outside the provider), `useHostContext` and `useToolCall(name)` with `data`, `error`, `loading`, `call`. `useToolCall` SHALL expose `structuredContent` as `data`; a result with `isError: true` SHALL set `error` to its text content (or `tool call failed`) and keep `data` unchanged; a rejected call SHALL set `error` to the rejection message. The main entry `.` MUST NOT import React.
+The `./react` subpath SHALL provide `WidgetProvider` (takes the `connectWidget` session), `useWidgetApp` (throws outside the provider), `useHostContext`, `useToolCall(name)` with `data`, `error`, `loading`, `call` — calling `app.callServerTool`, exposing `structuredContent` as `data`, the text of an `isError` result or a rejection message as `error` — and `useToolLifecycle()`. The main entry `.` MUST NOT import React.
 
 #### Scenario: Hook outside the provider
-- **WHEN** `useWidgetClient()` is called without a `WidgetProvider`
+- **WHEN** `useWidgetApp()` is called without a `WidgetProvider`
 - **THEN** an error mentioning `<WidgetProvider>` is thrown
 
 #### Scenario: Tool error result
@@ -113,12 +67,12 @@ The `./react` subpath SHALL provide `WidgetProvider`, `useWidgetClient` (throws 
 - **AND** the first call's completion does not change the state
 
 ### Requirement: Tool lifecycle subscriptions
-`WidgetClient` SHALL provide `onToolInput(cb)`, `onToolInputPartial(cb)` (callback receives the `arguments` record, `{}` when absent), `onToolResult(cb)` (callback receives the `CallToolResult`) and `onToolCancelled(cb)` (callback receives `{ reason? }`), each returning an unsubscribe function. `dispose()` SHALL clear them. The `./react` subpath SHALL provide `useToolLifecycle<T>()` returning `{ status: 'waiting' | 'streaming' | 'input' | 'result' | 'error' | 'cancelled', input, data, error, reason }`, where `data` is the result's `structuredContent` and `error` the text of an `isError` result.
+`createToolLifecycleStore(app)` SHALL subscribe to the app's `toolinputpartial`, `toolinput`, `toolresult` and `toolcancelled` events at creation and expose `getSnapshot()` / `subscribe(cb)` over `reduceToolLifecycle` (`status: 'waiting' | 'streaming' | 'input' | 'result' | 'error' | 'cancelled'`, `input`, `data`, `error`, `reason`). `connectWidget` SHALL create it before connecting, so notifications sent right after the handshake are reflected. `useToolLifecycle()` SHALL read the session's store.
 
 #### Scenario: Result after input
-- **WHEN** the host sends `tool-input` with `{ arguments: { q: 1 } }` and then `tool-result` with `structuredContent: { v: 1 }`
-- **THEN** the `onToolInput` subscriber receives `{ q: 1 }` and the `onToolResult` subscriber receives the result
+- **WHEN** the host plays `tool-input` with `{ q: 1 }` and `tool-result` with `structuredContent: { v: 1 }` immediately after `initialized`
+- **THEN** the store snapshot is `{ status: 'result', input: { q: 1 }, data: { v: 1 } }`
 
 #### Scenario: Unsubscribe
-- **WHEN** a subscriber unsubscribes and another `tool-result` arrives
+- **WHEN** a subscriber unsubscribes and another event arrives
 - **THEN** the subscriber is not called

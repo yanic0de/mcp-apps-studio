@@ -1,4 +1,4 @@
-import type { CallToolResult } from '@studio/shared';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { toolResultData } from './tool-result.js';
 
 export type ToolLifecycleEvent =

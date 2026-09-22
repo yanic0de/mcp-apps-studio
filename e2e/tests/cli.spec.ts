@@ -30,3 +30,15 @@ test('CLI-served empty scenario shows the DataTable empty state', async ({ page 
   await page.getByLabel('Scenario').selectOption('empty');
   await expect(widgetFrame(page).locator('.data-table__message')).toHaveText('No rows.');
 });
+
+test('library component on the SDK App: handshake completes and the host theme reaches the document', async ({
+  page,
+}) => {
+  await page.goto(`${CLI_URL}/?token=${CLI_TOKEN}&widget=kpi-card`);
+  const frame = widgetFrame(page);
+  await expect(frame.locator('.kpi-card__value')).toHaveText('12,840');
+  await expect(page.locator('.trace-row').filter({ hasText: 'ui/notifications/initialized' })).toHaveCount(1);
+  await expect(page.locator('.trace-row.invalid')).toHaveCount(0);
+  await page.getByLabel('Theme').selectOption('dark');
+  await expect(frame.locator('html')).toHaveAttribute('data-theme', 'dark');
+});
