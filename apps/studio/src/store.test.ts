@@ -1,6 +1,7 @@
 import { defaultHostContext, type WidgetManifestEntry } from '@studio/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LOG_LIMIT, useStudioStore } from './store.js';
+import { deviceContext } from './viewport.js';
 
 const initial = useStudioStore.getState();
 
@@ -25,9 +26,10 @@ const widgets: WidgetManifestEntry[] = [
 ];
 
 describe('studio store', () => {
-  it('starts with default context, no widgets, empty log', () => {
+  it('starts with default context plus the desktop preset, no widgets, empty log', () => {
     const s = useStudioStore.getState();
-    expect(s.hostContext).toEqual(defaultHostContext);
+    expect(s.device).toBe('desktop');
+    expect(s.hostContext).toEqual({ ...defaultHostContext, ...deviceContext('desktop') });
     expect(s.widgets).toEqual([]);
     expect(s.activeWidgetId).toBeNull();
     expect(s.log).toEqual([]);
@@ -96,5 +98,13 @@ describe('studio store', () => {
     const ctx = { ...defaultHostContext, displayMode: 'fullscreen' as const };
     useStudioStore.getState().replaceHostContext(ctx);
     expect(useStudioStore.getState().hostContext).toBe(ctx);
+  });
+
+  it('setDevice switches the preset and merges its context fields', () => {
+    useStudioStore.getState().setDevice('mobile');
+    const s = useStudioStore.getState();
+    expect(s.device).toBe('mobile');
+    expect(s.hostContext).toMatchObject({ platform: 'mobile', deviceCapabilities: { touch: true, hover: false } });
+    expect(s.hostContext.theme).toBe('light');
   });
 });

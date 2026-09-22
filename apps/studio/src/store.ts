@@ -1,5 +1,6 @@
 import { defaultHostContext, type HostContext, type RpcLogEvent, type WidgetManifestEntry } from '@studio/shared';
 import { create } from 'zustand';
+import { type Device, deviceContext } from './viewport.js';
 
 /** Chatty widgets must not grow the trace (and its re-renders) unbounded. */
 export const LOG_LIMIT = 500;
@@ -20,6 +21,7 @@ interface StudioState {
   activeWidgetId: string | null;
   scenario: string;
   hostContext: HostContext;
+  device: Device;
   log: TraceEntry[];
   setWidgets: (widgets: WidgetManifestEntry[]) => void;
   setActiveWidget: (id: string) => void;
@@ -27,6 +29,7 @@ interface StudioState {
   setHostContext: (patch: Partial<HostContext>) => void;
   /** Adopts a context the emulator already applied (widget-initiated); kept by identity so Canvas does not echo it. */
   replaceHostContext: (context: HostContext) => void;
+  setDevice: (device: Device) => void;
   appendLog: (ev: RpcLogEvent) => void;
   clearLog: () => void;
 }
@@ -35,7 +38,8 @@ export const useStudioStore = create<StudioState>()((set) => ({
   widgets: [],
   activeWidgetId: null,
   scenario: 'default',
-  hostContext: defaultHostContext,
+  hostContext: { ...defaultHostContext, ...deviceContext('desktop') },
+  device: 'desktop',
   log: [],
   setWidgets: (widgets) =>
     set({ widgets, activeWidgetId: widgets[0]?.id ?? null, scenario: firstScenario(widgets[0]), log: [] }),
@@ -47,6 +51,7 @@ export const useStudioStore = create<StudioState>()((set) => ({
   setScenario: (scenario) => set({ scenario, log: [] }),
   setHostContext: (patch) => set((s) => ({ hostContext: { ...s.hostContext, ...patch } })),
   replaceHostContext: (hostContext) => set({ hostContext }),
+  setDevice: (device) => set((s) => ({ device, hostContext: { ...s.hostContext, ...deviceContext(device) } })),
   appendLog: (ev) => {
     const entry: TraceEntry = { ...ev, seq: ++nextSeq };
     set((s) => ({ log: [...s.log.slice(-(LOG_LIMIT - 1)), entry] }));

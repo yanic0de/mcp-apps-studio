@@ -98,6 +98,7 @@ body {
 }
 
 .canvas {
+  position: relative;
   grid-area: canvas;
   display: grid;
   place-items: center;
@@ -133,9 +134,15 @@ body {
 .viewport iframe {
   display: block;
   border: 0;
-  width: 360px;
-  height: 240px;
   background: #fff;
+  transition: height 120ms ease;
+}
+
+/* Picture-in-picture floats over the conversation, like hosts do. */
+.viewport--pip {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
 }
 
 .trace {
