@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MCP Apps Studio — a "fake host" for MCP widgets: everything a real host (Claude/ChatGPT) does to a widget (sandboxed iframe render, JSON-RPC bridge, theme/context, tool calls) is reproduced locally and made observable. Targets the MCP Apps extension (SEP-1865), pinned spec version `2026-01-26`.
 
+Positioning (decided): **Storybook + Playwright for MCP Apps widgets** — component-level development (stories, scenarios, mocks without a server), deterministic headless runs in CI (`mcp-apps-studio test`), live-session recording into fixtures, SDK conformance. NOT a server inspector: no LLM chat, no OAuth/server-inspection features (that is MCP Inspector / MCPJam territory).
+
 ## Commands
 
 ```bash

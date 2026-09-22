@@ -6,6 +6,8 @@ context: |
   Project: MCP Apps Studio — a "fake host" for MCP widgets. Everything a real host
   (Claude, ChatGPT) does to a widget — sandboxed iframe render, JSON-RPC bridge,
   theme and context delivery, tool calls — is reproduced locally and made observable.
+  Positioning: Storybook + Playwright for MCP Apps widgets (stories, mocks, headless CI runs,
+  recorded fixtures, SDK conformance). Not a server inspector: no LLM chat, no OAuth/server tooling.
   Target: the MCP Apps extension (SEP-1865), protocol version 2026-01-26. The source
   of truth for wire methods and fields is the installed @modelcontextprotocol/ext-apps
   SDK (see packages/example-server), never memory.

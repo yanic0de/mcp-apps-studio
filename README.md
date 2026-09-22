@@ -1,8 +1,8 @@
 # MCP Apps Studio
 
-**A local host emulator and test bench for [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) widgets.**
+**Storybook + Playwright for [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) widgets.**
 
-Everything a real host (Claude, ChatGPT) does to your widget — sandboxed iframe render, JSON-RPC bridge, theme and display-mode context, tool calls — reproduced on your machine and made observable. Storybook-style scenarios for your widgets, mocked or live tool calls, and a full RPC trace of every message that crosses the iframe boundary.
+Develop widgets component-first against stories and mocks — no server, no chat, no LLM — and run every story headlessly in CI. Everything a real host (Claude, ChatGPT) does to your widget — sandboxed iframe render, JSON-RPC bridge, theme and display-mode context, tool calls — reproduced on your machine and made observable. Storybook-style scenarios for your widgets, mocked or live tool calls, and a full RPC trace of every message that crosses the iframe boundary.
 
 Targets the MCP Apps extension (SEP-1865), spec version `2026-01-26`.
 
@@ -17,7 +17,11 @@ MCP Apps Studio replaces the host with a controllable one:
 - **Scenarios instead of deploys.** Describe a widget and its states (`default`, `loading`, `error`, `empty`) in a story file. Switch between them in one click.
 - **Mocks instead of backends.** Every `tools/call` is answered from a scenario: a static result, an error with a code, a delay, or passthrough to a real server.
 - **A trace instead of guessing.** Every request, response and notification in both directions is logged, including malformed messages your widget shouldn't have sent.
+- **Stories as a test suite.** `mcp-apps-studio test` plays every scenario in headless Chromium in CI: the SDK handshake must complete and nothing malformed may cross the bridge.
+- **Fixtures from reality.** Record a session against your real server and save it as an offline scenario.
 - **Real hosts are strict; so is this one.** Sandboxed iframe with `allow-scripts` only, null-origin trust model, every incoming message validated before dispatch. If it works here, you haven't accidentally relied on `window.parent` or `allow-same-origin`.
+
+**Not a server inspector.** For chatting with an LLM, OAuth flows or poking at a server's tools, use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) or [MCPJam](https://github.com/MCPJam/inspector). MCP Apps Studio is for the widget: its states, its protocol hygiene, its regression tests.
 
 ## What's inside
 
