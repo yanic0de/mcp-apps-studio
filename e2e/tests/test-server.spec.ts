@@ -13,6 +13,8 @@ test('protocol inspector from the test server drives tools through live passthro
 
   await frame.getByRole('button', { name: 'fail' }).click();
   await expect(frame.locator('#output')).toContainText('Intentional failure');
+  // forwarded as the server's CallToolResult, not converted into a JSON-RPC error
+  await expect(frame.locator('#output')).toContainText('"isError": true');
   await expect(frame.locator('#output')).toHaveClass('error');
 
   await frame.getByRole('button', { name: 'rows' }).click();

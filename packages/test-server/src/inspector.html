@@ -95,8 +95,9 @@
         const args = JSON.parse(btn.dataset.args);
         show(`→ tools/call ${name} ${btn.dataset.args}\n…`);
         try {
+          // Raw CallToolResult; a tool failure is a result with isError, not a rejection.
           const result = await request('tools/call', { name, arguments: args });
-          show({ tool: name, result });
+          show({ tool: name, result }, result.isError === true);
         } catch (e) {
           show({ tool: name, error: e }, true);
         }
@@ -104,7 +105,12 @@
     }
 
     (async () => {
-      const init = await request('ui/initialize', { protocolVersion: '2026-01-26', appCapabilities: {} });
+      const init = await request('ui/initialize', {
+        protocolVersion: '2026-01-26',
+        appInfo: { name: 'protocol-inspector', version: '0.1.0' },
+        appCapabilities: {},
+      });
+      parent.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/initialized' }, '*');
       if (init.hostContext && init.hostContext.theme) {
         document.body.classList.toggle('dark', init.hostContext.theme === 'dark');
       }

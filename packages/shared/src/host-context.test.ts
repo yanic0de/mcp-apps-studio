@@ -19,6 +19,23 @@ describe('hostContextSchema', () => {
     expect(hostContextSchema.safeParse(full).success).toBe(true);
   });
 
+  it('accepts the SDK environment fields', () => {
+    const ctx = {
+      ...defaultHostContext,
+      availableDisplayModes: ['inline', 'fullscreen'],
+      timeZone: 'Europe/Berlin',
+      platform: 'mobile',
+      userAgent: 'claude-ios',
+      deviceCapabilities: { touch: true, hover: false },
+      containerDimensions: { height: 300, maxWidth: 800 },
+    };
+    expect(hostContextSchema.safeParse(ctx).success).toBe(true);
+  });
+
+  it('defaults to a web platform with the studio user agent', () => {
+    expect(defaultHostContext).toMatchObject({ platform: 'web', userAgent: 'mcp-apps-studio' });
+  });
+
   it('rejects unknown theme', () => {
     expect(hostContextSchema.safeParse({ ...defaultHostContext, theme: 'sepia' }).success).toBe(false);
   });

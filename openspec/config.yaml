@@ -51,7 +51,8 @@ context: |
   - Adapter — pure translator between wire messages and semantic actions. One per dialect.
   - Story — a *.stories.mcp.ts file, default export { title, widget, scenarios }.
   - Scenario — named set of tool mocks; `live` with no mocks proxies to a real MCP server.
-  - Mock — the emulator's answer to tools/call: static, error or passthrough.
+  - Mock — the emulator's answer to tools/call (a CallToolResult): static, error (isError result),
+    rpc-error (JSON-RPC error) or passthrough.
   - Manifest — WidgetManifestEntry[] served by the CLI at /api/manifest.
   - Trace — the log of RpcLogEvents in both directions, including invalid messages.
 

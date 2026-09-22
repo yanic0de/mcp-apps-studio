@@ -38,7 +38,7 @@ Layering (dependencies point down, never up):
   - `MessageBridge` — JSON-RPC 2.0 over an abstract `Transport`; validates EVERY incoming message with zod before dispatch (widgets are untrusted code), correlates request ids, timeouts, emits `RpcLogEvent`s.
   - `HostAdapter` (`adapter.ts`) — PURE translator: wire message → semantic `AdapterAction`, host event → wire notification. No transport access, no side effects — this is what makes adapters testable against golden logs and lets a future `openai-apps` adapter slot in. Actions carry no request id (the bridge answers with the original request's id). `McpAppsAdapter` is the only implementation.
   - `MockRouter` — resolves tool calls from `MockConfig` (static/error/delay/passthrough); passthrough handler is the future hook for a real MCP client.
-  - `HostEmulator` — composes bridge + adapter + mocks + resources; the only stateful orchestrator.
+  - `HostEmulator` — composes bridge + adapter + mocks + resources; the only stateful orchestrator. Widget intents (open-link, message, model context, download, log, teardown request) go out through `onWidgetIntent`; widget-initiated context changes (display mode) through `onHostContextChanged`.
   - `IframeTransport` — the DOM edge. Sandboxed widgets have a null origin, so `event.source === iframe.contentWindow` is the ONLY trust signal; never weaken this check or add `allow-same-origin`.
 - `packages/shared` — zod schemas + types + protocol constants, plus the two runtime pieces both sides of the bridge need: `RpcError` and `RequestTracker` (request id allocation, timeout, settlement — used by `MessageBridge` on the host and `WidgetClient` in the widget; do not reimplement pending-request maps). `protocol.ts` is the single source of truth for SEP-1865 wire method names; when the spec evolves, change it there only.
 - `packages/cli` (`mcp-apps-studio`) — walks a user project for `*.stories.mcp.ts` (story = default-exported config; `defineWidgetStory` is a typed identity), transpiles each story with esbuild and imports a temp `.mjs` written NEXT to the story (so its imports resolve from the user's project), serves the built studio over `node:http` with `/api/manifest`. Binds 127.0.0.1 ONLY; every request needs the one-time token (query once → HttpOnly cookie), compared timing-safe — do not weaken (MCPJam Inspector RCE lesson).
@@ -49,7 +49,8 @@ Layering (dependencies point down, never up):
 
 ## Constraints that are easy to violate
 
-- Widget follow-up messages are intentionally NOT in the adapter: the wire method name was unconfirmed in spec `2026-01-26`. Add only against the real `@modelcontextprotocol/ext-apps` SDK, not from memory.
+- Protocol ground truth is the installed `@modelcontextprotocol/ext-apps` SDK (`dist/src/spec.types.d.ts`), never memory. `packages/host-emulator/src/sdk-conformance.test.ts` drives the official `App` against `HostEmulator`; a new wire method goes into `protocol.ts` and gets a conformance case.
+- `tools/call` answers a full MCP `CallToolResult` (mock and live alike); tool failures are `isError` results, JSON-RPC errors are only for protocol failures (`rpc-error` mock kind).
 - Deliberate MVP cuts (do not "helpfully" add): server-api backend, docs site, openai/legacy adapters, Tailwind, changesets. Registry is static JSON, sessions go to localStorage, traces live in the Zustand log.
 - E2E (`e2e/`, Playwright) is chromium-only by design; the CLI web server rebuilds app+components each run and uses the `--token` bin flag (automation-only) so tests can authenticate.
 - CSP emulation via the iframe `csp` attribute only works in Chromium — treat CSP checks as Chromium-only.

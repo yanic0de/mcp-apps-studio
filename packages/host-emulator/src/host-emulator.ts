@@ -8,7 +8,7 @@ import {
   RpcError,
   type RpcLogEvent,
 } from '@studio/shared';
-import type { HostAdapter } from './adapter.js';
+import type { HostAdapter, WidgetIntent } from './adapter.js';
 
 import { MessageBridge } from './message-bridge.js';
 import { MockRouter, type PassthroughHandler } from './mock-router.js';
@@ -24,12 +24,17 @@ export interface HostEmulatorOptions {
   hostContext?: HostContext;
   onLog?: (ev: RpcLogEvent) => void;
   onSizeChanged?: (size: { width?: number; height?: number }) => void;
+  /** Links, messages, model context, downloads, logs, teardown requests — the host "UI side" of the widget. */
+  onWidgetIntent?: (intent: WidgetIntent) => void;
+  /** Context changes the WIDGET initiated (e.g. an accepted display-mode request); the full new context. */
+  onHostContextChanged?: (context: HostContext) => void;
 }
 
 export class HostEmulator {
   private readonly bridge: MessageBridge;
   private readonly mockRouter: MockRouter;
   private context: HostContext;
+  private ready = false;
 
   constructor(private readonly opts: HostEmulatorOptions) {
     this.context = opts.hostContext ?? defaultHostContext;
@@ -48,6 +53,11 @@ export class HostEmulator {
 
   stop(): void {
     this.bridge.stop();
+  }
+
+  /** True once the widget sent `ui/notifications/initialized` after the handshake. */
+  isReady(): boolean {
+    return this.ready;
   }
 
   getHostContext(): HostContext {
@@ -78,6 +88,15 @@ export class HostEmulator {
         }
         return { contents: [{ uri: action.uri, mimeType: 'text/html', text }] };
       }
+      case 'request-display-mode':
+        return { mode: this.requestDisplayMode(action.mode) };
+      // A fake host has nothing to open or send: report to the embedder and answer as a permissive host would.
+      case 'open-link':
+      case 'message':
+      case 'update-model-context':
+      case 'download-file':
+        this.opts.onWidgetIntent?.(action);
+        return {};
       case 'invalid-params':
         throw new RpcError(ERROR_CODES.INVALID_PARAMS, action.error);
       case 'unsupported':
@@ -96,6 +115,13 @@ export class HostEmulator {
       case 'size-changed':
         this.opts.onSizeChanged?.({ width: action.width, height: action.height });
         return;
+      case 'initialized':
+        this.ready = true;
+        return;
+      case 'log':
+      case 'request-teardown':
+        this.opts.onWidgetIntent?.(action);
+        return;
       // Notifications have no response channel, so problems must surface in the trace.
       case 'invalid-params':
         this.logInvalidNotification(n, `Invalid params: ${action.error}`);
@@ -106,6 +132,15 @@ export class HostEmulator {
       default:
         return;
     }
+  }
+
+  /** Applies a widget-requested mode if the host offers it; returns the mode actually in effect. */
+  private requestDisplayMode(mode: HostContext['displayMode']): HostContext['displayMode'] {
+    if (mode !== this.context.displayMode && this.opts.adapter.capabilities().displayModes.includes(mode)) {
+      this.setHostContext({ displayMode: mode });
+      this.opts.onHostContextChanged?.(this.context);
+    }
+    return this.context.displayMode;
   }
 
   private logInvalidNotification(n: JsonRpcNotification, error: string): void {

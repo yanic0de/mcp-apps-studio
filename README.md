@@ -67,14 +67,16 @@ export default {
   scenarios: {
     default: {
       mocks: {
-        get_metrics: { kind: 'static', result: { value: 12840, delta: 8.3, label: 'MAU' } },
+        // answered as a CallToolResult; `content` defaults to a JSON text block of structuredContent
+        get_metrics: { kind: 'static', structuredContent: { value: 12840, delta: 8.3, label: 'MAU' } },
       },
     },
     loading: {
-      mocks: { get_metrics: { kind: 'static', result: {}, delayMs: 3_600_000 } },
+      mocks: { get_metrics: { kind: 'static', structuredContent: {}, delayMs: 3_600_000 } },
     },
     error: {
-      mocks: { get_metrics: { kind: 'error', error: { code: -32000, message: 'Metrics backend unavailable' } } },
+      // a tool failure (isError result); use kind: 'rpc-error' for a JSON-RPC protocol error
+      mocks: { get_metrics: { kind: 'error', message: 'Metrics backend unavailable' } },
     },
     live: { mocks: {} }, // no mocks → every tool call is proxied to the server from ?server=
   },
@@ -152,7 +154,7 @@ const log = [];
 new HostEmulator({
   adapter: new McpAppsAdapter(),
   transport: hostT,
-  mocks: { get_metrics: { kind: 'static', result: { value: 1 } } },
+  mocks: { get_metrics: { kind: 'static', structuredContent: { value: 1 } } },
   onLog: (ev) => log.push(ev),
 }).start();
 

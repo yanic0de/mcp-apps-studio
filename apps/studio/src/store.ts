@@ -25,6 +25,8 @@ interface StudioState {
   setActiveWidget: (id: string) => void;
   setScenario: (scenario: string) => void;
   setHostContext: (patch: Partial<HostContext>) => void;
+  /** Adopts a context the emulator already applied (widget-initiated); kept by identity so Canvas does not echo it. */
+  replaceHostContext: (context: HostContext) => void;
   appendLog: (ev: RpcLogEvent) => void;
   clearLog: () => void;
 }
@@ -44,6 +46,7 @@ export const useStudioStore = create<StudioState>()((set) => ({
     }),
   setScenario: (scenario) => set({ scenario, log: [] }),
   setHostContext: (patch) => set((s) => ({ hostContext: { ...s.hostContext, ...patch } })),
+  replaceHostContext: (hostContext) => set({ hostContext }),
   appendLog: (ev) => {
     const entry: TraceEntry = { ...ev, seq: ++nextSeq };
     set((s) => ({ log: [...s.log.slice(-(LOG_LIMIT - 1)), entry] }));

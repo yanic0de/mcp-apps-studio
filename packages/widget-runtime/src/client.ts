@@ -1,4 +1,5 @@
 import {
+  type CallToolResult,
   ERROR_CODES,
   type HostContext,
   JSON_RPC_VERSION,
@@ -17,6 +18,8 @@ export interface WidgetWindow {
 
 export interface WidgetClientOptions {
   requestTimeoutMs?: number;
+  /** Sent as `appInfo` in `ui/initialize`. */
+  appInfo?: { name: string; version: string };
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -32,11 +35,13 @@ export class WidgetClient {
   private readonly listener: (ev: MessageEvent) => void;
   private context: HostContext | null = null;
   private disposed = false;
+  private readonly appInfo: { name: string; version: string };
 
   constructor(
     private readonly win: WidgetWindow = window as unknown as WidgetWindow,
     opts: WidgetClientOptions = {},
   ) {
+    this.appInfo = opts.appInfo ?? { name: 'studio-widget', version: '0.0.0' };
     this.tracker = new RequestTracker({ idPrefix: 'w', timeoutMs: opts.requestTimeoutMs ?? DEFAULT_TIMEOUT_MS });
     this.listener = (ev) => this.handleMessage(ev.data);
     win.addEventListener('message', this.listener);
@@ -45,14 +50,17 @@ export class WidgetClient {
   async connect(): Promise<HostContext> {
     const result = (await this.request(MCP_APPS_METHODS.uiInitialize, {
       protocolVersion: MCP_APPS_PROTOCOL_VERSION,
+      appInfo: this.appInfo,
       appCapabilities: {},
     })) as { hostContext: HostContext };
     this.context = result.hostContext;
+    this.post({ jsonrpc: JSON_RPC_VERSION, method: MCP_APPS_METHODS.initialized });
     return result.hostContext;
   }
 
-  callTool<T = unknown>(name: string, args?: unknown): Promise<T> {
-    return this.request(MCP_APPS_METHODS.toolsCall, { name, arguments: args ?? {} }) as Promise<T>;
+  /** Resolves with the host's `CallToolResult`; tool failures arrive as `isError: true`, not rejections. */
+  callTool(name: string, args?: unknown): Promise<CallToolResult> {
+    return this.request(MCP_APPS_METHODS.toolsCall, { name, arguments: args ?? {} }) as Promise<CallToolResult>;
   }
 
   getHostContext(): HostContext | null {

@@ -4,21 +4,21 @@ export default {
   scenarios: {
     default: {
       mocks: {
-        get_metrics: { kind: 'static', result: { value: 12840, delta: 8.3, label: 'Monthly active users' } },
+        get_metrics: { kind: 'static', structuredContent: { value: 12840, delta: 8.3, label: 'Monthly active users' } },
       },
     },
     loading: {
       mocks: {
         get_metrics: {
           kind: 'static',
-          result: { value: 12840, delta: 8.3, label: 'Monthly active users' },
+          structuredContent: { value: 12840, delta: 8.3, label: 'Monthly active users' },
           delayMs: 3_600_000,
         },
       },
     },
     error: {
       mocks: {
-        get_metrics: { kind: 'error', error: { code: -32000, message: 'Metrics backend unavailable' } },
+        get_metrics: { kind: 'error', message: 'Metrics backend unavailable' },
       },
     },
   },

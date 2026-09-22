@@ -11,7 +11,7 @@ export default {
   title: 'Test Widget',
   widget: './widget.html',
   scenarios: {
-    default: { mocks: { get_data: { kind: 'static', result: { n: 1 } } } },
+    default: { mocks: { get_data: { kind: 'static', structuredContent: { n: 1 } } } },
     empty: {},
   },
 };
@@ -66,7 +66,7 @@ describe('discoverStories validation', () => {
   it('rejects a mock with a misspelled kind, naming file and path', async () => {
     await fs.writeFile(
       path.join(fixture, 'src', 'typo.stories.mcp.ts'),
-      `export default { title: 'T', widget: './widget.html', scenarios: { default: { mocks: { get_data: { kind: 'statik', result: 1 } } } } };`,
+      `export default { title: 'T', widget: './widget.html', scenarios: { default: { mocks: { get_data: { kind: 'statik', structuredContent: {} } } } } };`,
     );
     await expect(discoverStories(fixture)).rejects.toThrow(
       /typo\.stories\.mcp\.ts.*scenarios\.default\.mocks\.get_data\.kind/s,

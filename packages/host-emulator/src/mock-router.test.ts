@@ -5,26 +5,46 @@ import { MockRouter } from './mock-router.js';
 afterEach(() => vi.useRealTimers());
 
 describe('MockRouter', () => {
-  it('returns static mock result', async () => {
-    const router = new MockRouter({ get_metrics: { kind: 'static', result: { rows: [1] } } });
-    await expect(router.call('get_metrics', {})).resolves.toEqual({ rows: [1] });
+  it('returns a CallToolResult with a JSON text fallback for structured content', async () => {
+    const router = new MockRouter({ get_metrics: { kind: 'static', structuredContent: { v: 1 } } });
+    await expect(router.call('get_metrics', {})).resolves.toEqual({
+      content: [{ type: 'text', text: '{"v":1}' }],
+      structuredContent: { v: 1 },
+    });
   });
 
-  it('throws RpcError for error mock', async () => {
-    const router = new MockRouter({ get_metrics: { kind: 'error', error: { code: -32000, message: 'boom' } } });
-    await expect(router.call('get_metrics', {})).rejects.toMatchObject({ code: -32000, message: 'boom' });
+  it('keeps explicit content and allows an empty static result', async () => {
+    const router = new MockRouter({
+      text: { kind: 'static', content: [{ type: 'text', text: 'hi' }] },
+      empty: { kind: 'static' },
+    });
+    await expect(router.call('text', {})).resolves.toEqual({ content: [{ type: 'text', text: 'hi' }] });
+    await expect(router.call('empty', {})).resolves.toEqual({ content: [] });
+  });
+
+  it('returns an isError result for an error mock', async () => {
+    const router = new MockRouter({ get_metrics: { kind: 'error', message: 'boom' } });
+    await expect(router.call('get_metrics', {})).resolves.toEqual({
+      isError: true,
+      content: [{ type: 'text', text: 'boom' }],
+    });
+  });
+
+  it('throws RpcError for an rpc-error mock', async () => {
+    const router = new MockRouter({ get_metrics: { kind: 'rpc-error', error: { code: -32601, message: 'nope' } } });
+    await expect(router.call('get_metrics', {})).rejects.toMatchObject({ code: -32601, message: 'nope' });
   });
 
   it('applies delayMs before resolving', async () => {
     vi.useFakeTimers();
-    const router = new MockRouter({ slow: { kind: 'static', result: 'done', delayMs: 500 } });
+    const router = new MockRouter({ slow: { kind: 'static', structuredContent: { done: true }, delayMs: 500 } });
     const p = router.call('slow', {});
     let settled = false;
     void p.then(() => (settled = true));
     await vi.advanceTimersByTimeAsync(499);
     expect(settled).toBe(false);
     await vi.advanceTimersByTimeAsync(2);
-    await expect(p).resolves.toBe('done');
+    await expect(p).resolves.toMatchObject({ structuredContent: { done: true } });
   });
 
   it('routes passthrough kind and unmocked tools to passthrough handler', async () => {
@@ -42,7 +62,7 @@ describe('MockRouter', () => {
 
   it('setConfig replaces mocks', async () => {
     const router = new MockRouter({});
-    router.setConfig({ t: { kind: 'static', result: 1 } });
-    await expect(router.call('t', {})).resolves.toBe(1);
+    router.setConfig({ t: { kind: 'static', structuredContent: { n: 1 } } });
+    await expect(router.call('t', {})).resolves.toMatchObject({ structuredContent: { n: 1 } });
   });
 });

@@ -29,7 +29,28 @@ describe('WidgetClient', () => {
     expect(client.getHostContext()).toEqual(ctx);
   });
 
-  it('callTool sends tools/call and resolves the result', async () => {
+  it('connect sends appInfo and follows up with ui/notifications/initialized', async () => {
+    const { win, sent, reply } = fakeEnv();
+    const client = new WidgetClient(win, { appInfo: { name: 'kpi', version: '1.2.3' } });
+    const p = client.connect();
+    expect(sent[0].params).toEqual({
+      protocolVersion: '2026-01-26',
+      appInfo: { name: 'kpi', version: '1.2.3' },
+      appCapabilities: {},
+    });
+    expect(sent).toHaveLength(1); // initialized only after the host answered
+    reply({ jsonrpc: '2.0', id: sent[0].id, result: { protocolVersion: '2026-01-26', hostContext: ctx } });
+    await p;
+    expect(sent[1]).toEqual({ jsonrpc: '2.0', method: MCP_APPS_METHODS.initialized });
+  });
+
+  it('defaults appInfo to a generic studio widget', () => {
+    const { win, sent } = fakeEnv();
+    void new WidgetClient(win).connect();
+    expect(sent[0].params.appInfo).toEqual({ name: 'studio-widget', version: '0.0.0' });
+  });
+
+  it('callTool sends tools/call and resolves the CallToolResult', async () => {
     const { win, sent, reply } = fakeEnv();
     const client = new WidgetClient(win);
     const p = client.callTool('get_metrics', { q: 1 });
@@ -37,8 +58,9 @@ describe('WidgetClient', () => {
       method: MCP_APPS_METHODS.toolsCall,
       params: { name: 'get_metrics', arguments: { q: 1 } },
     });
-    reply({ jsonrpc: '2.0', id: sent[0].id, result: { value: 1 } });
-    await expect(p).resolves.toEqual({ value: 1 });
+    const result = { content: [], structuredContent: { value: 1 } };
+    reply({ jsonrpc: '2.0', id: sent[0].id, result });
+    await expect(p).resolves.toEqual(result);
   });
 
   it('callTool rejects with RpcError on error response', async () => {

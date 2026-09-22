@@ -66,11 +66,15 @@ In the `live` scenario the studio SHALL connect to the MCP server at the `?serve
 - **THEN** live mode shows that server's widget
 
 ### Requirement: Tool errors in live mode
-A result with `isError: true` SHALL become `RpcError(TOOL_ERROR, content text)`; when `structuredContent` is present the widget SHALL receive it, otherwise the whole result.
+In live mode the studio SHALL forward the server's `CallToolResult` to the widget unchanged, including `isError: true` results. Only transport or protocol failures SHALL become a JSON-RPC error, keeping the MCP error code when the client exposes one and `INTERNAL_ERROR` otherwise.
 
 #### Scenario: The fail tool
 - **WHEN** the server answers `isError: true` with the text `Intentional failure`
-- **THEN** the widget receives a JSON-RPC error with code `-32000` and that text
+- **THEN** the widget receives a result with `isError: true` and that text in `content`
+
+#### Scenario: Structured data
+- **WHEN** the server answers with `content` and `structuredContent`
+- **THEN** the widget receives both
 
 ### Requirement: Unreachable server
 If the connection fails, the studio SHALL show the reason and a hint on starting a server or pointing at another with `?server=`, instead of an empty canvas.
@@ -85,3 +89,11 @@ The panel SHALL show an entry counter, one row per event with direction, method 
 #### Scenario: Expand and clear
 - **WHEN** the user expands the `ui/initialize` row and presses `Clear`
 - **THEN** the expanded row shows `"jsonrpc"`; after clearing there are no rows and the placeholder text is shown
+
+### Requirement: Widget-initiated context changes
+When the emulator reports a context change initiated by the widget (e.g. an accepted display-mode request), the studio SHALL store that context so the controls reflect it, and MUST NOT send the same change back to the widget.
+
+#### Scenario: Widget goes fullscreen
+- **WHEN** the widget requests `fullscreen` and the emulator accepts it
+- **THEN** the "Display" control shows `fullscreen`
+- **AND** the trace has exactly one `host-context-changed` for that change

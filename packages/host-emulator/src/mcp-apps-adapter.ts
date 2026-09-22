@@ -1,14 +1,20 @@
 import {
+  downloadFileParamsSchema,
   formatZodIssues,
   type HostContext,
   JSON_RPC_VERSION,
   type JsonRpcNotification,
   type JsonRpcRequest,
+  loggingMessageParamsSchema,
   MCP_APPS_METHODS,
   MCP_APPS_PROTOCOL_VERSION,
+  messageParamsSchema,
+  openLinkParamsSchema,
+  requestDisplayModeParamsSchema,
   resourcesReadParamsSchema,
   sizeChangedParamsSchema,
   toolsCallParamsSchema,
+  updateModelContextParamsSchema,
   type WidgetSource,
 } from '@studio/shared';
 import type { ZodType } from 'zod';
@@ -48,6 +54,22 @@ export class McpAppsAdapter implements HostAdapter {
         return withParams(msg, resourcesReadParamsSchema, (p) => ({ type: 'resource-read', uri: p.uri }));
       case MCP_APPS_METHODS.sizeChanged:
         return withParams(msg, sizeChangedParamsSchema, (p) => ({ type: 'size-changed', ...p }));
+      case MCP_APPS_METHODS.initialized:
+        return { type: 'initialized' };
+      case MCP_APPS_METHODS.openLink:
+        return withParams(msg, openLinkParamsSchema, (p) => ({ type: 'open-link', url: p.url }));
+      case MCP_APPS_METHODS.message:
+        return withParams(msg, messageParamsSchema, (p) => ({ type: 'message', ...p }));
+      case MCP_APPS_METHODS.requestDisplayMode:
+        return withParams(msg, requestDisplayModeParamsSchema, (p) => ({ type: 'request-display-mode', mode: p.mode }));
+      case MCP_APPS_METHODS.updateModelContext:
+        return withParams(msg, updateModelContextParamsSchema, (p) => ({ type: 'update-model-context', ...p }));
+      case MCP_APPS_METHODS.downloadFile:
+        return withParams(msg, downloadFileParamsSchema, (p) => ({ type: 'download-file', contents: p.contents }));
+      case MCP_APPS_METHODS.loggingMessage:
+        return withParams(msg, loggingMessageParamsSchema, (p) => ({ type: 'log', ...p }));
+      case MCP_APPS_METHODS.requestTeardown:
+        return { type: 'request-teardown' };
       default:
         return { type: 'unsupported', method: msg.method };
     }
@@ -63,9 +85,18 @@ export class McpAppsAdapter implements HostAdapter {
   buildInitializeResult(ctx: HostContext): unknown {
     return {
       protocolVersion: MCP_APPS_PROTOCOL_VERSION,
-      hostCapabilities: {},
+      // Everything the emulator answers (see HostEmulator); tools/resources go through mocks or passthrough.
+      hostCapabilities: {
+        openLinks: {},
+        downloadFile: {},
+        serverTools: {},
+        serverResources: {},
+        logging: {},
+        message: { text: {}, image: {}, resource: {}, resourceLink: {} },
+        updateModelContext: { text: {}, image: {}, resource: {}, resourceLink: {}, structuredContent: {} },
+      },
       hostInfo: { name: 'mcp-apps-studio', version: '0.1.0' },
-      hostContext: ctx,
+      hostContext: { ...ctx, availableDisplayModes: this.capabilities().displayModes },
     };
   }
 

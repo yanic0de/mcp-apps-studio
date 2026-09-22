@@ -52,6 +52,7 @@ export function Canvas() {
       passthrough: live?.callTool,
       hostContext: useStudioStore.getState().hostContext,
       onLog: (ev) => useStudioStore.getState().appendLog(ev),
+      onHostContextChanged: (ctx) => useStudioStore.getState().replaceHostContext(ctx),
     });
     emulator.start();
     emulatorRef.current = emulator;

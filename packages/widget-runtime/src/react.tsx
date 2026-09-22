@@ -2,6 +2,7 @@ import type { HostContext } from '@studio/shared';
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import type { WidgetClient } from './client.js';
 import { createToolCaller, type ToolCallSnapshot } from './tool-caller.js';
+import { toolResultData } from './tool-result.js';
 
 const WidgetClientContext = createContext<WidgetClient | null>(null);
 
@@ -31,13 +32,17 @@ export interface ToolCallState<T> {
 
 export function useToolCall<T = unknown>(name: string): ToolCallState<T> {
   const client = useWidgetClient();
-  const [state, setState] = useState<ToolCallSnapshot<T>>({
+  const [state, setState] = useState<ToolCallSnapshot<T | null>>({
     data: null,
     error: null,
     loading: false,
   });
 
-  const call = useMemo(() => createToolCaller<T>((args) => client.callTool<T>(name, args), setState), [client, name]);
+  // data = structuredContent; an isError result becomes `error` like a rejected call.
+  const call = useMemo(
+    () => createToolCaller<T | null>(async (args) => toolResultData<T>(await client.callTool(name, args)), setState),
+    [client, name],
+  );
 
   return { ...state, call };
 }

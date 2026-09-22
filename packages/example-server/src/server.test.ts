@@ -38,5 +38,6 @@ describe('example server', () => {
     const first = res.contents[0] as { mimeType?: string; text?: string };
     expect(first.mimeType).toBe(RESOURCE_MIME_TYPE);
     expect(first.text).toContain('ui/initialize');
+    expect(first.text).toContain('ui/notifications/initialized'); // SDK handshake, not just initialize
   });
 });

@@ -86,7 +86,13 @@
       $('status').textContent = 'loading…';
       $('status').className = 'status';
       try {
-        const r = await request('tools/call', { name: 'get_metrics', arguments: {} });
+        // tools/call answers a CallToolResult: data in structuredContent, failures as isError + text content.
+        const result = await request('tools/call', { name: 'get_metrics', arguments: {} });
+        if (result.isError) {
+          const text = (result.content || []).map((c) => c.text || '').join(' ').trim();
+          throw new Error(text || 'tool call failed');
+        }
+        const r = result.structuredContent;
         $('value').textContent = Number(r.value).toLocaleString();
         $('status').textContent = r.label + ' ' + (r.delta >= 0 ? '▲' : '▼') + Math.abs(r.delta) + '%';
       } catch (e) {
@@ -101,8 +107,10 @@
     (async () => {
       const init = await request('ui/initialize', {
         protocolVersion: '2026-01-26',
+        appInfo: { name: 'kpi-card', version: '0.1.0' },
         appCapabilities: {},
       });
+      parent.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/initialized' }, '*');
       applyContext(init.hostContext);
       parent.postMessage(
         { jsonrpc: '2.0', method: 'ui/notifications/size-changed', params: { width: 328, height: 190 } },

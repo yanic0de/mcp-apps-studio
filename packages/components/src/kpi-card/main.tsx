@@ -5,7 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { KpiCard } from './KpiCard.js';
 import './kpi-card.css';
 
-const client = new WidgetClient();
+const client = new WidgetClient(undefined, { appInfo: { name: 'kpi-card', version: '0.1.0' } });
 const ctx = await client.connect();
 applyHostContextToDocument(ctx);
 client.onHostContextChanged(() => {

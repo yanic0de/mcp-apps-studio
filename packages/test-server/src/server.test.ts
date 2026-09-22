@@ -69,5 +69,6 @@ describe('test server', () => {
     const first = res.contents[0] as { mimeType?: string; text?: string };
     expect(first.mimeType).toBe('text/html;profile=mcp-app');
     expect(first.text).toContain('ui/initialize');
+    expect(first.text).toContain('ui/notifications/initialized'); // SDK handshake, not just initialize
   });
 });

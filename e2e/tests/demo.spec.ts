@@ -9,6 +9,9 @@ test('demo widget completes the handshake and renders mocked metrics', async ({ 
   await expect(frame.locator('#status')).toContainText('Monthly active users');
   await expect(page.locator('.trace-row').filter({ hasText: 'ui/initialize' }).first()).toBeVisible();
   await expect(page.locator('.trace-row').filter({ hasText: 'tools/call' }).first()).toBeVisible();
+  // SDK handshake completes and nothing the widget sent was rejected
+  await expect(page.locator('.trace-row').filter({ hasText: 'ui/notifications/initialized' })).toHaveCount(1);
+  await expect(page.locator('.trace-row.invalid')).toHaveCount(0);
 });
 
 test('error scenario surfaces the tool error inside the widget', async ({ page }) => {

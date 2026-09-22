@@ -5,7 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { DataTable } from './DataTable.js';
 import './data-table.css';
 
-const client = new WidgetClient();
+const client = new WidgetClient(undefined, { appInfo: { name: 'data-table', version: '0.1.0' } });
 const ctx = await client.connect();
 applyHostContextToDocument(ctx);
 client.onHostContextChanged(() => {

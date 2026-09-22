@@ -13,7 +13,7 @@ const widgets: WidgetManifestEntry[] = [
     html: '<html>kpi</html>',
     scenarios: {
       default: { mocks: {} },
-      error: { mocks: { t: { kind: 'error', error: { code: -1, message: 'x' } } } },
+      error: { mocks: { t: { kind: 'error', message: 'x' } } },
     },
   },
   {
@@ -90,5 +90,11 @@ describe('studio store', () => {
     expect(useStudioStore.getState().log).toHaveLength(1);
     useStudioStore.getState().clearLog();
     expect(useStudioStore.getState().log).toEqual([]);
+  });
+
+  it('replaceHostContext stores the given object as-is (identity is the no-echo signal for Canvas)', () => {
+    const ctx = { ...defaultHostContext, displayMode: 'fullscreen' as const };
+    useStudioStore.getState().replaceHostContext(ctx);
+    expect(useStudioStore.getState().hostContext).toBe(ctx);
   });
 });
