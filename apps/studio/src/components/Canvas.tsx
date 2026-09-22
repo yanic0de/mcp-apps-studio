@@ -29,6 +29,8 @@ export function Canvas() {
   const scenario = useStudioStore((s) => s.scenario);
   const hostContext = useStudioStore((s) => s.hostContext);
   const device = useStudioStore((s) => s.device);
+  const revision = useStudioStore((s) => s.revision);
+  const errors = useStudioStore((s) => s.errors);
   const canvasRef = useRef<HTMLElement>(null);
   const canvasSize = useElementSize(canvasRef);
   const [reportedHeight, setReportedHeight] = useState<number | undefined>(undefined);
@@ -65,6 +67,7 @@ export function Canvas() {
 
   const waitingForServer = isLive && !live;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: revision remounts the iframe, so the emulator must follow
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe || !activeWidget || waitingForServer) return;
@@ -100,7 +103,7 @@ export function Canvas() {
       transport.dispose();
       emulatorRef.current = null;
     };
-  }, [activeWidget, scenario, live, waitingForServer]);
+  }, [activeWidget, scenario, live, waitingForServer, revision]);
 
   useEffect(() => {
     const emulator = emulatorRef.current;
@@ -150,16 +153,27 @@ export function Canvas() {
   // Manifest widgets have no server-side uri; a studio-local one keeps WidgetSource honest.
   const source: WidgetSource = live
     ? { kind: 'resource', uri: live.widgetUri, html: live.widgetHtml }
-    : { kind: 'resource', uri: `ui://studio/${activeWidget.id}`, html: activeWidget.html };
+    : activeWidget.url !== undefined
+      ? { kind: 'dev', url: activeWidget.url } // dev server: loaded with src so its HMR client runs
+      : { kind: 'resource', uri: `ui://studio/${activeWidget.id}`, html: activeWidget.html };
   const env = adapter.buildIframeEnv(source, hostContext);
   const frame = frameSize(displayMode, device, reportedHeight, canvasSize);
 
   return (
     <main className="canvas" ref={canvasRef}>
+      {errors.length > 0 && (
+        <div className="canvas-errors" role="alert">
+          {errors.map((e) => (
+            <p key={e.file}>
+              <code>{e.file}</code> {e.message}
+            </p>
+          ))}
+        </div>
+      )}
       <div className={`viewport viewport--${displayMode}`} data-testid="viewport">
         <iframe
           style={{ width: frame.width, height: frame.height }}
-          key={`${activeWidget.id}:${scenario}`}
+          key={`${activeWidget.id}:${scenario}:${revision}`}
           ref={iframeRef}
           title="widget under test"
           sandbox={env.sandbox.join(' ')}

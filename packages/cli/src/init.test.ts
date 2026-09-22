@@ -31,7 +31,9 @@ describe('initStories', () => {
   it('writes a loadable story with four scenarios next to a source widget', async () => {
     const result = await initStories(root, [path.join(root, 'widgets', 'weather.html')], { tool: 'get_weather' });
     expect(result.created).toEqual([path.join(root, 'widgets', 'weather.stories.mcp.ts')]);
-    const [entry] = await discoverStories(path.join(root, 'widgets'));
+    const {
+      widgets: [entry],
+    } = await discoverStories(path.join(root, 'widgets'));
     expect(entry?.title).toBe('Weather');
     expect(Object.keys(entry?.scenarios ?? {})).toEqual(['default', 'loading', 'error', 'live']);
     expect(entry?.scenarios.default?.toolCall?.name).toBe('get_weather');
@@ -40,7 +42,9 @@ describe('initStories', () => {
   it('puts the story of a built widget under stories/, pointing back at the bundle', async () => {
     const result = await initStories(root, [path.join(root, 'dist', 'bundle.html')], {});
     expect(result.created).toEqual([path.join(root, 'stories', 'bundle.stories.mcp.ts')]);
-    const [entry] = await discoverStories(path.join(root, 'stories'));
+    const {
+      widgets: [entry],
+    } = await discoverStories(path.join(root, 'stories'));
     expect(entry?.html).toContain('ext-apps');
   });
 

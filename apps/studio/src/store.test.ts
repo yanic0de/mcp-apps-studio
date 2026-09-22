@@ -118,4 +118,26 @@ describe('studio store', () => {
     expect(Object.keys(s.widgets[0]?.scenarios ?? {})).toEqual(['default', 'error', 'recorded-1', 'recorded-2']);
     expect(s.widgets[1]?.scenarios).toEqual(widgets[1]?.scenarios);
   });
+
+  it('replaceWidgets keeps the selection when it still exists and bumps the revision', () => {
+    useStudioStore.getState().setWidgets(widgets);
+    useStudioStore.getState().setActiveWidget('table');
+    const before = useStudioStore.getState().revision;
+    const edited = widgets.map((w) => (w.id === 'table' ? { ...w, title: 'Table v2' } : w));
+    const errors = [{ file: '/p/broken.stories.mcp.ts', message: 'boom' }];
+    useStudioStore.getState().replaceWidgets(edited, errors);
+    const s = useStudioStore.getState();
+    expect(s.activeWidgetId).toBe('table');
+    expect(s.scenario).toBe('main');
+    expect(s.widgets[1]?.title).toBe('Table v2');
+    expect(s.errors).toEqual(errors);
+    expect(s.revision).toBe(before + 1);
+  });
+
+  it('replaceWidgets falls back to the first widget and scenario when the selection vanished', () => {
+    useStudioStore.getState().setWidgets(widgets);
+    useStudioStore.getState().setScenario('error');
+    useStudioStore.getState().replaceWidgets([{ ...widgets[0]!, scenarios: { default: { mocks: {} } } }], []);
+    expect(useStudioStore.getState()).toMatchObject({ activeWidgetId: 'kpi', scenario: 'default' });
+  });
 });

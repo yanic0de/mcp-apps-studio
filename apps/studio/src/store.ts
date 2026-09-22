@@ -1,4 +1,5 @@
 import {
+  type DiscoveryError,
   defaultHostContext,
   type HostContext,
   type RpcLogEvent,
@@ -24,6 +25,10 @@ function firstScenario(widget: WidgetManifestEntry | undefined): string {
 
 interface StudioState {
   widgets: WidgetManifestEntry[];
+  /** Stories that failed to load (CLI manifest). */
+  errors: DiscoveryError[];
+  /** Bumped when the manifest is reloaded; part of the iframe key, so the widget remounts. */
+  revision: number;
   activeWidgetId: string | null;
   scenario: string;
   hostContext: HostContext;
@@ -32,6 +37,8 @@ interface StudioState {
   liveToolName: string | null;
   log: TraceEntry[];
   setWidgets: (widgets: WidgetManifestEntry[]) => void;
+  /** Live reload: new manifest, same selection when it still exists. */
+  replaceWidgets: (widgets: WidgetManifestEntry[], errors: DiscoveryError[]) => void;
   setActiveWidget: (id: string) => void;
   setScenario: (scenario: string) => void;
   setHostContext: (patch: Partial<HostContext>) => void;
@@ -47,6 +54,8 @@ interface StudioState {
 
 export const useStudioStore = create<StudioState>()((set, get) => ({
   widgets: [],
+  errors: [],
+  revision: 0,
   activeWidgetId: null,
   scenario: 'default',
   hostContext: { ...defaultHostContext, ...deviceContext('desktop') },
@@ -55,6 +64,13 @@ export const useStudioStore = create<StudioState>()((set, get) => ({
   log: [],
   setWidgets: (widgets) =>
     set({ widgets, activeWidgetId: widgets[0]?.id ?? null, scenario: firstScenario(widgets[0]), log: [] }),
+  replaceWidgets: (widgets, errors) =>
+    set((s) => {
+      const active = widgets.find((w) => w.id === s.activeWidgetId) ?? widgets[0];
+      const scenario = active && s.scenario in active.scenarios ? s.scenario : firstScenario(active);
+      // The widget remounts and handshakes again, so the trace starts over like on a scenario switch.
+      return { widgets, errors, activeWidgetId: active?.id ?? null, scenario, revision: s.revision + 1, log: [] };
+    }),
   setActiveWidget: (id) =>
     set((s) => {
       const widget = s.widgets.find((w) => w.id === id);

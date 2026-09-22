@@ -89,6 +89,8 @@ export class HostEmulator {
     const action = this.opts.adapter.handleWidgetMessage(req);
     switch (action.type) {
       case 'initialize':
+        // A new handshake is a new view instance (e.g. the frame reloaded): it gets the lifecycle again.
+        this.ready = false;
         // toolInfo belongs to this widget instance only, so it never enters the shared context.
         return this.opts.adapter.buildInitializeResult({ ...this.context, ...this.toolInfo() });
       case 'tool-call':

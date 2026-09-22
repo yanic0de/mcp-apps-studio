@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
-import type { RpcLogEvent } from '@studio/shared';
+import type { DiscoveryError, RpcLogEvent } from '@studio/shared';
 import { discoverStories } from './discover.js';
 import { createStudioServer, generateToken } from './server.js';
 import { buildTestPlan, evaluateRun, type RunResult, type Theme } from './test-plan.js';
@@ -25,9 +25,11 @@ const SETTLE_MS = 300;
  * Serves the studio locally and drives headless Chromium through the story matrix via deep links,
  * reading the trace through the studio's read-only `window.__mcpStudio.getLog()` hook.
  */
-export async function runStoryTests(opts: StoryTestOptions): Promise<RunResult[]> {
+export async function runStoryTests(
+  opts: StoryTestOptions,
+): Promise<{ results: RunResult[]; errors: DiscoveryError[] }> {
   const manifest = await discoverStories(opts.rootDir);
-  const plan = buildTestPlan(manifest, opts.themes);
+  const plan = buildTestPlan(manifest.widgets, opts.themes);
   const token = generateToken();
   const server = createStudioServer({ studioDist: opts.studioDist, getManifest: async () => manifest, token });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -88,6 +90,9 @@ export async function runStoryTests(opts: StoryTestOptions): Promise<RunResult[]
   }
 
   await fs.mkdir(opts.outDir, { recursive: true });
-  await fs.writeFile(path.join(opts.outDir, 'report.json'), `${JSON.stringify({ results }, null, 2)}\n`);
-  return results;
+  await fs.writeFile(
+    path.join(opts.outDir, 'report.json'),
+    `${JSON.stringify({ results, errors: manifest.errors }, null, 2)}\n`,
+  );
+  return { results, errors: manifest.errors };
 }

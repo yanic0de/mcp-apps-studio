@@ -40,7 +40,8 @@ describe('findStoryFiles', () => {
 
 describe('discoverStories', () => {
   it('builds manifest entries with widget html and normalized scenarios', async () => {
-    const entries = await discoverStories(fixture);
+    const { widgets: entries, errors } = await discoverStories(fixture);
+    expect(errors).toEqual([]);
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({
       id: 'kpi',
@@ -52,9 +53,32 @@ describe('discoverStories', () => {
     expect(entries[0]?.scenarios.called).toEqual({ mocks: {}, toolCall: { name: 'get_data', input: { q: 1 } } });
   });
 
-  it('rejects a story without default export, naming the file', async () => {
+  it('isolates a story without default export: listed in errors, the others still load', async () => {
     await fs.writeFile(path.join(fixture, 'src', 'broken.stories.mcp.ts'), 'export const x = 1;');
-    await expect(discoverStories(fixture)).rejects.toThrow(/broken\.stories\.mcp\.ts/);
+    const { widgets, errors } = await discoverStories(fixture);
+    expect(widgets.map((w) => w.id)).toEqual(['kpi']);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.file).toMatch(/broken\.stories\.mcp\.ts$/);
+    expect(errors[0]?.message).toMatch(/default export/);
+  });
+
+  it('keeps an http(s) widget as a url instead of reading a file', async () => {
+    await fs.writeFile(
+      path.join(fixture, 'src', 'dev.stories.mcp.ts'),
+      `export default { title: 'Dev', widget: 'http://localhost:5173/', scenarios: { default: {} } };`,
+    );
+    const { widgets } = await discoverStories(fixture);
+    const dev = widgets.find((w) => w.id === 'dev');
+    expect(dev).toMatchObject({ url: 'http://localhost:5173/' });
+    expect(dev).not.toHaveProperty('html');
+  });
+
+  it('disambiguates colliding basenames with the relative path', async () => {
+    await fs.mkdir(path.join(fixture, 'other'));
+    await fs.writeFile(path.join(fixture, 'other', 'kpi.stories.mcp.ts'), STORY);
+    await fs.writeFile(path.join(fixture, 'other', 'widget.html'), '<html>other</html>');
+    const { widgets } = await discoverStories(fixture);
+    expect(widgets.map((w) => w.id).sort()).toEqual(['other/kpi', 'src/kpi']);
   });
 
   it('cleans up temp modules next to story files', async () => {
@@ -65,18 +89,26 @@ describe('discoverStories', () => {
 });
 
 describe('discoverStories validation', () => {
-  it('rejects a mock with a misspelled kind, naming file and path', async () => {
+  const errorOf = async () => (await discoverStories(fixture)).errors.map((e) => `${e.file}: ${e.message}`).join('\n');
+
+  it('reports a mock with a misspelled kind, naming file and path', async () => {
     await fs.writeFile(
       path.join(fixture, 'src', 'typo.stories.mcp.ts'),
       `export default { title: 'T', widget: './widget.html', scenarios: { default: { mocks: { get_data: { kind: 'statik', structuredContent: {} } } } } };`,
     );
-    await expect(discoverStories(fixture)).rejects.toThrow(
-      /typo\.stories\.mcp\.ts.*scenarios\.default\.mocks\.get_data\.kind/s,
-    );
+    expect(await errorOf()).toMatch(/typo\.stories\.mcp\.ts.*scenarios\.default\.mocks\.get_data\.kind/s);
   });
 
-  it('rejects a story missing required fields, naming them', async () => {
+  it('reports a story missing required fields, naming them', async () => {
     await fs.writeFile(path.join(fixture, 'src', 'partial.stories.mcp.ts'), `export default { title: 'T' };`);
-    await expect(discoverStories(fixture)).rejects.toThrow(/widget.*scenarios|scenarios.*widget/s);
+    expect(await errorOf()).toMatch(/widget.*scenarios|scenarios.*widget/s);
+  });
+
+  it('reports a missing widget file', async () => {
+    await fs.writeFile(
+      path.join(fixture, 'src', 'lost.stories.mcp.ts'),
+      `export default { title: 'L', widget: './nope.html', scenarios: { default: {} } };`,
+    );
+    expect(await errorOf()).toMatch(/lost\.stories\.mcp\.ts.*nope\.html/s);
   });
 });

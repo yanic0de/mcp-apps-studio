@@ -298,6 +298,13 @@ describe('HostEmulator', () => {
       }
     });
 
+    it('replays the lifecycle for a new view instance (the iframe reloaded and handshook again)', async () => {
+      const { widget } = setup({ toolCall: { name: 't', input: { q: 1 } } });
+      await initialize(widget);
+      await initialize(widget); // e.g. the dev server's HMR reloaded the frame
+      expect(lifecycle(widget.inbox)).toHaveLength(2);
+    });
+
     it('does not replay the lifecycle on a repeated initialized', async () => {
       const { widget } = setup({ toolCall: { name: 't' } });
       await initialize(widget);

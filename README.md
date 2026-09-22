@@ -47,6 +47,21 @@ npx playwright install chromium          # once, for headless runs
 npx mcp-apps-studio test                 # every story × theme in headless Chromium; exit 1 on failure
 ```
 
+The studio live-reloads: save a story or a widget HTML and the open studio refetches and remounts the widget, keeping your scenario. A story that fails to load shows up in a banner instead of taking the others down (and fails `test`).
+
+**Widgets straight from Vite, with HMR.** Point a story at your dev server and add the plugin:
+
+```ts
+// vite.config.ts
+import { mcpAppsStudio } from 'mcp-apps-studio/vite';
+export default defineConfig({ plugins: [mcpAppsStudio()] });
+
+// weather.stories.mcp.ts
+export default { title: 'Weather', widget: 'http://localhost:5173/', scenarios: { /* … */ } };
+```
+
+The widget still runs in the host-faithful sandbox (`allow-scripts` only, `null` origin). Vite refuses module scripts to a `null` origin by default; the plugin adds it to `server.cors.origin` — a dev-server-only trade-off (any sandboxed page could then read your dev server while it runs).
+
 Building widgets with the SDK? `@mcp-apps-studio/widget-runtime` adds `connectWidget` and React hooks on top of the official `App` (see below).
 
 ## Develop from source
@@ -268,7 +283,8 @@ Conventions: TDD per task, tests next to source, core packages must stay runnabl
 - [x] npm packaging: `npx mcp-apps-studio` in any project (first release pending)
 - [x] Headless story runner (`mcp-apps-studio test`)
 - [x] `@modelcontextprotocol/ext-apps` 2.x on MCP SDK v2
-- [ ] Widget from a dev server with HMR; visual diffs + GitHub Action
+- [x] Dev loop: live reload, per-story errors, widgets from a Vite dev server with HMR
+- [ ] Visual diffs + GitHub Action
 - [ ] `openai-apps` adapter for the OpenAI Apps SDK dialect
 - [ ] `pending` mock kind (never resolves) instead of the one-hour delay idiom
 - [ ] Size / CSP assertions: flag widgets that exceed container dimensions or violate a host CSP

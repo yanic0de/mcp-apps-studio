@@ -2,12 +2,12 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import type { WidgetManifestEntry } from '@studio/shared';
+import type { StudioManifest } from '@studio/shared';
 
 export interface StudioServerOptions {
   studioDist: string;
-  /** Re-invoked on every /api/manifest request so story edits land on browser refresh. */
-  getManifest: () => Promise<WidgetManifestEntry[]>;
+  /** Re-invoked on every /api/manifest request; story load failures travel inside it as `errors`. */
+  getManifest: () => Promise<StudioManifest>;
   token: string;
 }
 
@@ -45,10 +45,16 @@ function isAuthorized(req: http.IncomingMessage, token: string): { ok: boolean; 
   return { ok: match !== null && tokensMatch(match[1] ?? '', token), viaQuery: false };
 }
 
-export function createStudioServer(opts: StudioServerOptions): http.Server {
-  const distRoot = path.resolve(opts.studioDist);
+export interface StudioServer extends http.Server {
+  /** Sends `event: <name>` to every connected `/api/events` client (Server-Sent Events). */
+  notify(event: string): void;
+}
 
-  return http.createServer((req, res) => {
+export function createStudioServer(opts: StudioServerOptions): StudioServer {
+  const distRoot = path.resolve(opts.studioDist);
+  const eventClients = new Set<http.ServerResponse>();
+
+  const server = http.createServer((req, res) => {
     const auth = isAuthorized(req, opts.token);
     if (!auth.ok) {
       res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' });
@@ -61,12 +67,24 @@ export function createStudioServer(opts: StudioServerOptions): http.Server {
 
     const url = new URL(req.url ?? '/', 'http://localhost');
 
+    if (url.pathname === '/api/events') {
+      res.writeHead(200, {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-store',
+        connection: 'keep-alive',
+      });
+      res.write(': connected\n\n'); // flush headers so EventSource opens immediately
+      eventClients.add(res);
+      req.on('close', () => eventClients.delete(res));
+      return;
+    }
+
     if (url.pathname === '/api/manifest') {
       opts
         .getManifest()
-        .then((widgets) => {
+        .then((manifest) => {
           res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-          res.end(JSON.stringify({ widgets }));
+          res.end(JSON.stringify(manifest));
         })
         .catch((err: unknown) => {
           // a story file mid-edit must not kill the server
@@ -103,5 +121,17 @@ export function createStudioServer(opts: StudioServerOptions): http.Server {
     }
     res.writeHead(200, { 'content-type': MIME[path.extname(filePath)] ?? 'application/octet-stream' });
     fs.createReadStream(filePath).pipe(res);
-  });
+  }) as StudioServer;
+
+  server.notify = (event) => {
+    for (const client of eventClients) client.write(`event: ${event}\ndata: {}\n\n`);
+  };
+  // Open event streams would keep close() waiting forever.
+  const close = server.close.bind(server);
+  server.close = (cb) => {
+    for (const client of eventClients) client.end();
+    eventClients.clear();
+    return close(cb);
+  };
+  return server;
 }

@@ -1,4 +1,4 @@
-import type { WidgetManifestEntry } from '@studio/shared';
+import type { StudioManifest } from '@studio/shared';
 import { useEffect } from 'react';
 import { Canvas } from './components/Canvas.js';
 import { HeaderControls } from './components/HeaderControls.js';
@@ -14,25 +14,39 @@ declare global {
   }
 }
 
-async function loadManifest(): Promise<WidgetManifestEntry[]> {
+async function loadManifest(): Promise<StudioManifest> {
   const res = await fetch('/api/manifest');
   if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) {
     throw new Error('no manifest');
   }
-  const body = (await res.json()) as { widgets?: WidgetManifestEntry[] };
-  if (!body.widgets?.length) throw new Error('empty manifest');
-  return body.widgets;
+  const body = (await res.json()) as Partial<StudioManifest>;
+  if (!body.widgets?.length && !body.errors?.length) throw new Error('empty manifest');
+  return { widgets: body.widgets ?? [], errors: body.errors ?? [] };
+}
+
+/** CLI live reload: the watcher pushes `manifest` events; refetch and keep the selection. */
+function subscribeToManifestEvents(): () => void {
+  const events = new EventSource('/api/events');
+  events.addEventListener('manifest', () => {
+    loadManifest()
+      .then(({ widgets, errors }) => useStudioStore.getState().replaceWidgets(widgets, errors))
+      .catch(() => {});
+  });
+  return () => events.close();
 }
 
 export function App() {
   useEffect(() => {
     window.__mcpStudio = { getLog: () => structuredClone(useStudioStore.getState().log) };
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
     loadManifest()
-      .then((widgets) => {
+      .then(({ widgets, errors }) => {
         if (cancelled) return;
         useStudioStore.getState().setWidgets(widgets);
+        useStudioStore.getState().replaceWidgets(widgets, errors);
         applyDeepLink(window.location.search);
+        unsubscribe = subscribeToManifestEvents();
       })
       .catch(() => {
         if (!cancelled && useStudioStore.getState().widgets.length === 0) {
@@ -42,6 +56,7 @@ export function App() {
       });
     return () => {
       cancelled = true;
+      unsubscribe?.();
     };
   }, []);
 

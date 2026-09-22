@@ -8,6 +8,7 @@ import { findWidgetFiles, initStories } from './init.js';
 import { createStudioServer, generateToken } from './server.js';
 import { summarize, type Theme } from './test-plan.js';
 import { NoBrowserError, runStoryTests } from './test-runner.js';
+import { watchProject } from './watcher.js';
 
 const args = process.argv.slice(2);
 
@@ -80,10 +81,17 @@ if (args[0] === 'test') {
   }
   const out = path.resolve(outDir);
   try {
-    const results = await runStoryTests({ rootDir: dir, studioDist: resolveStudioDist(), outDir: out, themes });
+    const { results, errors } = await runStoryTests({
+      rootDir: dir,
+      studioDist: resolveStudioDist(),
+      outDir: out,
+      themes,
+    });
     console.log(summarize(results));
+    for (const e of errors)
+      console.error(`\n  ✗ story failed to load: ${path.relative(dir, e.file)}\n      ${e.message}`);
     console.log(`\nReport and screenshots: ${out}`);
-    process.exit(results.every((r) => r.ok) ? 0 : 1);
+    process.exit(results.every((r) => r.ok) && errors.length === 0 ? 0 : 1);
   } catch (err) {
     if (err instanceof NoBrowserError) {
       console.error(`No Chromium for headless runs: ${err.message.split('\n')[0]}`);
@@ -121,20 +129,24 @@ for (let i = 0; i < args.length; i++) {
 const studioDist = resolveStudioDist();
 
 const manifest = await discoverStories(rootDir);
-if (manifest.length === 0) {
+for (const e of manifest.errors) console.warn(`Story failed to load: ${path.relative(rootDir, e.file)} — ${e.message}`);
+if (manifest.widgets.length === 0) {
   console.log(`No *.stories.mcp.ts found under ${rootDir} — studio will show the built-in demo widget.`);
 }
 
 const token = fixedToken ?? generateToken();
-// Rediscover per request: story edits show up on browser refresh, no CLI restart.
+// Rediscover per request; the watcher tells open studios to refetch (live reload).
 const server = createStudioServer({ studioDist, getManifest: () => discoverStories(rootDir), token });
+watchProject(rootDir, () => server.notify('manifest'));
 
 // localhost only + one-time token in URL: a local dev tool is still an attack surface.
 server.listen(port, '127.0.0.1', () => {
   console.log('');
   console.log('  MCP Apps Studio');
   console.log(`  project: ${rootDir}`);
-  console.log(`  widgets: ${manifest.length}`);
+  console.log(
+    `  widgets: ${manifest.widgets.length}${manifest.errors.length ? ` (${manifest.errors.length} failed to load)` : ''}`,
+  );
   console.log('');
   console.log(`  → http://127.0.0.1:${port}/?token=${token}`);
   console.log('');

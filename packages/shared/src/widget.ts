@@ -8,9 +8,22 @@ export interface WidgetStoryScenario {
   toolCall?: ToolCall;
 }
 
-export interface WidgetManifestEntry {
+interface WidgetManifestBase {
   id: string;
   title: string;
-  html: string;
   scenarios: Record<string, WidgetStoryScenario>;
+}
+
+/** A widget is either inline HTML (a file / MCP resource) or a dev-server URL (loaded with `src`, keeps its HMR). */
+export type WidgetManifestEntry = WidgetManifestBase & ({ html: string; url?: never } | { url: string; html?: never });
+
+/** A story that failed to load; the other stories still make it into the manifest. */
+export interface DiscoveryError {
+  file: string;
+  message: string;
+}
+
+export interface StudioManifest {
+  widgets: WidgetManifestEntry[];
+  errors: DiscoveryError[];
 }
