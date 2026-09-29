@@ -25,4 +25,4 @@
 
 ## 5. Wrap-up
 
-- [ ] 5.1 `pnpm openspec validate --all --strict`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm e2e`, `pnpm smoke:pack` all green
+- [x] 5.1 `pnpm openspec validate --all --strict`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm e2e`, `pnpm smoke:pack` all green
