@@ -18,7 +18,7 @@
 
 ## 4. Reference servers
 
-- [ ] 4.1 example-server and test-server `main.ts`: bind `HOST` (default `127.0.0.1`), print the real address; bump `hono` past the audited advisories — verify new `main.test.ts` in each package (spawn with `PORT=0`, host is 127.0.0.1, `/health` ok) and `pnpm audit --prod` no longer lists hono
+- [x] 4.1 example-server and test-server `main.ts`: bind `HOST` (default `127.0.0.1`), print the real address; bump `hono` past the audited advisories — verify new `main.test.ts` in each package (spawn with `PORT=0`, host is 127.0.0.1, `/health` ok) and `pnpm audit --prod` no longer lists hono
 
 ## 5. Action and CI supply chain
 
