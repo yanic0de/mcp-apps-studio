@@ -3,7 +3,7 @@
 ## 1. Story dependencies
 
 - [x] 1.1 `discover.ts`: bundle with esbuild (`packages: 'external'`, metafile), return `dependencies`; server serializes only `{ widgets, errors }` — verify `discover.test.ts` (edited JSON fixture is picked up, dependencies list it; temp files removed) and `server.test.ts`
-- [ ] 1.2 `watcher.ts` + `bin.ts`: `isDependency` predicate from the latest discovery — verify `watcher.test.ts` (fixture relevant, unrelated `.ts` not)
+- [x] 1.2 `watcher.ts` + `bin.ts`: `isDependency` predicate from the latest discovery — verify `watcher.test.ts` (fixture relevant, unrelated `.ts` not)
 
 ## 2. Studio
 

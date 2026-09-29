@@ -13,6 +13,14 @@ describe('isRelevantChange', () => {
     expect(isRelevantChange('.git/index.html')).toBe(false);
     expect(isRelevantChange('src/main.ts')).toBe(false);
   });
+
+  it('accepts files the stories depend on, and only those', () => {
+    const deps = new Set(['/p/src/rows.json', '/p/src/helper.ts']);
+    const isDependency = (abs: string) => deps.has(abs);
+    expect(isRelevantChange('src/rows.json', { root: '/p', isDependency })).toBe(true);
+    expect(isRelevantChange('src/helper.ts', { root: '/p', isDependency })).toBe(true);
+    expect(isRelevantChange('src/main.ts', { root: '/p', isDependency })).toBe(false);
+  });
 });
 
 describe('watchProject', () => {
@@ -44,5 +52,16 @@ describe('watchProject', () => {
     await fs.writeFile(path.join(root, 'src', 'main.ts'), 'x');
     await new Promise((r) => setTimeout(r, 250));
     expect(calls).toBe(0);
+  });
+
+  it('reports a change to a story dependency', async () => {
+    const rows = path.join(root, 'src', 'rows.json');
+    await fs.writeFile(rows, '{}');
+    let calls = 0;
+    stop = watchProject(root, () => calls++, { debounceMs: 50, isDependency: (abs) => abs === rows });
+    await new Promise((r) => setTimeout(r, 50));
+    await fs.writeFile(rows, '{"n":1}');
+    await new Promise((r) => setTimeout(r, 300));
+    expect(calls).toBe(1);
   });
 });
