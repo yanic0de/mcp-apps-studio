@@ -1,6 +1,6 @@
 import { MCP_APPS_METHODS, type RpcLogEvent, type WidgetManifestEntry } from '@studio/shared';
 import { describe, expect, it } from 'vitest';
-import { buildTestPlan, evaluateRun, summarize } from './test-plan.js';
+import { buildTestPlan, checkTarget, evaluateRun, summarize } from './test-plan.js';
 
 const widget = (id: string, scenarios: string[]): WidgetManifestEntry => ({
   id,
@@ -73,5 +73,24 @@ describe('summarize', () => {
       { widget: 'kpi', scenario: 'error', theme: 'dark', ok: false, failures: ['boom'] },
     ]);
     expect(text).toBe('  ✓ kpi/default [light]\n  ✗ kpi/error [dark]\n      boom\n\n1 passed, 1 failed');
+  });
+});
+
+describe('checkTarget', () => {
+  const run = { widget: 'kpi', scenario: 'error', theme: 'dark' as const };
+
+  it('passes when the studio renders the requested target', () => {
+    expect(checkTarget(run, { widget: 'kpi', scenario: 'error', theme: 'dark' })).toEqual([]);
+  });
+
+  it('names requested and rendered target on a mismatch', () => {
+    const [reason] = checkTarget(run, { widget: 'kpi', scenario: 'default', theme: 'dark' });
+    expect(reason).toContain('kpi/error [dark]');
+    expect(reason).toContain('kpi/default [dark]');
+  });
+
+  it('fails when the studio reports nothing (no widget, or an old studio without the hook)', () => {
+    expect(checkTarget(run, { widget: null, scenario: 'default', theme: 'light' })).toHaveLength(1);
+    expect(checkTarget(run, undefined)).toHaveLength(1);
   });
 });

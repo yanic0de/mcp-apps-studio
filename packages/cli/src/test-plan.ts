@@ -60,6 +60,27 @@ export function evaluateRun(log: RpcLogEvent[]): { ok: boolean; failures: string
   return { ok: failures.length === 0, failures };
 }
 
+/** What the studio canvas renders, from `window.__mcpStudio.getActive()`. */
+export interface ActiveTarget {
+  widget: string | null;
+  scenario: string;
+  theme: string;
+}
+
+/**
+ * The studio falls back to the first widget/scenario on an unknown deep link (friendly for humans),
+ * so a run must confirm it rendered what it asked for — otherwise it could pass for another story.
+ */
+export function checkTarget(
+  run: Pick<TestRun, 'widget' | 'scenario' | 'theme'>,
+  active: ActiveTarget | undefined,
+): string[] {
+  const requested = `${run.widget}/${run.scenario} [${run.theme}]`;
+  if (!active?.widget) return [`studio rendered no widget (requested ${requested})`];
+  if (active.widget === run.widget && active.scenario === run.scenario && active.theme === run.theme) return [];
+  return [`studio rendered ${active.widget}/${active.scenario} [${active.theme}] instead of ${requested}`];
+}
+
 export function summarize(results: RunResult[]): string {
   const lines = results.flatMap((r) => [
     `  ${r.ok ? '✓' : '✗'} ${r.widget}/${r.scenario} [${r.theme}]`,
