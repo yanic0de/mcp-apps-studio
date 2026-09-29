@@ -1,0 +1,41 @@
+name: Bug report
+description: Something in the studio, the CLI or widget-runtime does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Security issues go through private reporting instead — see SECURITY.md.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got (paste the exact error).
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The smallest story file / widget / command that shows it. A trace (expand the rows in the studio) or `report.json` helps a lot.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: mcp-apps-studio version
+      description: Output of `npx mcp-apps-studio --version`
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Node version and OS
+      placeholder: Node 22.12, macOS 15 / Ubuntu 24.04 / Windows 11
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [studio UI, "mcp-apps-studio test / CI", "init / add", GitHub Action, widget-runtime, other]

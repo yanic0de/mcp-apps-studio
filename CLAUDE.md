@@ -36,7 +36,7 @@ Tests run in node (no jsdom): DOM-facing code is written against duck-typed inte
 
 ## Architecture
 
-Monorepo (pnpm workspaces + turbo), all ESM. Packages export TS source directly (`"exports": "./src/index.ts"`) — no build step yet; publish story deferred.
+Monorepo (pnpm workspaces + turbo), all ESM. Packages export TS source directly (`"exports": "./src/index.ts"`); the two published packages build with tsup and publish their `dist` via `publishConfig`. Human-facing docs: `docs/ARCHITECTURE.md` (keep it in sync with this section), `CONTRIBUTING.md`, `SECURITY.md`.
 
 Layering (dependencies point down, never up):
 
@@ -69,4 +69,4 @@ Layering (dependencies point down, never up):
 
 ## Workflow
 
-Specifications live in `openspec/` (OpenSpec format): `specs/<capability>/spec.md` is what IS built, `changes/<id>/` is what SHOULD change. Planning context and artifact rules live in `openspec/config.yaml`; the workflow is the `/opsx:*` commands (`propose` → `apply` → `archive`, skills in `.claude/skills/openspec-*`). Run `pnpm openspec validate --all --strict` after every edit under `openspec/`, and keep specs in sync with behavior changes. Implementation plans live in `docs/superpowers/plans/` (checkbox format, one per phase). TDD per task: failing test → implement → `pnpm lint` → commit. Suppress a Biome rule only with a `biome-ignore` comment that states the reason (see `Canvas.tsx`, `DataTable.tsx`). MVP roadmap complete: core → studio → example-server → CLI → widget-runtime/components/registry → e2e. Candidate next steps: publish story (build + changesets), openai-apps adapter, design brief (see memory).
+Specifications live in `openspec/` (OpenSpec format): `specs/<capability>/spec.md` is what IS built, `changes/<id>/` is what SHOULD change. Planning context and artifact rules live in `openspec/config.yaml`; the workflow is the `/opsx:*` commands (`propose` → `apply` → `archive`, skills in `.claude/skills/openspec-*`). Run `pnpm openspec validate --all --strict` after every edit under `openspec/`, and keep specs in sync with behavior changes. TDD per task: failing test → implement → `pnpm lint` → commit. Suppress a Biome rule only with a `biome-ignore` comment that states the reason (see `Canvas.tsx`, `DataTable.tsx`). Release: changesets (one `fixed` group, GitHub changelog); `release.yml` gates publish on lint/typecheck/test/smoke:pack and moves the `v<major>` tag the Action is pinned to; README screenshots come from `node scripts/screenshots.mjs`. Both published packages carry their own `README.md` and a `LICENSE` copy (`package-meta.test.ts` checks it). Roadmap lives in README.

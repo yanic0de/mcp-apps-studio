@@ -81,3 +81,11 @@ describe('release.yml', () => {
     expect(tag?.run).toContain('git push -f origin');
   });
 });
+
+describe('issue forms', () => {
+  const dir = path.join(repoRoot, '.github', 'ISSUE_TEMPLATE');
+  it.each(fs.readdirSync(dir))('%s parses', (file) => {
+    const doc = parse(fs.readFileSync(path.join(dir, file), 'utf8'));
+    if (file !== 'config.yml') expect(doc.body.length).toBeGreaterThan(0);
+  });
+});
