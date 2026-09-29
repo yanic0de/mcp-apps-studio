@@ -1,0 +1,4 @@
+# LF everywhere: Windows runners check out with core.autocrlf=true, which turns every file into
+# CRLF and makes biome (and byte-for-byte tests like package-meta.test.ts) fail.
+* text=auto eol=lf
+*.png binary
