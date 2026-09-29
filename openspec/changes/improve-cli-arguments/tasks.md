@@ -6,7 +6,7 @@
 
 ## 2. I/O edges
 
-- [ ] 2.1 `assets.ts`: injectable workspace resolver, `source: 'bundled' | 'workspace' | 'missing'` instead of throwing — verify new `assets.test.ts` case (resolver throws → `missing`)
+- [x] 2.1 `assets.ts`: injectable workspace resolver, `source: 'bundled' | 'workspace' | 'missing'` instead of throwing — verify new `assets.test.ts` case (resolver throws → `missing`)
 - [ ] 2.2 `server.ts`: `listenLoopback(server, port)` → bound port, `PortInUseError` on `EADDRINUSE` — verify new `server.test.ts` case with an occupied port
 - [ ] 2.3 `resolveProjectDir(arg, cwd)`: existing dir → absolute path; missing bare word → "neither a command nor a directory"; missing path → "directory not found" — verify unit test with temp dirs
 

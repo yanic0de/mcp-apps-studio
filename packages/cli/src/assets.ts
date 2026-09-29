@@ -8,24 +8,40 @@ export interface Assets {
   studioDist: string;
   /** Directory holding registry.json and the component sources it lists. */
   registryRoot: string;
+  /**
+   * `bundled`: installed package; `workspace`: running src/ in the monorepo (the studio may still need a
+   * build); `missing`: neither — a broken install, the paths point at where the bundle should be.
+   */
+  source: 'bundled' | 'workspace' | 'missing';
 }
+
+const defaultResolveWorkspace = (pkg: string) =>
+  path.dirname(createRequire(import.meta.url).resolve(`${pkg}/package.json`));
 
 /**
  * Installed package: `dist/studio` and `dist/registry` sit next to the bundled CLI.
  * Development (running src/ via tsx): the workspace packages `@studio/app` and `@studio/components`.
  */
-export function locateAssets(moduleUrl: string = import.meta.url): Assets {
+export function locateAssets(
+  moduleUrl: string = import.meta.url,
+  resolveWorkspace: (pkg: string) => string = defaultResolveWorkspace,
+): Assets {
   const here = path.dirname(fileURLToPath(moduleUrl));
-  const bundledStudio = path.join(here, 'studio');
-  const bundledRegistry = path.join(here, 'registry');
-  const require = createRequire(import.meta.url);
-  const workspace = (pkg: string) => path.dirname(require.resolve(`${pkg}/package.json`));
-  return {
-    studioDist: fs.existsSync(path.join(bundledStudio, 'index.html'))
-      ? bundledStudio
-      : path.join(workspace('@studio/app'), 'dist'),
-    registryRoot: fs.existsSync(path.join(bundledRegistry, 'registry.json'))
-      ? bundledRegistry
-      : workspace('@studio/components'),
-  };
+  const bundled = { studioDist: path.join(here, 'studio'), registryRoot: path.join(here, 'registry') };
+  if (fs.existsSync(path.join(bundled.studioDist, 'index.html'))) {
+    return { ...bundled, source: 'bundled' };
+  }
+  try {
+    return {
+      studioDist: path.join(resolveWorkspace('@studio/app'), 'dist'),
+      registryRoot: fs.existsSync(path.join(bundled.registryRoot, 'registry.json'))
+        ? bundled.registryRoot
+        : resolveWorkspace('@studio/components'),
+      source: 'workspace',
+    };
+  } catch (err) {
+    // Outside the monorepo the workspace packages do not exist: report, do not crash.
+    if ((err as NodeJS.ErrnoException).code !== 'MODULE_NOT_FOUND') throw err;
+    return { ...bundled, source: 'missing' };
+  }
 }
