@@ -116,7 +116,7 @@ describe('discoverStories validation', () => {
     const story = path.join(fixture, 'src', 'kpi.stories.mcp.ts');
     const rows = path.join(fixture, 'src', 'rows.json');
     await fs.writeFile(rows, JSON.stringify({ n: 1 }));
-    await fs.writeFile(path.join(fixture, 'src', 'helper.ts'), 'export const label = (s: string) => `#${s}`;\n');
+    await fs.writeFile(path.join(fixture, 'src', 'helper.ts'), "export const label = (s: string) => '#' + s;\n");
     await fs.writeFile(
       story,
       `import rows from './rows.json';
