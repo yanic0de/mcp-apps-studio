@@ -5,7 +5,7 @@ export default defineConfig({
   entry: { bin: 'src/bin.ts', index: 'src/public.ts', vite: 'src/vite-plugin.ts' },
   format: ['esm'],
   platform: 'node',
-  target: 'node20',
+  target: 'node22',
   clean: true,
   noExternal: [/^@studio\//],
   external: ['esbuild', 'playwright-core', 'zod'],

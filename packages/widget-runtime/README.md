@@ -23,4 +23,4 @@ React (`react` is an optional peer):
 import { WidgetProvider, useToolCall, useToolLifecycle, useWidgetApp } from '@mcp-apps-studio/widget-runtime/react';
 ```
 
-Develop and test widgets with [MCP Apps Studio](https://github.com/yanic0de/mcp-app-proba) — Storybook + Playwright for MCP Apps widgets.
+Develop and test widgets with [MCP Apps Studio](https://github.com/yanic0de/mcp-apps-studio) — Storybook + Playwright for MCP Apps widgets.

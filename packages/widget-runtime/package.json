@@ -6,9 +6,14 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yanic0de/mcp-app-proba.git",
+    "url": "git+https://github.com/yanic0de/mcp-apps-studio.git",
     "directory": "packages/widget-runtime"
   },
+  "homepage": "https://github.com/yanic0de/mcp-apps-studio/tree/main/packages/widget-runtime#readme",
+  "bugs": {
+    "url": "https://github.com/yanic0de/mcp-apps-studio/issues"
+  },
+  "author": "yanic0de",
   "keywords": [
     "mcp",
     "mcp-apps",
@@ -65,5 +70,8 @@
     "react-dom": "^19.2.7",
     "typescript": "~5.8.0",
     "zod": "^4.4.3"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
