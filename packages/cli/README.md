@@ -13,6 +13,7 @@ Targets the MCP Apps extension (SEP-1865), spec version `2026-01-26`. Node 22+.
 In your MCP Apps project:
 
 ```bash
+npm i -D mcp-apps-studio              # stories import its types, so install it locally
 npx mcp-apps-studio init              # a *.stories.mcp.ts next to every widget HTML it finds
 npx mcp-apps-studio                   # the studio → http://127.0.0.1:4400/?token=…
 npx mcp-apps-studio install-browser   # once: Chromium matching the bundled Playwright
@@ -112,7 +113,7 @@ export default defineConfig({ plugins: [mcpAppsStudio()] });
 
 Then point the story at `widget: 'http://localhost:5173/'`, and hot module replacement works inside the sandbox.
 
-**Trade-off:** the plugin adds the `null` origin to Vite's CORS allowlist. While the dev server runs, any sandboxed page in your browser can read it, including your source and inlined `VITE_*` values. Use it on trusted networks only, and never together with secrets in `VITE_*`.
+**Trade-off:** the plugin adds the `null` origin to Vite's CORS allowlist. While the dev server runs, any sandboxed page in your browser can read it, including your source and inlined `VITE_*` values. Keep secrets out of `VITE_*`, and stop the dev server before you browse untrusted sites.
 
 ## More
 
