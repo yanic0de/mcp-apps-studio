@@ -1,6 +1,6 @@
 {
   "name": "@mcp-apps-studio/widget-runtime",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Studio conveniences on top of the official MCP Apps SDK App: connectWidget (tool lifecycle recorded before the handshake, host theme applied) and React hooks.",
   "license": "MIT",
   "type": "module",
