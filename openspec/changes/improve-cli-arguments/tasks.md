@@ -12,7 +12,7 @@
 
 ## 3. Dispatcher
 
-- [ ] 3.1 `bin.ts` rewritten as `main()` dispatching `parseCli` results to the existing command implementations; `main().catch` prints one-line errors (stack with `MCP_APPS_STUDIO_DEBUG=1`); asset and port messages — verify `bin.test.ts` spawn cases (`--help`, `test --help`, `--version`, unknown flag, missing value, `tset`, `--port 70000`, weak token, busy port) and `pnpm e2e` green
+- [x] 3.1 `bin.ts` rewritten as `main()` dispatching `parseCli` results to the existing command implementations; `main().catch` prints one-line errors (stack with `MCP_APPS_STUDIO_DEBUG=1`); asset and port messages — verify `bin.test.ts` spawn cases (`--help`, `test --help`, `--version`, unknown flag, missing value, `tset`, `--port 70000`, weak token, busy port) and `pnpm e2e` green
 
 ## 4. Wrap-up
 

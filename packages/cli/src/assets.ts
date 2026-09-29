@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CliError } from './args.js';
 
 export interface Assets {
   /** Built studio SPA (contains index.html when built). */
@@ -44,4 +45,13 @@ export function locateAssets(
     if ((err as NodeJS.ErrnoException).code !== 'MODULE_NOT_FOUND') throw err;
     return { ...bundled, source: 'missing' };
   }
+}
+
+/** The studio to serve, or a one-line error that fits how the CLI was installed. */
+export function requireStudioDist(assets: Assets): string {
+  if (fs.existsSync(path.join(assets.studioDist, 'index.html'))) return assets.studioDist;
+  if (assets.source === 'workspace') {
+    throw new CliError(`studio build not found at ${assets.studioDist} — run: pnpm -F @studio/app build`);
+  }
+  throw new CliError('the bundled studio is missing from this install — reinstall mcp-apps-studio');
 }

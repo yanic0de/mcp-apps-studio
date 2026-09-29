@@ -1,38 +1,34 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { addComponent, listComponents, UnknownComponentError } from './add.js';
-import { locateAssets } from './assets.js';
+import { CliError, type Command, parseCli } from './args.js';
+import { locateAssets, requireStudioDist } from './assets.js';
 import { discoverStories } from './discover.js';
 import { findWidgetFiles, initStories } from './init.js';
-import { createStudioServer, generateToken } from './server.js';
-import { summarize, type Theme } from './test-plan.js';
+import { resolveProjectDir } from './project-dir.js';
+import { createStudioServer, generateToken, listenLoopback, PortInUseError } from './server.js';
+import { summarize } from './test-plan.js';
 import { NoBrowserError, runStoryTests } from './test-runner.js';
 import { watchProject } from './watcher.js';
 
-const args = process.argv.slice(2);
+type Of<N extends Command['name']> = Extract<Command, { name: N }>;
 
-if (args[0] === 'add') {
-  const name = args[1];
-  if (!name || name.startsWith('-')) {
-    console.error('Usage: mcp-apps-studio add <component> [--dir <dir>] [--force]');
-    console.error(`Available: ${(await listComponents()).map((i) => i.name).join(', ')}`);
-    process.exit(1);
-  }
-  const dirFlag = args.indexOf('--dir');
-  const dir = dirFlag !== -1 ? (args[dirFlag + 1] ?? 'src/components') : 'src/components';
+const require = createRequire(import.meta.url);
+const rel = (file: string) => path.relative(process.cwd(), file);
+
+async function add(cmd: Of<'add'>): Promise<number> {
+  const available = async () => (await listComponents()).map((i) => i.name).join(', ');
+  if (!cmd.component) throw new CliError(`add needs a component name. Available: ${await available()}`);
   let added: Awaited<ReturnType<typeof addComponent>>;
   try {
-    added = await addComponent(name, path.resolve(process.cwd(), dir), { force: args.includes('--force') });
+    added = await addComponent(cmd.component, path.resolve(cmd.dir), { force: cmd.force });
   } catch (err) {
-    if (!(err instanceof UnknownComponentError)) throw err;
-    console.error(err.message);
-    process.exit(1);
+    if (err instanceof UnknownComponentError) throw new CliError(err.message);
+    throw err;
   }
-  const rel = (file: string) => path.relative(process.cwd(), file);
-  if (added.copied.length > 0) console.log(`Added "${name}":`);
+  if (added.copied.length > 0) console.log(`Added "${cmd.component}":`);
   for (const file of added.copied) console.log(`  ${rel(file)}`);
   if (added.skipped.length > 0) {
     console.log('Skipped (already there, keeping your version; --force replaces):');
@@ -42,152 +38,82 @@ if (args[0] === 'add') {
   console.log(
     '  npm i @mcp-apps-studio/widget-runtime @modelcontextprotocol/ext-apps @modelcontextprotocol/client zod react react-dom',
   );
-  process.exit(0);
+  return 0;
 }
 
-function resolveStudioDist(): string {
-  const dist = locateAssets().studioDist;
-  if (!fs.existsSync(path.join(dist, 'index.html'))) {
-    console.error('Studio build not found. Run: pnpm -F @studio/app build');
-    process.exit(1);
-  }
-  return dist;
-}
-
-if (args[0] === 'install-browser') {
+function installBrowser(cmd: Of<'install-browser'>): number {
   // Chromium matching the bundled playwright-core (a plain `npx playwright install` may fetch another build).
-  const require = createRequire(import.meta.url);
   const cli = path.join(path.dirname(require.resolve('playwright-core/package.json')), 'cli.js');
-  const extra = args.includes('--with-deps') ? ['--with-deps'] : [];
+  const extra = cmd.withDeps ? ['--with-deps'] : [];
   const result = spawnSync(process.execPath, [cli, 'install', ...extra, 'chromium'], { stdio: 'inherit' });
-  process.exit(result.status ?? 1);
+  return result.status ?? 1;
 }
 
-if (args[0] === 'init') {
+async function init(cmd: Of<'init'>): Promise<number> {
   const root = process.cwd();
-  let tool: string | undefined;
-  const files: string[] = [];
-  for (let i = 1; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === '--tool') tool = args[++i];
-    else if (arg && !arg.startsWith('-')) files.push(path.resolve(arg));
-  }
+  const files = cmd.files.map((f) => path.resolve(f));
   const widgets = files.length > 0 ? files : await findWidgetFiles(root);
   if (widgets.length === 0) {
-    console.error('No MCP Apps widget HTML found. Pass the file: mcp-apps-studio init path/to/widget.html');
-    process.exit(1);
+    throw new CliError('no MCP Apps widget HTML found. Pass the file: mcp-apps-studio init path/to/widget.html');
   }
-  const { created, skipped } = await initStories(root, widgets, { tool });
+  const { created, skipped } = await initStories(root, widgets, { tool: cmd.tool });
   for (const f of created) console.log(`  + ${path.relative(root, f)}`);
   for (const f of skipped) console.log(`  = ${path.relative(root, f)} (exists, left untouched)`);
   console.log(
     '\nNext: set the tool name and data in the story, then run `mcp-apps-studio` (studio) or `mcp-apps-studio test` (CI).',
   );
-  process.exit(0);
+  return 0;
 }
 
-if (args[0] === 'test') {
-  let dir = process.cwd();
-  let outDir = '.mcp-studio/test';
-  let themes: Theme[] = ['light', 'dark'];
-  let snapshotsDir: string | undefined;
-  let update = false;
-  let threshold = 0.1;
-  let maxDiffPixels = 0;
-  const number = (flag: string, value: string | undefined, max = Number.POSITIVE_INFINITY) => {
-    const n = Number(value);
-    if (value === undefined || !Number.isFinite(n) || n < 0 || n > max) {
-      console.error(`Invalid ${flag} value`);
-      process.exit(1);
-    }
-    return n;
+async function test(cmd: Of<'test'>): Promise<number> {
+  const dir = resolveProjectDir(cmd.dir);
+  const out = path.resolve(cmd.out);
+  const snapshots = {
+    dir: path.resolve(dir, cmd.snapshots ?? 'mcp-studio-snapshots'),
+    update: cmd.updateSnapshots,
+    threshold: cmd.threshold,
+    maxDiffPixels: cmd.maxDiffPixels,
   };
-  for (let i = 1; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === '--update-snapshots') update = true;
-    else if (arg === '--snapshots') snapshotsDir = args[++i];
-    else if (arg === '--threshold') threshold = number('--threshold', args[++i], 1);
-    else if (arg === '--max-diff-pixels') maxDiffPixels = Math.floor(number('--max-diff-pixels', args[++i]));
-    else if (arg === '--out') outDir = args[++i] ?? outDir;
-    else if (arg === '--themes') {
-      const list = (args[++i] ?? '').split(',').filter(Boolean);
-      if (list.length === 0 || list.some((t) => t !== 'light' && t !== 'dark')) {
-        console.error('Invalid --themes value (use light,dark)');
-        process.exit(1);
-      }
-      themes = list as Theme[];
-    } else if (arg && !arg.startsWith('-')) dir = path.resolve(arg);
-  }
-  const out = path.resolve(outDir);
   try {
-    const snapshots = {
-      dir: path.resolve(dir, snapshotsDir ?? 'mcp-studio-snapshots'),
-      update,
-      threshold,
-      maxDiffPixels,
-    };
     const { results, errors } = await runStoryTests({
       rootDir: dir,
-      studioDist: resolveStudioDist(),
+      studioDist: requireStudioDist(locateAssets()),
       outDir: out,
-      themes,
+      themes: cmd.themes,
       snapshots,
     });
-    if (update) console.log(`Baselines written to ${snapshots.dir}`);
+    if (cmd.updateSnapshots) console.log(`Baselines written to ${snapshots.dir}`);
     console.log(summarize(results));
-    for (const e of errors)
+    for (const e of errors) {
       console.error(`\n  ✗ story failed to load: ${path.relative(dir, e.file)}\n      ${e.message}`);
+    }
     console.log(`\nReport: ${path.join(out, 'report.html')}`);
-    process.exit(results.every((r) => r.ok) && errors.length === 0 ? 0 : 1);
+    return results.every((r) => r.ok) && errors.length === 0 ? 0 : 1;
   } catch (err) {
-    if (err instanceof NoBrowserError) {
-      console.error(`No Chromium for headless runs: ${err.message.split('\n')[0]}`);
-      console.error('Install it once with: npx mcp-apps-studio install-browser');
-      process.exit(2);
-    }
-    throw err;
+    if (!(err instanceof NoBrowserError)) throw err;
+    console.error(`No Chromium for headless runs: ${err.message.split('\n')[0]}`);
+    console.error('Install it once with: npx mcp-apps-studio install-browser');
+    return 2;
   }
 }
 
-let port = 4400;
-let rootDir = process.cwd();
-let fixedToken: string | undefined;
-
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
-  if (arg === '--port') {
-    port = Number(args[++i]);
-    if (!Number.isInteger(port) || port <= 0) {
-      console.error('Invalid --port value');
-      process.exit(1);
-    }
-  } else if (arg === '--token') {
-    // Explicit token for automation (e2e); default stays a fresh random token.
-    fixedToken = args[++i];
-    if (!fixedToken) {
-      console.error('Invalid --token value');
-      process.exit(1);
-    }
-  } else if (arg && !arg.startsWith('-')) {
-    rootDir = path.resolve(arg);
+/** Serves the studio until the process is stopped; resolves once it listens. */
+async function start(cmd: Of<'start'>): Promise<void> {
+  const rootDir = resolveProjectDir(cmd.dir);
+  const studioDist = requireStudioDist(locateAssets());
+  const manifest = await discoverStories(rootDir);
+  for (const e of manifest.errors)
+    console.warn(`Story failed to load: ${path.relative(rootDir, e.file)} — ${e.message}`);
+  if (manifest.widgets.length === 0) {
+    console.log(`No *.stories.mcp.ts found under ${rootDir} — studio will show the built-in demo widget.`);
   }
-}
 
-const studioDist = resolveStudioDist();
-
-const manifest = await discoverStories(rootDir);
-for (const e of manifest.errors) console.warn(`Story failed to load: ${path.relative(rootDir, e.file)} — ${e.message}`);
-if (manifest.widgets.length === 0) {
-  console.log(`No *.stories.mcp.ts found under ${rootDir} — studio will show the built-in demo widget.`);
-}
-
-const token = fixedToken ?? generateToken();
-// Rediscover per request; the watcher tells open studios to refetch (live reload).
-const server = createStudioServer({ studioDist, getManifest: () => discoverStories(rootDir), token });
-watchProject(rootDir, () => server.notify('manifest'));
-
-// localhost only + one-time token in URL: a local dev tool is still an attack surface.
-server.listen(port, '127.0.0.1', () => {
+  // localhost only + one-time token in URL: a local dev tool is still an attack surface.
+  const token = cmd.token ?? generateToken();
+  // Rediscover per request; the watcher tells open studios to refetch (live reload).
+  const server = createStudioServer({ studioDist, getManifest: () => discoverStories(rootDir), token });
+  const port = await listenLoopback(server, cmd.port);
+  watchProject(rootDir, () => server.notify('manifest'));
   console.log('');
   console.log('  MCP Apps Studio');
   console.log(`  project: ${rootDir}`);
@@ -197,4 +123,45 @@ server.listen(port, '127.0.0.1', () => {
   console.log('');
   console.log(`  → http://127.0.0.1:${port}/?token=${token}`);
   console.log('');
-});
+}
+
+async function main(): Promise<number | undefined> {
+  const cli = parseCli(process.argv.slice(2));
+  switch (cli.kind) {
+    case 'help':
+      console.log(cli.text);
+      return 0;
+    case 'version':
+      console.log((require('../package.json') as { version: string }).version);
+      return 0;
+    case 'error':
+      throw new CliError(`${cli.message} (see mcp-apps-studio --help)`);
+  }
+  const cmd = cli.command;
+  switch (cmd.name) {
+    case 'add':
+      return add(cmd);
+    case 'install-browser':
+      return installBrowser(cmd);
+    case 'init':
+      return init(cmd);
+    case 'test':
+      return test(cmd);
+    case 'start':
+      await start(cmd);
+      return undefined; // keep serving
+  }
+}
+
+main().then(
+  (code) => {
+    if (code !== undefined) process.exit(code);
+  },
+  (err: unknown) => {
+    // Expected failures are one line; anything else too, with the stack only when debugging.
+    const known = err instanceof CliError || err instanceof PortInUseError;
+    console.error(`error: ${err instanceof Error ? err.message : String(err)}`);
+    if (!known && process.env.MCP_APPS_STUDIO_DEBUG === '1' && err instanceof Error) console.error(err.stack);
+    process.exit(1);
+  },
+);

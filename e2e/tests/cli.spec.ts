@@ -1,5 +1,9 @@
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { CLI_TOKEN, CLI_URL } from '../playwright.config.js';
+
+const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
 const widgetFrame = (page: import('@playwright/test').Page) => page.frameLocator('iframe[title="widget under test"]');
 
@@ -41,4 +45,18 @@ test('library component on the SDK App: handshake completes and the host theme r
   await expect(page.locator('.trace-row.invalid')).toHaveCount(0);
   await page.getByLabel('Theme').selectOption('dark');
   await expect(frame.locator('html')).toHaveAttribute('data-theme', 'dark');
+});
+
+test('a second CLI on the busy port exits with a hint instead of a stack', () => {
+  // The config's web server already listens on the CLI_URL port.
+  const port = new URL(CLI_URL).port;
+  const r = spawnSync('pnpm', ['-s', '-F', 'mcp-apps-studio', 'start', '--port', port, '../components'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  expect(r.status).toBe(1);
+  expect(r.stderr).toContain(`port ${port} is already in use`);
+  expect(r.stderr).toContain('--port');
+  expect(r.stderr).not.toMatch(/^\s+at /m);
 });

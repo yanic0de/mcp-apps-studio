@@ -1,12 +1,11 @@
 import fs from 'node:fs/promises';
-import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import type { DiscoveryError, RpcLogEvent } from '@studio/shared';
 import type { Page } from 'playwright-core';
 import { discoverStories } from './discover.js';
 import { renderHtmlReport, renderMarkdownSummary } from './report.js';
 import { executeRun, type RunContext, type RunPage } from './run-executor.js';
-import { createStudioServer, generateToken } from './server.js';
+import { createStudioServer, generateToken, listenLoopback } from './server.js';
 import { type ActiveTarget, buildTestPlan, type RunResult, type Theme } from './test-plan.js';
 import type { VisualOptions } from './visual.js';
 
@@ -70,8 +69,7 @@ export async function runStoryTests(
   const plan = buildTestPlan(manifest.widgets, opts.themes);
   const token = generateToken();
   const server = createStudioServer({ studioDist: opts.studioDist, getManifest: async () => manifest, token });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const base = `http://127.0.0.1:${await listenLoopback(server, 0)}`;
 
   const { chromium } = await import('playwright-core');
   let browser: Awaited<ReturnType<typeof chromium.launch>>;

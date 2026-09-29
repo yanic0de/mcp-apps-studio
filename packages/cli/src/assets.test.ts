@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { locateAssets } from './assets.js';
+import { locateAssets, requireStudioDist } from './assets.js';
 
 let dir: string;
 beforeEach(async () => {
@@ -39,5 +39,24 @@ describe('locateAssets', () => {
     const assets = locateAssets(pathToFileURL(path.join(dir, 'bin.js')).href, noWorkspace);
     expect(assets.source).toBe('missing');
     expect(assets.studioDist).toBe(path.join(dir, 'studio'));
+  });
+});
+
+describe('requireStudioDist', () => {
+  const base = { studioDist: path.join(os.tmpdir(), 'no-such-studio'), registryRoot: '' };
+
+  it('tells an installed package to reinstall', () => {
+    expect(() => requireStudioDist({ ...base, source: 'missing' })).toThrow(/reinstall mcp-apps-studio/);
+  });
+
+  it('tells the monorepo to build the studio', () => {
+    expect(() => requireStudioDist({ ...base, source: 'workspace' })).toThrow(/pnpm -F @studio\/app build/);
+  });
+
+  it('returns a built studio', async () => {
+    await fs.mkdir(path.join(dir, 'studio'), { recursive: true });
+    await fs.writeFile(path.join(dir, 'studio', 'index.html'), '<html/>');
+    const studioDist = path.join(dir, 'studio');
+    expect(requireStudioDist({ studioDist, registryRoot: '', source: 'bundled' })).toBe(studioDist);
   });
 });
