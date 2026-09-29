@@ -8,8 +8,8 @@
 
 ## 2. Release pipeline
 
-- [ ] 2.1 `workflows.test.ts`: `release.yml` runs lint/typecheck/test/smoke:pack before the changesets step, and a step gated on `published` moves the major tag without `${{` in `run` — verify it fails first
-- [ ] 2.2 `release.yml` gate steps + Chromium install + `id: changesets` + major-tag step; `@changesets/changelog-github` in `.changeset/config.json`; collapse pending changesets into one `first-release.md` — verify `workflows.test.ts` passes and `pnpm changeset status` lists one changeset
+- [x] 2.1 `workflows.test.ts`: `release.yml` runs lint/typecheck/test/smoke:pack before the changesets step, and a step gated on `published` moves the major tag without `${{` in `run` — verify it fails first
+- [x] 2.2 `release.yml` gate steps + Chromium install + `id: changesets` + major-tag step; `@changesets/changelog-github` in `.changeset/config.json`; collapse pending changesets into one `first-release.md` — verify `workflows.test.ts` passes and `pnpm changeset status` lists one changeset
 
 ## 3. Documentation
 

@@ -63,3 +63,21 @@ describe.skipIf(!hasBash)('action.yml version validation', () => {
     expect(result.stderr).toContain('invalid version');
   });
 });
+
+describe('release.yml', () => {
+  const steps = stepsOf('.github/workflows/release.yml') as (Step & { if?: string; name?: string })[];
+  const publishAt = steps.findIndex((s) => s.uses?.startsWith('changesets/action@'));
+
+  it.each(['pnpm lint', 'pnpm typecheck', 'pnpm test', 'pnpm smoke:pack'])('runs `%s` before publishing', (cmd) => {
+    const at = steps.findIndex((s) => s.run?.split('\n').some((line) => line.trim() === cmd));
+    expect(at, `${cmd} missing`).toBeGreaterThanOrEqual(0);
+    expect(at).toBeLessThan(publishAt);
+  });
+
+  it('moves the major tag only after a publish', () => {
+    expect(steps[publishAt]?.id).toBe('changesets');
+    const tag = steps.slice(publishAt + 1).find((s) => s.run?.includes('git tag -f'));
+    expect(tag?.if).toBe("steps.changesets.outputs.published == 'true'");
+    expect(tag?.run).toContain('git push -f origin');
+  });
+});

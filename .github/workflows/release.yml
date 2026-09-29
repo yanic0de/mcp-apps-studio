@@ -23,8 +23,15 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+      # Nothing is published unless the same checks as CI pass on this exact commit.
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm smoke:pack
       # Opens a "Version packages" PR from pending changesets; publishes when that PR is merged.
       - uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        id: changesets
         with:
           publish: pnpm release
           version: pnpm changeset version
@@ -33,3 +40,10 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: 'true'
+      # Users pin the GitHub Action to the major tag (`yanic0de/mcp-apps-studio@v0`): move it to this release.
+      - name: Move the major tag
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          major="v$(node -p "require('./packages/cli/package.json').version.split('.')[0]")"
+          git tag -f "$major"
+          git push -f origin "$major"

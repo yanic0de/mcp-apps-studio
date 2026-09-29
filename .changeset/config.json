@@ -1,6 +1,11 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3/schema.json",
-  "changelog": "@changesets/cli/changelog",
+  "changelog": [
+    "@changesets/changelog-github",
+    {
+      "repo": "yanic0de/mcp-apps-studio"
+    }
+  ],
   "commit": false,
   "fixed": [["mcp-apps-studio", "@mcp-apps-studio/widget-runtime"]],
   "linked": [],
