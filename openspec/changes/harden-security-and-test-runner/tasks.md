@@ -22,8 +22,8 @@
 
 ## 5. Action and CI supply chain
 
-- [ ] 5.1 `workflows.test.ts` in `packages/cli` (devDependency `yaml`): SHA-pinned `uses:`, top-level `permissions` in workflows, no `${{` in `run:`, hostile `STUDIO_VERSION` rejected by the action's validation script — verify it fails against the current files
-- [ ] 5.2 `action.yml` inputs via `env:` + version validation step + `set -f` args; pin all actions in `action.yml` and `.github/workflows/*` by SHA (`gh api`), `ci.yml` `permissions: contents: read`; renovate `helpers:pinGitHubActionDigests` — verify `workflows.test.ts` passes
+- [x] 5.1 `workflows.test.ts` in `packages/cli` (devDependency `yaml`): SHA-pinned `uses:`, top-level `permissions` in workflows, no `${{` in `run:`, hostile `STUDIO_VERSION` rejected by the action's validation script — verify it fails against the current files
+- [x] 5.2 `action.yml` inputs via `env:` + version validation step + `set -f` args; pin all actions in `action.yml` and `.github/workflows/*` by SHA (`gh api`), `ci.yml` `permissions: contents: read`; renovate `helpers:pinGitHubActionDigests` — verify `workflows.test.ts` passes
 
 ## 6. Wrap-up
 

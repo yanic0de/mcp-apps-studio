@@ -277,6 +277,9 @@ importers:
       typescript:
         specifier: ~5.8.0
         version: 5.8.3
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   packages/components:
     dependencies:

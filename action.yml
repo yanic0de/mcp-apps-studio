@@ -22,18 +22,39 @@ inputs:
 runs:
   using: composite
   steps:
+    # Inputs reach shell scripts only through env: `${{ }}` inside `run:` is pasted into the script
+    # before bash parses it, so a crafted input would run as code.
+    - name: Validate inputs
+      id: validate
+      shell: bash
+      env:
+        STUDIO_VERSION: ${{ inputs.version }}
+      run: |
+        if [[ ! "$STUDIO_VERSION" =~ ^[A-Za-z0-9.^~-]+$ ]]; then
+          echo "mcp-apps-studio action: invalid version '$STUDIO_VERSION' (expected a semver range or an npm dist-tag)" >&2
+          exit 1
+        fi
     - name: Install Chromium
       shell: bash
       working-directory: ${{ inputs.directory }}
-      run: npx --yes mcp-apps-studio@${{ inputs.version }} install-browser --with-deps
+      env:
+        STUDIO_VERSION: ${{ inputs.version }}
+      run: npx --yes "mcp-apps-studio@$STUDIO_VERSION" install-browser --with-deps
     - name: Run story tests
       shell: bash
       working-directory: ${{ inputs.directory }}
+      env:
+        STUDIO_VERSION: ${{ inputs.version }}
+        STUDIO_ARGS: ${{ inputs.args }}
       # The CLI appends a Markdown table to $GITHUB_STEP_SUMMARY on its own.
-      run: npx --yes mcp-apps-studio@${{ inputs.version }} test --out .mcp-studio/test ${{ inputs.args }}
+      # STUDIO_ARGS is split into words on purpose (extra flags) with globbing off; its content is never parsed as shell.
+      run: |
+        set -f
+        # shellcheck disable=SC2086
+        npx --yes "mcp-apps-studio@$STUDIO_VERSION" test --out .mcp-studio/test $STUDIO_ARGS
     - name: Upload report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ inputs.directory }}/.mcp-studio/test
