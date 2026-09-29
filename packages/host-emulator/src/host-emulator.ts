@@ -42,6 +42,8 @@ export class HostEmulator {
   private readonly bridge: MessageBridge;
   private readonly mockRouter: MockRouter;
   private context: HostContext;
+  /** The context put into the last `ui/initialize` result: what the widget knows before `initialized`. */
+  private sentContext: HostContext | undefined;
   private ready = false;
   private running = false;
 
@@ -75,10 +77,10 @@ export class HostEmulator {
     return this.context;
   }
 
+  /** Always updates the context; the widget hears about it only once it completed the handshake (like a real host). */
   setHostContext(patch: Partial<HostContext>): void {
     this.context = { ...this.context, ...patch };
-    const wire = this.opts.adapter.pushHostEvent({ type: 'context-changed', context: patch });
-    if (wire) this.bridge.notify(wire.method, wire.params);
+    if (this.ready) this.push({ type: 'context-changed', context: patch });
   }
 
   setMocks(config: MockConfig): void {
@@ -91,6 +93,7 @@ export class HostEmulator {
       case 'initialize':
         // A new handshake is a new view instance (e.g. the frame reloaded): it gets the lifecycle again.
         this.ready = false;
+        this.sentContext = this.context;
         // toolInfo belongs to this widget instance only, so it never enters the shared context.
         return this.opts.adapter.buildInitializeResult({ ...this.context, ...this.toolInfo() });
       case 'tool-call':
@@ -132,6 +135,7 @@ export class HostEmulator {
       case 'initialized':
         if (this.ready) return; // tool-input is sent exactly once
         this.ready = true;
+        this.pushChangesSinceInitialize();
         void this.playToolCall();
         return;
       case 'log':
@@ -154,6 +158,18 @@ export class HostEmulator {
     if (!this.running) return;
     const wire = this.opts.adapter.pushHostEvent(ev);
     if (wire) this.bridge.notify(wire.method, wire.params);
+  }
+
+  /** Context fields changed between the `ui/initialize` result and `initialized`, sent as one notification. */
+  private pushChangesSinceInitialize(): void {
+    const sent = this.sentContext;
+    if (!sent) return;
+    const changed = Object.fromEntries(
+      Object.entries(this.context).filter(
+        ([key, value]) => JSON.stringify(value) !== JSON.stringify(sent[key as keyof HostContext]),
+      ),
+    ) as Partial<HostContext>;
+    if (Object.keys(changed).length > 0) this.push({ type: 'context-changed', context: changed });
   }
 
   private toolInfo(): { toolInfo?: { tool: Record<string, unknown> } } {

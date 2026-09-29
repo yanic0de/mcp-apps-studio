@@ -35,6 +35,14 @@ function fakeWidget(t: Transport) {
   };
 }
 
+/** ui/initialize → initialized, like the SDK's App.connect(). */
+async function handshake(widget: ReturnType<typeof fakeWidget>): Promise<WireMessage> {
+  const resp = await widget.request(MCP_APPS_METHODS.uiInitialize, { appCapabilities: {} });
+  widget.notify(MCP_APPS_METHODS.initialized);
+  await flush();
+  return resp;
+}
+
 function setup(opts: Partial<HostEmulatorOptions> = {}) {
   const [hostT, widgetT] = createInMemoryTransportPair();
   const log: RpcLogEvent[] = [];
@@ -120,6 +128,7 @@ describe('HostEmulator', () => {
   it('switches display mode on request and tells both the widget and the embedder', async () => {
     const changed: unknown[] = [];
     const { emulator, widget } = setup({ onHostContextChanged: (c) => changed.push(c) });
+    await handshake(widget);
     const resp = await widget.request(MCP_APPS_METHODS.requestDisplayMode, { mode: 'fullscreen' });
     expect(resp.result).toEqual({ mode: 'fullscreen' });
     expect(emulator.getHostContext().displayMode).toBe('fullscreen');
@@ -152,6 +161,7 @@ describe('HostEmulator', () => {
 
   it('pushes host-context-changed notification on setHostContext', async () => {
     const { emulator, widget } = setup();
+    await handshake(widget);
     emulator.setHostContext({ theme: 'dark' });
     await flush();
     expect(widget.inbox).toContainEqual({
@@ -160,6 +170,54 @@ describe('HostEmulator', () => {
       params: { theme: 'dark' },
     });
     expect(emulator.getHostContext().theme).toBe('dark');
+  });
+
+  describe('host context around the handshake', () => {
+    const contextChanges = (inbox: WireMessage[]) =>
+      inbox.filter((m) => m.method === MCP_APPS_METHODS.hostContextChanged);
+
+    it('does not notify before the handshake; the initialize result carries the change', async () => {
+      const { emulator, widget } = setup();
+      emulator.setHostContext({ theme: 'dark' });
+      await flush();
+      expect(contextChanges(widget.inbox)).toEqual([]);
+      const resp = await handshake(widget);
+      expect(resp.result.hostContext.theme).toBe('dark');
+      expect(contextChanges(widget.inbox)).toEqual([]);
+    });
+
+    it('delivers a change made during the handshake right after initialized', async () => {
+      const { emulator, widget } = setup();
+      await widget.request(MCP_APPS_METHODS.uiInitialize, { appCapabilities: {} });
+      emulator.setHostContext({ theme: 'dark' });
+      await flush();
+      expect(contextChanges(widget.inbox)).toEqual([]);
+      widget.notify(MCP_APPS_METHODS.initialized);
+      await flush();
+      expect(contextChanges(widget.inbox)).toEqual([
+        { jsonrpc: '2.0', method: MCP_APPS_METHODS.hostContextChanged, params: { theme: 'dark' } },
+      ]);
+    });
+
+    it('sends nothing after initialized when the context is what the widget already got', async () => {
+      const { emulator, widget } = setup();
+      await widget.request(MCP_APPS_METHODS.uiInitialize, { appCapabilities: {} });
+      emulator.setHostContext({ theme: 'dark' });
+      emulator.setHostContext({ theme: 'light' });
+      widget.notify(MCP_APPS_METHODS.initialized);
+      await flush();
+      expect(contextChanges(widget.inbox)).toEqual([]);
+    });
+
+    it('does not notify after stop but still updates the context', async () => {
+      const { emulator, widget } = setup();
+      await handshake(widget);
+      emulator.stop();
+      emulator.setHostContext({ theme: 'dark' });
+      await flush();
+      expect(contextChanges(widget.inbox)).toEqual([]);
+      expect(emulator.getHostContext().theme).toBe('dark');
+    });
   });
 
   it('reports size-changed notifications', async () => {
