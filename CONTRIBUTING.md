@@ -53,15 +53,18 @@ Things we deliberately don't do: a server-inspector UI (LLM chat, OAuth), a docs
 
 ## Releasing (maintainers)
 
-Releases go through [changesets](https://github.com/changesets/changesets). On `main`, the release workflow runs lint, typecheck, tests and the pack smoke test. It then opens a "Version packages" PR. Merging that PR publishes to npm with provenance and moves the `v<major>` tag that the GitHub Action is pinned to.
+Releases go through [changesets](https://github.com/changesets/changesets):
 
-Before the first release, the owner must do these steps in order:
+1. On `main`, the release workflow runs lint, typecheck, tests and the pack smoke test.
+2. It opens a "Version packages" PR.
+3. Merging that PR publishes both packages to npm and moves the `v<major>` tag that the GitHub Action is pinned to.
 
-1. Rename the repository to `mcp-apps-studio` on GitHub (Settings → General).
-2. Enable **private vulnerability reporting** (Settings → Code security).
-3. Add the `NPM_TOKEN` repository secret: an npm automation token with publish rights.
-4. Regenerate the README screenshots if the UI changed: `node scripts/screenshots.mjs`. This needs the studio and components built, and Chromium.
+**Publishing uses npm Trusted Publishing (OIDC):** there is no npm token in the repository, and every version gets a provenance attestation. Each package needs a trusted publisher configured once on npmjs.com:
 
-After the first publish, you can switch to npm trusted publishing (OIDC) and remove `NPM_TOKEN`.
+1. Open the package page (`mcp-apps-studio`, then `@mcp-apps-studio/widget-runtime`) → **Settings** → **Trusted Publisher** → **GitHub Actions**.
+2. Organization or user: `yanic0de`. Repository: `mcp-apps-studio`. Workflow filename: `release.yml`. Environment: leave empty.
+3. Once both packages have it, delete the `NPM_TOKEN` repository secret and revoke the token on npmjs.com.
+
+Before a release, regenerate the README screenshots if the UI changed: `node scripts/screenshots.mjs`. This needs the studio and components built, and Chromium.
 
 `pnpm changeset version` uses the GitHub changelog generator and needs `GITHUB_TOKEN` when run locally. CI provides it.

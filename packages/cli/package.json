@@ -35,6 +35,7 @@
   },
   "publishConfig": {
     "access": "public",
+    "provenance": true,
     "bin": {
       "mcp-apps-studio": "./dist/bin.js"
     },
