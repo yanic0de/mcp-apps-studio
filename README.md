@@ -87,6 +87,8 @@ pnpm -F @studio/test-server dev         # polygon server on :3200
 # open http://localhost:5173/?server=http://localhost:3200/mcp, pick "live"
 ```
 
+Both servers listen on `127.0.0.1` only; set `HOST=0.0.0.0` (e.g. in a container) to expose them.
+
 ## Test your own widgets
 
 ### 1. Write a story next to your widget
@@ -222,6 +224,8 @@ Library components follow one contract — theming only through `--widget-*` CSS
 ```bash
 pnpm -F mcp-apps-studio start add data-table --dir src/components
 ```
+
+Files you already have are kept (they may carry your edits) and listed as skipped; `--force` replaces them with the registry version.
 
 ## Using it as a test tool
 
