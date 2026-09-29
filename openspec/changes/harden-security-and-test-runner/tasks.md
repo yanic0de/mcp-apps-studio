@@ -9,7 +9,7 @@
 
 - [x] 2.1 `test-plan.ts`: `checkTarget(run, active)` returns failure reasons for a widget/scenario/theme mismatch — verify `test-plan.test.ts`
 - [x] 2.2 Studio `automation.ts`: `createAutomationHook(getState)` with `getLog()` + `getActive()`; `App.tsx` installs it — verify `automation.test.ts` (rendered target, unknown deep link not reported as requested)
-- [ ] 2.3 `run-executor.ts`: `executeRun(page, run, ctx)` over a duck-typed `RunPage`; never throws, closes the page in `finally`, applies the target check, handshake evaluation, screenshot, snapshot policy (baseline only when ok) and visual compare — verify `run-executor.test.ts` with a fake page (goto throws → failed result + page closed; failing run under update → no baseline; target mismatch → failure; happy path unchanged)
+- [x] 2.3 `run-executor.ts`: `executeRun(page, run, ctx)` over a duck-typed `RunPage`; never throws, closes the page in `finally`, applies the target check, handshake evaluation, screenshot, snapshot policy (baseline only when ok) and visual compare — verify `run-executor.test.ts` with a fake page (goto throws → failed result + page closed; failing run under update → no baseline; target mismatch → failure; happy path unchanged)
 - [ ] 2.4 `test-runner.ts` uses `executeRun` with a Playwright page adapter; reports always written — verify `pnpm e2e` story-test spec green and `test` on `packages/components` exits 0
 
 ## 3. CLI `add`
