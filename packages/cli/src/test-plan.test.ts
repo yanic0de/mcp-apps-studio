@@ -1,6 +1,7 @@
+import path from 'node:path';
 import { MCP_APPS_METHODS, type RpcLogEvent, type WidgetManifestEntry } from '@studio/shared';
 import { describe, expect, it } from 'vitest';
-import { buildTestPlan, checkTarget, evaluateRun, summarize } from './test-plan.js';
+import { buildTestPlan, checkTarget, evaluateRun, safeSegment, summarize } from './test-plan.js';
 
 const widget = (id: string, scenarios: string[]): WidgetManifestEntry => ({
   id,
@@ -92,5 +93,32 @@ describe('checkTarget', () => {
   it('fails when the studio reports nothing (no widget, or an old studio without the hook)', () => {
     expect(checkTarget(run, { widget: null, scenario: 'default', theme: 'light' })).toHaveLength(1);
     expect(checkTarget(run, undefined)).toHaveLength(1);
+  });
+});
+
+describe('artifact paths', () => {
+  it('safeSegment keeps sane names and neutralizes the rest', () => {
+    expect(safeSegment('default')).toBe('default');
+    expect(safeSegment('recorded-1.v2')).toBe('recorded-1.v2');
+    expect(safeSegment('a b/c')).toBe('a_b_c');
+    expect(safeSegment('..')).toBe('_');
+    expect(safeSegment('.')).toBe('_');
+    expect(safeSegment('')).toBe('_');
+  });
+
+  it('keeps every screenshot inside the output directory', () => {
+    const plan = buildTestPlan([widget('../../evil', ['../../etc/x', 'ok'])], ['light']);
+    const out = path.resolve('/tmp/out');
+    for (const run of plan) {
+      expect(run.screenshot.split('/')).not.toContain('..');
+      expect(path.resolve(out, run.screenshot).startsWith(out + path.sep)).toBe(true);
+    }
+    // the real names still drive the deep link
+    expect(plan[0]?.query).toContain(encodeURIComponent('../../etc/x').replace(/%20/g, '+'));
+  });
+
+  it('keeps nested ids from colliding basenames as folders', () => {
+    const [run] = buildTestPlan([widget('a/kpi', ['default'])], ['dark']);
+    expect(run?.screenshot).toBe('a/kpi/default.dark.png');
   });
 });

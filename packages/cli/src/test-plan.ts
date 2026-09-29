@@ -24,6 +24,18 @@ export interface RunResult {
   diff?: string;
 }
 
+/**
+ * A file-name-safe path segment: anything outside `[A-Za-z0-9._-]` becomes `_`, and `.`/`..`/empty
+ * become `_`, so names from story files can never steer an artifact outside its directory.
+ */
+export function safeSegment(name: string): string {
+  const cleaned = name.replace(/[^A-Za-z0-9._-]/g, '_');
+  return cleaned === '' || cleaned === '.' || cleaned === '..' ? '_' : cleaned;
+}
+
+/** Widget ids may be root-relative paths (colliding basenames): keep them as folders, segment by segment. */
+const safeId = (id: string) => id.split('/').map(safeSegment).join('/');
+
 /** One run per widget × scenario × theme; `live` needs a real server, so it is skipped. */
 export function buildTestPlan(manifest: WidgetManifestEntry[], themes: Theme[]): TestRun[] {
   return manifest.flatMap((w) =>
@@ -35,7 +47,7 @@ export function buildTestPlan(manifest: WidgetManifestEntry[], themes: Theme[]):
           scenario,
           theme,
           query: new URLSearchParams({ widget: w.id, scenario, theme }).toString(),
-          screenshot: `${w.id}/${scenario}.${theme}.png`,
+          screenshot: `${safeId(w.id)}/${safeSegment(scenario)}.${theme}.png`,
         })),
       ),
   );
