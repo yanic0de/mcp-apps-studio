@@ -89,3 +89,15 @@ describe('issue forms', () => {
     if (file !== 'config.yml') expect(doc.body.length).toBeGreaterThan(0);
   });
 });
+
+describe('changesets action matches the changesets CLI', () => {
+  it('uses action v1 with CLI 2.x and action v2 with CLI 3.x', () => {
+    const cli = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')).devDependencies[
+      '@changesets/cli'
+    ] as string;
+    const cliMajor = Number(cli.match(/\d+/)?.[0]);
+    const release = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'release.yml'), 'utf8');
+    const actionMajor = Number(release.match(/changesets\/action@[0-9a-f]{40} # v(\d+)/)?.[1]);
+    expect({ cliMajor, actionMajor }).toEqual({ cliMajor, actionMajor: cliMajor - 1 });
+  });
+});
