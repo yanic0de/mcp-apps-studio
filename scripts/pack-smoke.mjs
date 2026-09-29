@@ -96,6 +96,23 @@ run(
   ],
   project,
 );
+// The installed bin must find its own package.json (version) and reject bad input without a stack.
+const version = spawnSync('npx', ['mcp-apps-studio', '--version'], {
+  cwd: project,
+  encoding: 'utf8',
+  shell: process.platform === 'win32',
+});
+if (version.status !== 0 || !/^\d+\.\d+\.\d+/.test(version.stdout.trim())) {
+  throw new Error(`--version failed: ${version.stdout}${version.stderr}`);
+}
+const typo = spawnSync('npx', ['mcp-apps-studio', 'tset'], {
+  cwd: project,
+  encoding: 'utf8',
+  shell: process.platform === 'win32',
+});
+if (typo.status !== 1 || !typo.stderr.includes('neither a command nor a directory')) {
+  throw new Error(`typo handling failed: ${typo.stderr}`);
+}
 run('npx', ['mcp-apps-studio', 'install-browser'], project);
 run('npx', ['mcp-apps-studio', 'init', 'widgets/hello.html', '--tool', 'get_hello'], project);
 run('npx', ['mcp-apps-studio', 'test', '--out', 'out'], project);

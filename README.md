@@ -47,6 +47,8 @@ npx mcp-apps-studio install-browser      # once: Chromium matching the bundled P
 npx mcp-apps-studio test                 # every story × theme in headless Chromium; exit 1 on failure
 ```
 
+`npx mcp-apps-studio --help` lists every command; `<command> --help` shows its flags. Typos in commands or flags fail with a one-line `error:` and exit code `1` (set `MCP_APPS_STUDIO_DEBUG=1` to see the stack of an unexpected error); `test` exits `2` when Chromium is not installed.
+
 The studio live-reloads: save a story or a widget HTML and the open studio refetches and remounts the widget, keeping your scenario. A story that fails to load shows up in a banner instead of taking the others down (and fails `test`).
 
 **Widgets straight from Vite, with HMR.** Point a story at your dev server and add the plugin:

@@ -16,5 +16,5 @@
 
 ## 4. Wrap-up
 
-- [ ] 4.1 README CLI section (command table + `--help`), CLAUDE.md (`args.ts`, `listenLoopback`, error policy), changeset (patch) — verify by reading the diff
+- [x] 4.1 README CLI section (command table + `--help`), CLAUDE.md (`args.ts`, `listenLoopback`, error policy), changeset (patch) — verify by reading the diff
 - [ ] 4.2 `pnpm openspec validate --all --strict`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm e2e`, `pnpm smoke:pack` all green
