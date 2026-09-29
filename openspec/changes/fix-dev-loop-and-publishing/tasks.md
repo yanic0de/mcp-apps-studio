@@ -15,7 +15,7 @@
 
 - [x] 3.1 `MessageBridge`: no unhandled rejections; send failures logged as `invalid` — verify `message-bridge.test.ts` (throwing handler, throwing send on response and notify)
 - [x] 3.2 `connectWidget` cleanup on failed connect — verify `session.test.ts` (start rejects → rejects with it, transport closed)
-- [ ] 3.3 Server read-stream errors → 500 via an `openFile` seam — verify `server.test.ts`
+- [x] 3.3 Server read-stream errors → 500 via an `openFile` seam — verify `server.test.ts`
 - [ ] 3.4 `safeSegment` in `buildTestPlan` — verify `test-plan.test.ts` (traversal scenario name stays inside)
 
 ## 4. Publishing
