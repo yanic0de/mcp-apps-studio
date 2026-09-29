@@ -60,11 +60,15 @@ The resource `ui://test/inspector.html` (MIME `text/html;profile=mcp-app`) SHALL
 - **THEN** the output contains `"isError": true` and `Intentional failure` with the `error` class
 
 ### Requirement: HTTP like example-server
-`main.ts` SHALL mirror the example-server layout (express, CORS, `/health`, stateless `POST /mcp`) on port 3200. This is a deliberate copy: both packages stay free of shared dependencies.
+`main.ts` SHALL mirror the example-server layout (express, CORS, `/health`, stateless `POST /mcp`, `HOST` default `127.0.0.1`) on port 3200. This is a deliberate copy: both packages stay free of shared dependencies.
 
 #### Scenario: Health
 - **WHEN** `GET /health` is requested
 - **THEN** the answer is `{ ok: true }`
+
+#### Scenario: Loopback by default
+- **WHEN** `main.ts` starts without `HOST`
+- **THEN** it listens on `127.0.0.1`
 
 ### Requirement: Inspector shows the tool lifecycle
 The inspector SHALL print every `tool-input-partial`, `tool-input`, `tool-result` and `tool-cancelled` notification it receives, in a lifecycle log separate from the button output.
