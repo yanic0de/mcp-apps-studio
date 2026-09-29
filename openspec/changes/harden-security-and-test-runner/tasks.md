@@ -28,4 +28,4 @@
 ## 6. Wrap-up
 
 - [x] 6.1 Changeset (patch, `mcp-apps-studio`); README notes for `add --force` and the servers' `HOST`; CLAUDE.md mentions `run-executor` and `getActive()` — verify by reading the diff
-- [ ] 6.2 `pnpm openspec validate --all --strict`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm e2e`, `pnpm smoke:pack` all green
+- [x] 6.2 `pnpm openspec validate --all --strict`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm e2e`, `pnpm smoke:pack` all green
