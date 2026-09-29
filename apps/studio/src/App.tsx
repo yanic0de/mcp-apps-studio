@@ -1,16 +1,17 @@
 import type { StudioManifest } from '@studio/shared';
 import { useEffect } from 'react';
+import { type AutomationHook, createAutomationHook } from './automation.js';
 import { Canvas } from './components/Canvas.js';
 import { HeaderControls } from './components/HeaderControls.js';
 import { TracePanel } from './components/TracePanel.js';
 import { applyDeepLink } from './deep-link.js';
 import { demoWidget } from './demo.js';
-import { type TraceEntry, useStudioStore } from './store.js';
+import { useStudioStore } from './store.js';
 
 declare global {
   interface Window {
     /** Read-only automation hook (used by `mcp-apps-studio test`). */
-    __mcpStudio?: { getLog(): TraceEntry[] };
+    __mcpStudio?: AutomationHook;
   }
 }
 
@@ -37,7 +38,7 @@ function subscribeToManifestEvents(): () => void {
 
 export function App() {
   useEffect(() => {
-    window.__mcpStudio = { getLog: () => structuredClone(useStudioStore.getState().log) };
+    window.__mcpStudio = createAutomationHook(useStudioStore.getState);
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
     loadManifest()
