@@ -79,6 +79,8 @@ export default defineWidgetStory({
 });
 ```
 
+Stories are bundled when they are loaded. Local imports, such as `./fixtures.json` or a helper, are inlined, and editing one reloads the studio. Package imports resolve from your project. Imports through a path alias (`@/fixtures`) count as packages, so after editing an aliased file, restart the studio.
+
 Story files are validated when they are loaded. A misspelled mock kind fails with the file name and the exact path, such as `scenarios.default.mocks.get_metrics.kind`, instead of surfacing in the browser.
 
 | Field | Meaning |

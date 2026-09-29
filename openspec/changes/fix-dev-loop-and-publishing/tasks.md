@@ -21,7 +21,7 @@
 ## 4. Publishing
 
 - [x] 4.1 `publishConfig.provenance: true` in both packages; `release.yml` without `NPM_TOKEN`/`NODE_AUTH_TOKEN`/`registry-url`; tests in `package-meta.test.ts` and `workflows.test.ts`; CONTRIBUTING release checklist (trusted publishers first) — verify tests
-- [ ] 4.2 Patch changeset; README note on path aliases in stories; CLAUDE.md/ARCHITECTURE updates — verify by reading the diff
+- [x] 4.2 Patch changeset; README note on path aliases in stories; CLAUDE.md/ARCHITECTURE updates — verify by reading the diff
 
 ## 5. Wrap-up
 
