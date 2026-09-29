@@ -2,11 +2,13 @@ import fs from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import type { DiscoveryError, RpcLogEvent } from '@studio/shared';
+import type { Page } from 'playwright-core';
 import { discoverStories } from './discover.js';
 import { renderHtmlReport, renderMarkdownSummary } from './report.js';
+import { executeRun, type RunContext, type RunPage } from './run-executor.js';
 import { createStudioServer, generateToken } from './server.js';
-import { buildTestPlan, evaluateRun, type RunResult, type Theme } from './test-plan.js';
-import { compareWithBaseline, type VisualOptions } from './visual.js';
+import { type ActiveTarget, buildTestPlan, type RunResult, type Theme } from './test-plan.js';
+import type { VisualOptions } from './visual.js';
 
 export interface StoryTestOptions {
   rootDir: string;
@@ -22,8 +24,40 @@ export interface StoryTestOptions {
 export class NoBrowserError extends Error {}
 
 const HANDSHAKE_TIMEOUT_MS = 10_000;
-/** Lets delayed/loading scenarios reach their visible state before the screenshot. */
 const SETTLE_MS = 300;
+
+/** The studio's read-only automation hook (`window.__mcpStudio`); `getActive` is missing in older studios. */
+interface StudioHook {
+  getLog(): RpcLogEvent[];
+  getActive?(): ActiveTarget;
+}
+type HookGlobal = { __mcpStudio?: StudioHook };
+
+/** Adapts a Playwright page to what one run needs. */
+function playwrightRunPage(page: Page): RunPage {
+  return {
+    goto: async (url) => {
+      await page.goto(url);
+    },
+    waitForLog: async (method, timeout) => {
+      await page
+        // Evaluated in the browser: no closures over Node code.
+        .waitForFunction(
+          (m) => (globalThis as HookGlobal).__mcpStudio?.getLog().some((e) => e.method === m) ?? false,
+          method,
+          { timeout },
+        )
+        .catch(() => {}); // the run's evaluation reports the missing step
+    },
+    settle: (ms) => page.waitForTimeout(ms),
+    getLog: () => page.evaluate(() => (globalThis as HookGlobal).__mcpStudio?.getLog() ?? []),
+    getActive: () => page.evaluate(() => (globalThis as HookGlobal).__mcpStudio?.getActive?.()),
+    screenshotViewport: async (file) => {
+      await page.locator('[data-testid="viewport"]').screenshot({ path: file });
+    },
+    close: () => page.close(),
+  };
+}
 
 /**
  * Serves the studio locally and drives headless Chromium through the story matrix via deep links,
@@ -57,64 +91,29 @@ export async function runStoryTests(
       () => false,
     ));
   const results: RunResult[] = [];
+  const ctx: RunContext = {
+    url: (run) => `${base}/?token=${token}&${run.query}`,
+    outDir: opts.outDir,
+    snapshots,
+    compare: Boolean(compare),
+    handshakeTimeoutMs: HANDSHAKE_TIMEOUT_MS,
+    settleMs: SETTLE_MS,
+  };
   try {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     for (const run of plan) {
-      const page = await context.newPage();
-      await page.goto(`${base}/?token=${token}&${run.query}`);
-      await page
-        .waitForFunction(
-          (method) => {
-            const hook = (globalThis as { __mcpStudio?: { getLog(): { method?: string }[] } }).__mcpStudio;
-            return hook?.getLog().some((e) => e.method === method) ?? false;
-          },
-          'ui/notifications/initialized',
-          { timeout: HANDSHAKE_TIMEOUT_MS },
-        )
-        .catch(() => {}); // evaluateRun reports the missing step
-      await page.waitForTimeout(SETTLE_MS);
-      const log = await page.evaluate(
-        () => (globalThis as { __mcpStudio?: { getLog(): unknown[] } }).__mcpStudio?.getLog() ?? [],
+      const result = await context.newPage().then(
+        (page) => executeRun(playwrightRunPage(page), run, ctx),
+        (err: unknown): RunResult => ({
+          widget: run.widget,
+          scenario: run.scenario,
+          theme: run.theme,
+          ok: false,
+          failures: [`run crashed: ${err instanceof Error ? err.message : String(err)}`],
+        }),
       );
-      const verdict = evaluateRun(log as RpcLogEvent[]);
-      const file = path.join(opts.outDir, run.screenshot);
-      await fs.mkdir(path.dirname(file), { recursive: true });
-      try {
-        await page.locator('[data-testid="viewport"]').screenshot({ path: file });
-      } catch {
-        verdict.ok = false;
-        verdict.failures.push('widget viewport never rendered');
-      }
-      const result: RunResult = {
-        widget: run.widget,
-        scenario: run.scenario,
-        theme: run.theme,
-        ...verdict,
-        screenshot: run.screenshot,
-      };
-      const baseline = snapshots ? path.join(snapshots.dir, run.screenshot) : undefined;
-      if (
-        snapshots?.update &&
-        baseline &&
-        (await fs.stat(file).then(
-          () => true,
-          () => false,
-        ))
-      ) {
-        await fs.mkdir(path.dirname(baseline), { recursive: true });
-        await fs.copyFile(file, baseline);
-      } else if (compare && baseline && snapshots) {
-        const visual = await compareWithBaseline(file, baseline, snapshots);
-        result.baseline = path.relative(opts.outDir, baseline).split(path.sep).join('/');
-        if (!visual.ok) {
-          result.ok = false;
-          result.failures.push(visual.reason ?? 'visual change');
-          if (visual.diffImage) result.diff = path.relative(opts.outDir, visual.diffImage).split(path.sep).join('/');
-        }
-      }
       results.push(result);
       opts.onResult?.(result);
-      await page.close();
     }
   } finally {
     await browser.close();
