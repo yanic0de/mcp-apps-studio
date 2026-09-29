@@ -33,7 +33,10 @@ export class MessageBridge {
 
   start(): void {
     if (this.unsubscribe) return;
-    this.unsubscribe = this.opts.transport.onMessage((raw) => void this.handleIncoming(raw));
+    // A failure while handling one message must neither crash the host nor go unnoticed: it lands in the trace.
+    this.unsubscribe = this.opts.transport.onMessage((raw) => {
+      this.handleIncoming(raw).catch((err: unknown) => this.logFailure('handle', raw, err));
+    });
   }
 
   stop(): void {
@@ -57,7 +60,23 @@ export class MessageBridge {
   notify(method: string, params?: unknown): void {
     const msg = { jsonrpc: JSON_RPC_VERSION, method, ...(params !== undefined ? { params } : {}) };
     this.log({ direction: 'host→widget', kind: 'notification', method, payload: msg });
-    this.opts.transport.send(msg);
+    try {
+      this.opts.transport.send(msg);
+    } catch (err) {
+      this.logFailure('send', msg, err, method);
+    }
+  }
+
+  private logFailure(what: 'handle' | 'send', payload: unknown, err: unknown, method?: string): void {
+    const message = err instanceof Error ? err.message : String(err);
+    const name = method ?? (payload as { method?: unknown } | null)?.method;
+    this.log({
+      direction: what === 'send' ? 'host→widget' : 'widget→host',
+      kind: 'invalid',
+      ...(typeof name === 'string' ? { method: name } : {}),
+      payload,
+      error: `host failed to ${what} ${typeof name === 'string' ? name : 'message'}: ${message}`,
+    });
   }
 
   private log(ev: Omit<RpcLogEvent, 'ts'>): void {
@@ -110,7 +129,11 @@ export class MessageBridge {
     }
     if (!this.unsubscribe) return; // stopped while handling
     this.log({ direction: 'host→widget', kind: 'response', id: req.id, payload: response });
-    this.opts.transport.send(response);
+    try {
+      this.opts.transport.send(response);
+    } catch (err) {
+      this.logFailure('send', response, err, req.method);
+    }
   }
 
   private handleResponse(msg: JsonRpcResponse): void {

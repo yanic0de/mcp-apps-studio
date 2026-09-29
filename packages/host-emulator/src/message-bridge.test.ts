@@ -119,4 +119,93 @@ describe('MessageBridge', () => {
     // only the original 'ping' request reached the widget; no response after stop
     expect(widget.received).toHaveLength(1);
   });
+
+  describe('never fails unhandled', () => {
+    /** A transport whose send can be made to throw (e.g. a non-cloneable postMessage payload). */
+    function flakyTransport() {
+      let handler: ((m: unknown) => void) | undefined;
+      const t = {
+        failSend: false,
+        sent: [] as unknown[],
+        send(m: unknown) {
+          if (t.failSend) throw new Error('DataCloneError: could not be cloned');
+          t.sent.push(m);
+        },
+        onMessage(h: (m: unknown) => void) {
+          handler = h;
+          return () => {
+            handler = undefined;
+          };
+        },
+        deliver: (m: unknown) => handler?.(m),
+      };
+      return t;
+    }
+
+    async function withoutUnhandled(run: () => Promise<void>) {
+      const unhandled: unknown[] = [];
+      const onUnhandled = (reason: unknown) => unhandled.push(reason);
+      process.on('unhandledRejection', onUnhandled);
+      try {
+        await run();
+        await new Promise((r) => setTimeout(r, 10));
+      } finally {
+        process.off('unhandledRejection', onUnhandled);
+      }
+      expect(unhandled).toEqual([]);
+    }
+
+    it('logs a throwing notification handler as invalid', async () => {
+      const t = flakyTransport();
+      const log: RpcLogEvent[] = [];
+      const bridge = new MessageBridge({
+        transport: t,
+        onRequest: async () => ({}),
+        onNotification: () => {
+          throw new Error('handler blew up');
+        },
+        onLog: (ev) => log.push(ev),
+      });
+      bridge.start();
+      await withoutUnhandled(async () => {
+        t.deliver({ jsonrpc: '2.0', method: 'ui/notifications/initialized' });
+        await flush();
+      });
+      expect(log.find((e) => e.kind === 'invalid')?.error).toContain('handler blew up');
+    });
+
+    it('logs an unsendable response and keeps serving', async () => {
+      const t = flakyTransport();
+      const log: RpcLogEvent[] = [];
+      const bridge = new MessageBridge({
+        transport: t,
+        onRequest: async () => ({ ok: 1 }),
+        onLog: (ev) => log.push(ev),
+      });
+      bridge.start();
+      await withoutUnhandled(async () => {
+        t.failSend = true;
+        t.deliver({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'x' } });
+        await flush();
+      });
+      expect(log.find((e) => e.kind === 'invalid')?.error).toContain('DataCloneError');
+      t.failSend = false;
+      t.deliver({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'x' } });
+      await flush();
+      expect(t.sent).toEqual([{ jsonrpc: '2.0', id: 2, result: { ok: 1 } }]);
+    });
+
+    it('notify does not throw when the transport does', () => {
+      const t = flakyTransport();
+      const log: RpcLogEvent[] = [];
+      const bridge = new MessageBridge({ transport: t, onRequest: async () => ({}), onLog: (ev) => log.push(ev) });
+      bridge.start();
+      t.failSend = true;
+      expect(() => bridge.notify('ui/notifications/tool-input', { arguments: {} })).not.toThrow();
+      expect(log.find((e) => e.kind === 'invalid')).toMatchObject({
+        method: 'ui/notifications/tool-input',
+        error: expect.stringContaining('DataCloneError'),
+      });
+    });
+  });
 });
