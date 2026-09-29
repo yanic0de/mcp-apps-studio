@@ -136,7 +136,8 @@ function generalHelp(): string {
   ].join('\n');
 }
 
-class UsageError extends Error {}
+/** A user-facing failure: printed as one `error: …` line, exit 1, never with a stack. */
+export class CliError extends Error {}
 
 /** Turns node:util parseArgs errors into one line naming the flag. */
 function parseFlags(name: CommandName, argv: string[]) {
@@ -152,9 +153,9 @@ function parseFlags(name: CommandName, argv: string[]) {
     const code = (err as { code?: string }).code;
     const message = err instanceof Error ? err.message : String(err);
     const flag = message.match(/'(-[^' ]+)/)?.[1];
-    if (code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') throw new UsageError(`unknown option ${flag} for ${name}`);
-    if (code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE') throw new UsageError(`${flag} needs a value`);
-    if (code?.startsWith('ERR_PARSE_ARGS_')) throw new UsageError(message);
+    if (code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION') throw new CliError(`unknown option ${flag} for ${name}`);
+    if (code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE') throw new CliError(`${flag} needs a value`);
+    if (code?.startsWith('ERR_PARSE_ARGS_')) throw new CliError(message);
     throw err;
   }
 }
@@ -164,12 +165,12 @@ const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
 function number(flag: string, raw: string | undefined, fallback: number, check: (n: number) => boolean): number {
   if (raw === undefined) return fallback;
   const n = Number(raw);
-  if (raw.trim() === '' || !Number.isFinite(n) || !check(n)) throw new UsageError(`invalid ${flag} value: ${raw}`);
+  if (raw.trim() === '' || !Number.isFinite(n) || !check(n)) throw new CliError(`invalid ${flag} value: ${raw}`);
   return n;
 }
 
 function atMostOne(positionals: string[], what: string): string | undefined {
-  if (positionals.length > 1) throw new UsageError(`expected one ${what}, got: ${positionals.join(' ')}`);
+  if (positionals.length > 1) throw new CliError(`expected one ${what}, got: ${positionals.join(' ')}`);
   return positionals[0];
 }
 
@@ -179,7 +180,7 @@ function build(name: CommandName, values: Record<string, unknown>, positionals: 
       const token = str(values.token);
       // The token is the only thing between a local page and the studio API: no guessable values.
       if (token !== undefined && !/^[A-Za-z0-9_-]{32,}$/.test(token)) {
-        throw new UsageError('invalid --token value: use at least 32 characters from [A-Za-z0-9_-]');
+        throw new CliError('invalid --token value: use at least 32 characters from [A-Za-z0-9_-]');
       }
       return {
         name,
@@ -192,7 +193,7 @@ function build(name: CommandName, values: Record<string, unknown>, positionals: 
       const rawThemes = str(values.themes);
       const themes = rawThemes === undefined ? ['light', 'dark'] : rawThemes.split(',').filter(Boolean);
       if (themes.length === 0 || themes.some((t) => t !== 'light' && t !== 'dark')) {
-        throw new UsageError(`invalid --themes value: ${rawThemes} (use light,dark)`);
+        throw new CliError(`invalid --themes value: ${rawThemes} (use light,dark)`);
       }
       return {
         name,
@@ -220,7 +221,7 @@ function build(name: CommandName, values: Record<string, unknown>, positionals: 
         force: values.force === true,
       };
     case 'install-browser':
-      if (positionals.length > 0) throw new UsageError(`install-browser takes no arguments, got: ${positionals[0]}`);
+      if (positionals.length > 0) throw new CliError(`install-browser takes no arguments, got: ${positionals[0]}`);
       return { name, withDeps: values['with-deps'] === true };
   }
 }
@@ -242,7 +243,7 @@ export function parseCli(argv: string[]): Cli {
     if (values.help === true) return { kind: 'help', text: name === 'start' ? generalHelp() : commandHelp(name) };
     return { kind: 'run', command: build(name, values, positionals) };
   } catch (err) {
-    if (err instanceof UsageError) return { kind: 'error', message: err.message };
+    if (err instanceof CliError) return { kind: 'error', message: err.message };
     throw err;
   }
 }
