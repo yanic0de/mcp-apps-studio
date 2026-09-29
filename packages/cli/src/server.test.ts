@@ -1,9 +1,10 @@
 import fs from 'node:fs/promises';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import type { StudioManifest, WidgetManifestEntry } from '@studio/shared';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { createStudioServer, generateToken, type StudioServer } from './server.js';
+import { createStudioServer, generateToken, listenLoopback, PortInUseError, type StudioServer } from './server.js';
 
 const TOKEN = 'a'.repeat(32);
 const kpi: WidgetManifestEntry = { id: 'kpi', title: 'KPI', html: '<html/>', scenarios: { default: { mocks: {} } } };
@@ -171,5 +172,29 @@ describe('createStudioServer', () => {
     // must never leak a file outside dist: either rejected or SPA fallback
     const text = await res.text();
     expect(text).not.toContain('root:');
+  });
+});
+
+describe('listenLoopback', () => {
+  it('resolves with the bound port on 127.0.0.1', async () => {
+    const s = createStudioServer({ studioDist: dist, getManifest: async () => manifest, token: TOKEN });
+    server = s;
+    const port = await listenLoopback(s, 0);
+    expect(port).toBeGreaterThan(0);
+    expect((s.address() as net.AddressInfo).address).toBe('127.0.0.1');
+  });
+
+  it('rejects with PortInUseError when the port is taken', async () => {
+    const blocker = net.createServer();
+    await new Promise<void>((r) => blocker.listen(0, '127.0.0.1', r));
+    const taken = (blocker.address() as net.AddressInfo).port;
+    try {
+      const s = createStudioServer({ studioDist: dist, getManifest: async () => manifest, token: TOKEN });
+      const err = await listenLoopback(s, taken).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(PortInUseError);
+      expect((err as PortInUseError).port).toBe(taken);
+    } finally {
+      await new Promise((r) => blocker.close(r));
+    }
   });
 });

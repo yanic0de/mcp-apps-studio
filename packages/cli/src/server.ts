@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import type { StudioManifest } from '@studio/shared';
 
@@ -134,4 +135,28 @@ export function createStudioServer(opts: StudioServerOptions): StudioServer {
     return close(cb);
   };
   return server;
+}
+
+/** The requested port is taken; the CLI turns this into a one-line hint instead of a stack. */
+export class PortInUseError extends Error {
+  constructor(readonly port: number) {
+    super(`port ${port} is already in use — pass --port <other>`);
+  }
+}
+
+/** Listens on 127.0.0.1 only (never all interfaces) and resolves with the bound port. */
+export function listenLoopback(server: http.Server, port: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const onError = (err: NodeJS.ErrnoException) => {
+      server.off('listening', onListening);
+      reject(err.code === 'EADDRINUSE' ? new PortInUseError(port) : err);
+    };
+    const onListening = () => {
+      server.off('error', onError);
+      resolve((server.address() as AddressInfo).port);
+    };
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(port, '127.0.0.1');
+  });
 }
