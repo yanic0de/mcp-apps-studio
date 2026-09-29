@@ -2,193 +2,147 @@
 
 **Storybook + Playwright for [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) widgets.**
 
-Develop widgets component-first against stories and mocks — no server, no chat, no LLM — and run every story headlessly in CI. Everything a real host (Claude, ChatGPT) does to your widget — sandboxed iframe render, JSON-RPC bridge, theme and display-mode context, tool calls — reproduced on your machine and made observable. Storybook-style scenarios for your widgets, mocked or live tool calls, and a full RPC trace of every message that crosses the iframe boundary.
+Develop widgets against stories and mocked tool calls, with no server, chat or LLM in the loop. Then run every story headlessly in CI. MCP Apps Studio stands in for the host (Claude, ChatGPT): it renders your widget in a sandboxed iframe and runs the JSON-RPC bridge, the theme and display-mode context and the tool calls. It also shows every message that crosses the iframe boundary.
 
 Targets the MCP Apps extension (SEP-1865), spec version `2026-01-26`.
 
-> **Status: pre-release (0.x).** Packaged for npm; the first release is pending.
+> **Status: 0.x, pre-release.** The API may still change between minor versions.
+
+![The studio: KPI card widget in the sandboxed canvas, controls for widget, scenario, theme, device and display mode, and the RPC trace with a tools/call result expanded](docs/assets/studio-light.png)
 
 ## Why
 
-Building a widget for an MCP Apps host means round-tripping through a real host to see anything: deploy the server, open the chat, invoke the tool, hope the iframe loads. You can't easily reproduce the loading state, a backend error, dark mode, or picture-in-picture. And the protocol between your widget and the host is invisible — when something breaks, you're guessing.
+Without a local host, seeing any change to a widget means a full round trip: deploy the server, open the chat, invoke the tool, and hope the iframe loads. States like loading, a backend error, dark mode or picture-in-picture are hard to reproduce. The protocol between widget and host is invisible, so when something breaks you are guessing.
 
-MCP Apps Studio replaces the host with a controllable one:
+MCP Apps Studio replaces the host with one you control:
 
-- **Scenarios instead of deploys.** Describe a widget and its states (`default`, `loading`, `error`, `empty`) in a story file. Switch between them in one click.
-- **Mocks instead of backends.** Every `tools/call` is answered from a scenario: a static result, an error with a code, a delay, or passthrough to a real server.
+- **Scenarios instead of deploys.** Describe a widget and its states (`default`, `loading`, `error`, `empty`) in a story file, and switch between them in one click.
+- **Mocks instead of backends.** Every `tools/call` is answered from the scenario: a static result, a tool error, a protocol error, a delay, or a pass-through to a real server.
 - **A trace instead of guessing.** Every request, response and notification in both directions is logged, including malformed messages your widget shouldn't have sent.
-- **Stories as a test suite.** `mcp-apps-studio test` plays every scenario in headless Chromium in CI: the SDK handshake must complete and nothing malformed may cross the bridge.
+- **Stories as a test suite.** `mcp-apps-studio test` plays every scenario in headless Chromium in CI. A run fails if the handshake doesn't complete, if an invalid message crosses the bridge, or if the pixels changed.
 - **Fixtures from reality.** Record a session against your real server and save it as an offline scenario.
-- **Real hosts are strict; so is this one.** Sandboxed iframe with `allow-scripts` only, null-origin trust model, every incoming message validated before dispatch. If it works here, you haven't accidentally relied on `window.parent` or `allow-same-origin`.
+- **As strict as real hosts.** Widgets run in an iframe sandboxed with `allow-scripts` only, trust is based on the null origin, and every incoming message is validated. So if a widget works here, it hasn't quietly relied on `window.parent` or `allow-same-origin`.
 
-**Not a server inspector.** For chatting with an LLM, OAuth flows or poking at a server's tools, use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) or [MCPJam](https://github.com/MCPJam/inspector). MCP Apps Studio is for the widget: its states, its protocol hygiene, its regression tests.
+## How it compares
 
-## What's inside
+| | MCP Apps Studio | [MCP Inspector](https://github.com/modelcontextprotocol/inspector) / [MCPJam](https://github.com/MCPJam/inspector) | Storybook |
+|---|---|---|---|
+| Focus | The **widget**: its states, protocol hygiene, regression tests | The **server**: tools, resources, OAuth, chatting with an LLM | UI components in general |
+| Host emulation (sandbox, SEP-1865 bridge, host context) | ✅ | Partial / via a real chat | ❌ |
+| Mocked tool calls per scenario | ✅ | ❌ | Via addons |
+| Headless CI runs + visual diffs | ✅ `mcp-apps-studio test` | ❌ | Via test runner / Chromatic |
 
-| Package | What it is |
-|---|---|
-| `apps/studio` | The studio UI: widget and scenario picker, theme / display-mode controls, sandboxed canvas, RPC trace panel |
-| `packages/host-emulator` | DOM-free host core: JSON-RPC bridge, protocol adapter, mock router, orchestrator. Usable from Node tests |
-| `packages/widget-runtime` | Studio conveniences on top of the official `@modelcontextprotocol/ext-apps` `App`: `connectWidget` (lifecycle recorded before the handshake, host theme applied), React hooks |
-| `packages/cli` | `mcp-apps-studio`: discovers `*.stories.mcp.ts` in your project, serves the studio locally with token auth, copies components into your project |
-| `packages/components` | Source-distributed widget library (shadcn model): `kpi-card`, `data-table`, each with stories and a text fallback |
-| `packages/shared` | Protocol constants, zod schemas, `RpcError`, request correlation |
-| `packages/example-server` | Reference MCP Apps server on the public SDKs, no workspace deps. Copy it to start your own |
-| `packages/test-server` | Test polygon: one tool per host behavior (`echo`, `slow_metrics`, `fail`, `get_rows`, `counter`) plus a "Protocol Inspector" widget |
+Use an inspector to poke your server. Use MCP Apps Studio to build and test what the server renders.
 
-## Install
+## Quickstart
 
-In your MCP Apps project (Node 20.11+):
+In your MCP Apps project (Node 22+):
 
 ```bash
-npx mcp-apps-studio init                 # scaffold a *.stories.mcp.ts next to every widget HTML it finds
-npx mcp-apps-studio                      # the studio over your stories → http://127.0.0.1:4400/?token=…
-npx mcp-apps-studio install-browser      # once: Chromium matching the bundled Playwright
-npx mcp-apps-studio test                 # every story × theme in headless Chromium; exit 1 on failure
+npm i -D mcp-apps-studio              # stories import its types, so install it locally
+npx mcp-apps-studio init              # scaffold a *.stories.mcp.ts next to every widget HTML it finds
+npx mcp-apps-studio                   # the studio over your stories → http://127.0.0.1:4400/?token=…
+npx mcp-apps-studio install-browser   # once: Chromium matching the bundled Playwright
+npx mcp-apps-studio test              # every story × theme in headless Chromium; exit 1 on failure
 ```
 
-`npx mcp-apps-studio --help` lists every command; `<command> --help` shows its flags. Typos in commands or flags fail with a one-line `error:` and exit code `1` (set `MCP_APPS_STUDIO_DEBUG=1` to see the stack of an unexpected error); `test` exits `2` when Chromium is not installed.
+When you save a story or a widget, the open studio reloads it and keeps your scenario. A story that fails to load shows up in a banner and doesn't take the others down, though it still fails `test`. `npx mcp-apps-studio --help` lists every command, and `<command> --help` lists that command's flags.
 
-The studio live-reloads: save a story or a widget HTML and the open studio refetches and remounts the widget, keeping your scenario. A story that fails to load shows up in a banner instead of taking the others down (and fails `test`).
-
-**Widgets straight from Vite, with HMR.** Point a story at your dev server and add the plugin:
-
-```ts
-// vite.config.ts
-import { mcpAppsStudio } from 'mcp-apps-studio/vite';
-export default defineConfig({ plugins: [mcpAppsStudio()] });
-
-// weather.stories.mcp.ts
-export default { title: 'Weather', widget: 'http://localhost:5173/', scenarios: { /* … */ } };
-```
-
-The widget still runs in the host-faithful sandbox (`allow-scripts` only, `null` origin). Vite refuses module scripts to a `null` origin by default; the plugin adds it to `server.cors.origin` — a dev-server-only trade-off (any sandboxed page could then read your dev server while it runs).
-
-Building widgets with the SDK? `@mcp-apps-studio/widget-runtime` adds `connectWidget` and React hooks on top of the official `App` (see below).
-
-## Develop from source
-
-Requires Node 22+ and pnpm.
-
-```bash
-git clone https://github.com/yanic0de/mcp-app-proba.git
-cd mcp-app-proba
-pnpm install
-
-# 1. The studio with a built-in demo widget
-pnpm -F @studio/app dev
-# open http://localhost:5173 — switch scenarios, flip the theme, expand trace rows
-
-# 2. Point it at a real MCP server
-pnpm -F @studio/example-server dev      # reference server on :3100
-# in the studio, pick the "live" scenario: the widget HTML now comes from
-# resources/read and every tools/call is proxied over streamable HTTP
-
-# 3. Poke the protocol
-pnpm -F @studio/test-server dev         # polygon server on :3200
-# open http://localhost:5173/?server=http://localhost:3200/mcp, pick "live"
-```
-
-Both servers listen on `127.0.0.1` only; set `HOST=0.0.0.0` (e.g. in a container) to expose them.
-
-## Test your own widgets
-
-### 1. Write a story next to your widget
+## Stories
 
 ```ts
 // src/widgets/kpi-card.stories.mcp.ts
-export default {
+import { defineWidgetStory } from 'mcp-apps-studio';
+
+export default defineWidgetStory({
   title: 'KPI Card',
-  widget: './kpi-card.html', // path relative to this file
+  widget: './kpi-card.html', // relative to this file, or a dev-server URL
   scenarios: {
     default: {
-      // the model's call that rendered the widget: pushed as tool-input → tool-result after initialized
+      // the model's call that rendered the widget: pushed as tool-input → tool-result after the handshake
       toolCall: {
         name: 'get_metrics',
         input: { period: '30d' },
         result: { kind: 'static', structuredContent: { value: 12840, delta: 8.3, label: 'MAU' } },
       },
-      mocks: {
-        // the widget's own tools/call, answered as a CallToolResult
-        // (`content` defaults to a JSON text block of structuredContent)
-        get_metrics: { kind: 'static', structuredContent: { value: 12840, delta: 8.3, label: 'MAU' } },
-      },
+      // the widget's own tools/call, answered as a CallToolResult
+      // (`content` defaults to a JSON text block of structuredContent)
+      mocks: { get_metrics: { kind: 'static', structuredContent: { value: 12840, delta: 8.3, label: 'MAU' } } },
     },
-    loading: {
-      mocks: { get_metrics: { kind: 'static', structuredContent: {}, delayMs: 3_600_000 } },
-    },
-    error: {
-      // a tool failure (isError result); use kind: 'rpc-error' for a JSON-RPC protocol error
-      mocks: { get_metrics: { kind: 'error', message: 'Metrics backend unavailable' } },
-    },
+    loading: { mocks: { get_metrics: { kind: 'static', structuredContent: {}, delayMs: 3_600_000 } } },
+    // a tool failure (isError result); use kind: 'rpc-error' for a JSON-RPC protocol error
+    error: { mocks: { get_metrics: { kind: 'error', message: 'Metrics backend unavailable' } } },
     cancelled: { toolCall: { name: 'get_metrics', result: { kind: 'cancelled', reason: 'user' } } },
-    // no mocks → the linked tool is called on the server from ?server= and every widget call is proxied
+    // no mocks → calls go to the MCP server given by ?server= (default http://localhost:3100/mcp)
     live: { mocks: {} },
   },
-};
+});
 ```
 
-Type-check it with `defineWidgetStory(...)` from the CLI package. Story files are validated at discovery time: a misspelled mock kind fails with the file name and the exact path (`scenarios.default.mocks.get_metrics.kind`) instead of surfacing in the browser.
+Story files are validated when they are loaded. A misspelled mock kind fails with the file name and the exact path, such as `scenarios.default.mocks.get_metrics.kind`, instead of surfacing in the browser.
 
-### 2. Serve the studio over your project
+| Field | Meaning |
+|---|---|
+| `toolCall` | The model's call that rendered the widget: `{ name, input?, partialInputs?, result? }`. It is played after `ui/notifications/initialized` as `tool-input-partial`* → `tool-input` → `tool-result` or `tool-cancelled`. |
+| `mocks` | Answers to the widget's own `tools/call`, keyed by tool name. |
+
+| Mock `kind` | Fields | Answer |
+|---|---|---|
+| `static` | `structuredContent?`, `content?`, `delayMs?` | A `CallToolResult`. `content` defaults to a JSON text block of `structuredContent`. |
+| `error` | `message`, `delayMs?` | A `CallToolResult` with `isError: true`, which is how servers report tool failures. |
+| `rpc-error` | `error: { code, message }`, `delayMs?` | A JSON-RPC error (a protocol failure). Not allowed as a `toolCall.result`. |
+| `passthrough` | — | Forwarded to the connected MCP server (same as having no mock in `live`). |
+| `cancelled` | `reason?`, `delayMs?` | For `toolCall.result` only: sends `tool-cancelled`. |
+
+**In the studio**, you can open a given state directly with a deep link: `?widget=kpi-card&scenario=error&theme=dark&display=fullscreen&device=mobile`. In the `live` scenario, **Save scenario** turns the real session into an offline `recorded-<n>` scenario and copies a story snippet you can paste.
+
+## Test in CI
 
 ```bash
-pnpm -F @studio/app build                       # once
-pnpm -F mcp-apps-studio start /path/to/your/project
-#   MCP Apps Studio
-#   project: /path/to/your/project
-#   widgets: 3
-#   → http://127.0.0.1:4400/?token=…
-```
-
-Stories are rediscovered on every page refresh, so edits land without restarting. The server binds `127.0.0.1` only and requires the printed token on every request (query once, then an `HttpOnly` cookie).
-
-Deep links open a given state directly: `?widget=kpi-card&scenario=error&theme=dark&display=fullscreen&device=mobile`. In the `live` scenario, **Save scenario** turns the real session into an offline `recorded-<n>` scenario and copies a paste-ready story snippet.
-
-### 3. Test every story headlessly
-
-```bash
-npx mcp-apps-studio install-browser             # once
-pnpm -F mcp-apps-studio start test /path/to/your/project --out .mcp-studio/test
+npx mcp-apps-studio test
 #   ✓ kpi-card/default [light]
 #   ✗ kpi-card/error [dark]
 #       invalid message: Unsupported notification: wat
 #   11 passed, 1 failed
 ```
 
-Every widget × scenario (except `live`) × theme runs in headless Chromium: the SDK handshake must complete and the trace must have no invalid messages. Screenshots, `report.json` and a reviewable `report.html` land in `--out`; the exit code is `1` on any failure, so it drops into CI as is.
+Every widget × scenario (except `live`) × theme runs in headless Chromium. Each run must pass these checks:
 
-**Visual regression (opt-in).** `test --update-snapshots` writes baselines to `mcp-studio-snapshots/` (commit them). From then on every run is diffed against its baseline (`--threshold 0.1`, `--max-diff-pixels 0` by default); a change fails the run and `report.html` shows baseline, actual and diff side by side. Fonts and antialiasing differ between OSes — generate baselines on the platform CI uses.
+- the studio rendered the requested widget, scenario and theme;
+- the SDK handshake completed;
+- the trace has no invalid messages.
 
-**GitHub Actions.** One step; the report is attached as an artifact and summarized on the run page:
+Screenshots, `report.json` and a reviewable `report.html` land in `--out` (default `.mcp-studio/test`). The exit code is `1` on any failure, and `2` when Chromium is missing.
+
+**Visual regression (opt-in).** `test --update-snapshots` writes baselines to `mcp-studio-snapshots/`, and only from runs that passed. Commit them. From then on, every run is diffed against its baseline (`--threshold 0.1` and `--max-diff-pixels 0` by default). A change fails the run, and `report.html` shows the baseline, the actual screenshot and the diff side by side. Fonts differ between operating systems, so generate baselines on the platform CI uses.
+
+![Story test report: a failed run with baseline, actual and diff images](docs/assets/report-diff.png)
+
+**GitHub Actions.** It takes one step. The report is attached as an artifact and summarized on the run page:
 
 ```yaml
 - uses: actions/setup-node@v4
   with: { node-version: 22 }
 - run: npm ci
-- uses: yanic0de/mcp-app-proba@main   # MCP Apps Studio story tests
+- uses: yanic0de/mcp-apps-studio@v0   # MCP Apps Studio story tests
   with:
     directory: .                        # where your *.stories.mcp.ts live
+    # version: 0.1.0                    # pin the CLI version (default: latest)
+    # args: --themes light              # extra `test` flags
 ```
 
-### Scenario reference
+## Write widgets that work on real hosts
 
-| Field | Meaning |
-|---|---|
-| `toolCall` | The model's call that rendered the widget: `{ name, input?, partialInputs?, result? }`. Played after `ui/notifications/initialized` as `tool-input-partial`* → `tool-input` → `tool-result` or `tool-cancelled`. |
-| `mocks` | Answers to the widget's own `tools/call`, keyed by tool name. |
+Widgets talk to the host through the official MCP Apps SDK, [`@modelcontextprotocol/ext-apps`](https://github.com/modelcontextprotocol/ext-apps). Its `App` class is the reference implementation of the widget side of SEP-1865, so a widget that works here works in any MCP Apps host.
 
-| Mock `kind` | Fields | Answer |
-|---|---|---|
-| `static` | `structuredContent?`, `content?`, `delayMs?` | `CallToolResult`; `content` defaults to a JSON text block of `structuredContent` |
-| `error` | `message`, `delayMs?` | `CallToolResult` with `isError: true` — how servers report tool failures |
-| `rpc-error` | `error: { code, message }`, `delayMs?` | JSON-RPC error (protocol failure); not allowed as a `toolCall.result` |
-| `passthrough` | — | Forward to the connected MCP server (same as no mock in `live`) |
-| `cancelled` | `reason?`, `delayMs?` | `toolCall.result` only: `tool-cancelled` |
+[`@mcp-apps-studio/widget-runtime`](packages/widget-runtime) adds only what the SDK leaves to you:
 
-## Write widgets that will work on real hosts
+- `connectWidget` records the originating tool call **before** the handshake. Hosts send `tool-result` right after the handshake, often before your UI mounts.
+- It keeps the document in sync with the host theme, style variables and fonts.
 
-Widgets talk to the host through the official MCP Apps SDK, [`@modelcontextprotocol/ext-apps`](https://github.com/modelcontextprotocol/ext-apps) — its `App` class is the reference implementation of the widget side of SEP-1865, so a widget that works here works in any MCP Apps host. `@mcp-apps-studio/widget-runtime` adds only what the SDK leaves to you: `connectWidget` records the originating tool call **before** the handshake (hosts send `tool-result` right after it, often before your UI mounts) and keeps the document in sync with the host theme, style variables and fonts.
+```bash
+npm i @mcp-apps-studio/widget-runtime @modelcontextprotocol/ext-apps @modelcontextprotocol/client zod
+```
 
 ```ts
 import { connectWidget, toolResultData } from '@mcp-apps-studio/widget-runtime';
@@ -199,7 +153,6 @@ const { app, lifecycle } = await connectWidget({ appInfo: { name: 'kpi-card', ve
 lifecycle.subscribe(() => render(lifecycle.getSnapshot()));           // tool-input → tool-result | cancelled
 const result = await app.callServerTool({ name: 'get_metrics', arguments: {} }); // CallToolResult
 const metrics = toolResultData(result);                               // structuredContent, throws the isError text
-await app.openLink({ url: 'https://example.com' });                   // …and every other SDK method
 ```
 
 React:
@@ -212,101 +165,65 @@ createRoot(root).render(<WidgetProvider session={await connectWidget({ appInfo }
 function KpiCard() {
   const { data, error, loading, call } = useToolCall<Metrics>('get_metrics'); // data = structuredContent
   useEffect(() => void call(), [call]);
-  // latest call wins: an overlapping stale response never overwrites newer state
-}
-
-function FromHost() {
-  const { status, input, data, error } = useToolLifecycle<Metrics>(); // tool-input → tool-result
-  const app = useWidgetApp();                                          // the SDK App for everything else
 }
 ```
 
-Library components follow one contract — theming only through `--widget-*` CSS variables and `[data-theme='dark']`, a text-only fallback per component, stories for every state — and are copied into your project rather than depended on:
+**Library components** follow one contract:
+
+- theming only through `--widget-*` CSS variables and `[data-theme='dark']`;
+- a text-only fallback per component;
+- stories for every state.
+
+They are copied into your project rather than depended on, shadcn-style. `add` keeps files you already have unless you pass `--force`:
 
 ```bash
-pnpm -F mcp-apps-studio start add data-table --dir src/components
+npx mcp-apps-studio add data-table --dir src/components
 ```
 
-Files you already have are kept (they may carry your edits) and listed as skipped; `--force` replaces them with the registry version.
-
-## Using it as a test tool
-
-The studio is the interactive surface. The same core runs headless.
-
-**Assert on the protocol from Vitest.** `HostEmulator` needs only a `Transport`; an in-memory pair lets you drive a widget-side script and inspect the trace without a browser:
+**Widgets from a Vite dev server, with hot module replacement.** Point a story at your dev server and add the plugin:
 
 ```ts
-import { HostEmulator, McpAppsAdapter, createInMemoryTransportPair } from '@studio/host-emulator';
+// vite.config.ts
+import { mcpAppsStudio } from 'mcp-apps-studio/vite';
+export default defineConfig({ plugins: [mcpAppsStudio()] });
 
-const [hostT, widgetT] = createInMemoryTransportPair();
-const log = [];
-new HostEmulator({
-  adapter: new McpAppsAdapter(),
-  transport: hostT,
-  mocks: { get_metrics: { kind: 'static', structuredContent: { value: 1 } } },
-  onLog: (ev) => log.push(ev),
-}).start();
-
-widgetT.send({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'get_metrics' } });
-// … await, then:
-expect(log.filter((e) => e.kind === 'invalid')).toEqual([]);
+// weather.stories.mcp.ts
+export default defineWidgetStory({ title: 'Weather', widget: 'http://localhost:5173/', scenarios: { /* … */ } });
 ```
 
-**Assert on the widget from Playwright.** The studio exposes stable hooks: the iframe is `iframe[title="widget under test"]`, trace rows are `.trace-row`, controls are labelled `Widget`, `Scenario`, `Theme`, `Display`. The repository's own `e2e/` suite is the pattern: pick a scenario, assert inside the frame, assert on the trace.
+## Security notes
 
-**What the emulator catches today**
+MCP Apps Studio runs code you did not necessarily write: widgets, and the stories that describe them. Here is what it does about that:
 
-- Messages that aren't valid JSON-RPC 2.0, or valid but with the wrong params shape — logged as `invalid` with the field that failed.
-- Unknown methods (`METHOD_NOT_FOUND`), unknown resources (`RESOURCE_NOT_FOUND`), missing mocks.
-- Notifications the widget sends that the host doesn't understand — they have no reply channel, so they surface in the trace.
-- Widgets that break under a strict sandbox (no `allow-same-origin`, null origin).
+- **Widgets** run in an iframe sandboxed with `allow-scripts` only, never `allow-same-origin`. Messages are accepted only from that frame (`event.source`), and each one is validated before it is dispatched.
+- **The local server** binds to `127.0.0.1` only. Every request needs the one-time token printed at start (compared in constant time, then kept in an `HttpOnly`, `SameSite=Strict` cookie).
+- **Stories are code.** `mcp-apps-studio` and `test` execute them. Don't run the GitHub Action on untrusted fork PRs with secrets available (for example, under `pull_request_target`).
+- **The Vite plugin is a trade-off.** It adds the `null` origin to your dev server's CORS allowlist. While the dev server runs, any sandboxed page open in your browser can read it, including your source and inlined `VITE_*` values. Keep secrets out of `VITE_*`, and stop the dev server before you browse untrusted sites.
 
-**Planned:** a headless `mcp-apps-studio test` runner that loads every story, plays each scenario in a real browser, and fails CI on invalid messages or a trace that diverges from a committed golden log. See the roadmap.
+Found a vulnerability? See [SECURITY.md](SECURITY.md). Please don't open a public issue.
 
-## Architecture
+## Troubleshooting
 
-```
-                 apps/studio (React)                    your MCP server
-   ┌──────────────────────────────────────────┐        ┌───────────────┐
-   │ Canvas ── iframe[sandbox=allow-scripts]  │  live  │ tools/call    │
-   │   │        ▲            │ postMessage    │ ◄────► │ resources/read│
-   │   ▼        │            ▼                │        └───────────────┘
-   │ IframeTransport ── MessageBridge ── HostAdapter (mcp-apps)
-   │                       │                 ▲
-   │                  HostEmulator ── MockRouter ── passthrough
-   │                       │
-   │                  RPC trace ── Zustand ── TracePanel
-   └──────────────────────────────────────────┘
-```
+| Symptom | Fix |
+|---|---|
+| `test` exits `2`: "No Chromium for headless runs" | Run `npx mcp-apps-studio install-browser` (in CI on Linux, add `--with-deps`). Don't use a plain `npx playwright install`: it may fetch a different build. |
+| `error: port 4400 is already in use` | Another studio is running. Pass `--port <n>`. |
+| The studio opens with 401 | Open the exact URL printed at start, which carries the token. The token changes on every start. |
+| A dev-server widget stays blank | Add the `mcpAppsStudio()` Vite plugin. Vite refuses module scripts to the sandbox's `null` origin. |
+| Visual diffs fail in CI but pass locally | Fonts and antialiasing differ between operating systems. Generate baselines in CI or in a Linux container. |
+| CSP checks behave differently in Firefox or Safari | CSP emulation uses the iframe `csp` attribute, which only Chromium supports. |
 
-- **`MessageBridge`** validates every incoming message with zod before dispatch and correlates request ids with timeouts. Widgets are untrusted code.
-- **`HostAdapter`** is a pure translator: wire message → semantic action, host event → wire notification. No transport, no side effects, testable against golden logs. `McpAppsAdapter` is the only implementation today; the OpenAI Apps SDK dialect slots in here.
-- **`IframeTransport`** is the single DOM edge. Sandboxed widgets have a null origin, so `event.source === iframe.contentWindow` is the only trust signal.
+## Contributing
 
-The full behavior is specified in [`openspec/`](openspec/) — one spec per capability, requirement by requirement, each scenario backed by a test.
-
-## Development
-
-```bash
-pnpm test                 # vitest, runs in Node (no jsdom)
-pnpm typecheck            # tsc --noEmit per package
-pnpm lint                 # biome: format + lint + import order
-pnpm e2e                  # playwright (chromium); starts vite, both servers and the CLI itself
-pnpm -F @studio/components build   # bundle library widgets to dist/<name>.html
-```
-
-Conventions: TDD per task, tests next to source, core packages must stay runnable in Node. Behavior changes go through `openspec/changes/` first — see [`openspec/config.yaml`](openspec/config.yaml) and the `/opsx:propose` → `/opsx:apply` → `/opsx:archive` workflow. [`CLAUDE.md`](CLAUDE.md) holds the constraints that are easy to violate; read it before your first PR.
+Bug reports, ideas and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), which covers setup, commands and how changes are proposed. For how the pieces fit together, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The full behavior is specified in [`openspec/specs/`](openspec/specs/), one spec per capability, with every scenario backed by a test.
 
 ## Roadmap
 
-- [x] npm packaging: `npx mcp-apps-studio` in any project (first release pending)
-- [x] Headless story runner (`mcp-apps-studio test`)
-- [x] `@modelcontextprotocol/ext-apps` 2.x on MCP SDK v2
-- [x] Dev loop: live reload, per-story errors, widgets from a Vite dev server with HMR
-- [ ] Visual diffs + GitHub Action
 - [ ] `openai-apps` adapter for the OpenAI Apps SDK dialect
-- [ ] `pending` mock kind (never resolves) instead of the one-hour delay idiom
-- [ ] Size / CSP assertions: flag widgets that exceed container dimensions or violate a host CSP
+- [ ] Interaction steps in stories (click → expect a `tools/call` with given arguments)
+- [ ] Accessibility checks in `test` (axe-core)
+- [ ] Static export of the studio for PR previews
+- [ ] Richer mocks: per-call sequences, argument matching, JSON fixtures
 
 ## License
 

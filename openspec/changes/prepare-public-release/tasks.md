@@ -14,7 +14,7 @@
 ## 3. Documentation
 
 - [x] 3.1 `scripts/screenshots.mjs` → `docs/assets/studio-light.png`, `studio-dark.png`, `trace.png`, `report-diff.png` — verify files exist and each is < 300 KB
-- [ ] 3.2 README rewrite for users (hero + screenshots, quickstart with `npx`, story format, CI with `@v0`, security notes incl. the Vite plugin trade-off, troubleshooting, comparison, links to CONTRIBUTING/ARCHITECTURE; no private-package imports, no stale "Planned") — verify `git grep -n "@studio/host-emulator\|mcp-app-proba\|Planned" README.md` is empty
+- [x] 3.2 README rewrite for users (hero + screenshots, quickstart with `npx`, story format, CI with `@v0`, security notes incl. the Vite plugin trade-off, troubleshooting, comparison, links to CONTRIBUTING/ARCHITECTURE; no private-package imports, no stale "Planned") — verify `git grep -n "@studio/host-emulator\|mcp-app-proba\|Planned" README.md` is empty
 - [ ] 3.3 `docs/ARCHITECTURE.md`, `CONTRIBUTING.md` (setup, commands, TDD, changesets, OpenSpec flow, release checklist incl. owner actions), `SECURITY.md`, `CODE_OF_CONDUCT.md`, `.github/ISSUE_TEMPLATE/{bug.yml,feature.yml,config.yml}`, `.github/pull_request_template.md`; delete `docs/superpowers/plans/`; `.gitignore` `.env*`; CLAUDE.md points to the new docs — verify issue forms parse (`workflows.test.ts`-style YAML parse) and links in README resolve to existing files
 
 ## 4. Wrap-up
