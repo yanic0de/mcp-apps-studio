@@ -111,4 +111,46 @@ describe('discoverStories validation', () => {
     );
     expect(await errorOf()).toMatch(/lost\.stories\.mcp\.ts.*nope\.html/s);
   });
+
+  it('picks up an edited fixture the story imports, and reports it as a dependency', async () => {
+    const story = path.join(fixture, 'src', 'kpi.stories.mcp.ts');
+    const rows = path.join(fixture, 'src', 'rows.json');
+    await fs.writeFile(rows, JSON.stringify({ n: 1 }));
+    await fs.writeFile(path.join(fixture, 'src', 'helper.ts'), 'export const label = (s: string) => `#${s}`;\n');
+    await fs.writeFile(
+      story,
+      `import rows from './rows.json';
+import { label } from './helper';
+export default { title: label('T'), widget: './widget.html',
+  scenarios: { default: { mocks: { get: { kind: 'static', structuredContent: rows } } } } };\n`,
+    );
+    const first = await discoverStories(fixture);
+    expect(first.widgets[0]?.title).toBe('#T');
+    expect(first.widgets[0]?.scenarios.default?.mocks.get).toMatchObject({ structuredContent: { n: 1 } });
+    expect(first.dependencies).toEqual(expect.arrayContaining([story, rows, path.join(fixture, 'src', 'helper.ts')]));
+
+    await fs.writeFile(rows, JSON.stringify({ n: 2 }));
+    const second = await discoverStories(fixture);
+    expect(second.widgets[0]?.scenarios.default?.mocks.get).toMatchObject({ structuredContent: { n: 2 } });
+    expect((await fs.readdir(path.join(fixture, 'src'))).filter((f) => f.endsWith('.mjs'))).toEqual([]);
+  });
+
+  it('keeps package imports external (resolved from the project)', async () => {
+    await fs.mkdir(path.join(fixture, 'node_modules', 'story-kit'), { recursive: true });
+    await fs.writeFile(
+      path.join(fixture, 'node_modules', 'story-kit', 'package.json'),
+      JSON.stringify({ name: 'story-kit', type: 'module', exports: './index.js' }),
+    );
+    await fs.writeFile(
+      path.join(fixture, 'node_modules', 'story-kit', 'index.js'),
+      'export const define = (c) => c;\n',
+    );
+    await fs.writeFile(
+      path.join(fixture, 'src', 'kpi.stories.mcp.ts'),
+      `import { define } from 'story-kit';\nexport default define({ title: 'K', widget: './widget.html', scenarios: { default: {} } });\n`,
+    );
+    const manifest = await discoverStories(fixture);
+    expect(manifest.errors).toEqual([]);
+    expect(manifest.dependencies.some((d) => d.includes('node_modules'))).toBe(false);
+  });
 });

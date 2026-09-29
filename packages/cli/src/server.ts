@@ -83,9 +83,10 @@ export function createStudioServer(opts: StudioServerOptions): StudioServer {
     if (url.pathname === '/api/manifest') {
       opts
         .getManifest()
-        .then((manifest) => {
+        .then(({ widgets, errors }) => {
+          // Only what the page needs: discovery extras (e.g. absolute dependency paths) stay server-side.
           res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-          res.end(JSON.stringify(manifest));
+          res.end(JSON.stringify({ widgets, errors }));
         })
         .catch((err: unknown) => {
           // a story file mid-edit must not kill the server
