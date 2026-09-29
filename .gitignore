@@ -5,3 +5,6 @@ dist/
 packages/components/dist/
 test-results/
 playwright-report/
+.mcp-studio/
+.env*
+!.env.example

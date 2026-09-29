@@ -14,15 +14,23 @@ describe('parseJsonRpcMessage', () => {
 
   it('classifies success and error responses', () => {
     expect(parseJsonRpcMessage({ jsonrpc: '2.0', id: 'h1', result: {} })).toMatchObject({ ok: true, kind: 'response' });
-    expect(parseJsonRpcMessage({ jsonrpc: '2.0', id: 'h1', error: { code: -32601, message: 'nope' } })).toMatchObject({ ok: true, kind: 'response' });
+    expect(parseJsonRpcMessage({ jsonrpc: '2.0', id: 'h1', error: { code: -32601, message: 'nope' } })).toMatchObject({
+      ok: true,
+      kind: 'response',
+    });
   });
 
-  it.each([null, 42, 'x', [], { jsonrpc: '1.0', method: 'a' }, { jsonrpc: '2.0' }, { jsonrpc: '2.0', id: 1, method: 5 }])(
-    'rejects invalid message %#',
-    (raw) => {
-      expect(parseJsonRpcMessage(raw).ok).toBe(false);
-    },
-  );
+  it.each([
+    null,
+    42,
+    'x',
+    [],
+    { jsonrpc: '1.0', method: 'a' },
+    { jsonrpc: '2.0' },
+    { jsonrpc: '2.0', id: 1, method: 5 },
+  ])('rejects invalid message %#', (raw) => {
+    expect(parseJsonRpcMessage(raw).ok).toBe(false);
+  });
 
   it('exposes standard error codes', () => {
     expect(ERROR_CODES.METHOD_NOT_FOUND).toBe(-32601);

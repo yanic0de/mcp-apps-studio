@@ -1,18 +1,17 @@
 import fs from 'node:fs/promises';
-import type http from 'node:http';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
+import type { StudioManifest, WidgetManifestEntry } from '@studio/shared';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import type { WidgetManifestEntry } from '@studio/shared';
-import { createStudioServer, generateToken } from './server.js';
+import { createStudioServer, generateToken, listenLoopback, PortInUseError, type StudioServer } from './server.js';
 
 const TOKEN = 'a'.repeat(32);
-const manifest: WidgetManifestEntry[] = [
-  { id: 'kpi', title: 'KPI', html: '<html/>', scenarios: { default: { mocks: {} } } },
-];
+const kpi: WidgetManifestEntry = { id: 'kpi', title: 'KPI', html: '<html/>', scenarios: { default: { mocks: {} } } };
+const manifest: StudioManifest = { widgets: [kpi], errors: [] };
 
 let dist: string;
-let server: http.Server | undefined;
+let server: StudioServer | undefined;
 let base: string;
 
 beforeAll(async () => {
@@ -32,7 +31,7 @@ afterEach(
     }),
 );
 
-function start(getManifest: () => Promise<WidgetManifestEntry[]> = async () => manifest): Promise<string> {
+function start(getManifest: () => Promise<StudioManifest> = async () => manifest): Promise<string> {
   const s = createStudioServer({ studioDist: dist, getManifest, token: TOKEN });
   server = s;
   return new Promise((resolve) => {
@@ -78,7 +77,7 @@ describe('createStudioServer', () => {
     const res = await fetch(`${base}/api/manifest`, { headers: { cookie: `mcp_studio_token=${TOKEN}` } });
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store');
-    const body = (await res.json()) as { widgets: WidgetManifestEntry[] };
+    const body = (await res.json()) as StudioManifest;
     expect(body.widgets).toHaveLength(1);
     expect(body.widgets[0]?.id).toBe('kpi');
   });
@@ -98,16 +97,46 @@ describe('createStudioServer', () => {
     let calls = 0;
     await start(async () => {
       calls++;
-      return [{ ...manifest[0]!, title: `KPI v${calls}` }];
+      return { widgets: [{ ...kpi, title: `KPI v${calls}` }], errors: [] };
     });
     const headers = { cookie: `mcp_studio_token=${TOKEN}` };
-    const first = (await (await fetch(`${base}/api/manifest`, { headers })).json()) as { widgets: WidgetManifestEntry[] };
-    const second = (await (await fetch(`${base}/api/manifest`, { headers })).json()) as { widgets: WidgetManifestEntry[] };
+    const first = (await (await fetch(`${base}/api/manifest`, { headers })).json()) as {
+      widgets: WidgetManifestEntry[];
+    };
+    const second = (await (await fetch(`${base}/api/manifest`, { headers })).json()) as {
+      widgets: WidgetManifestEntry[];
+    };
     expect(first.widgets[0]?.title).toBe('KPI v1');
     expect(second.widgets[0]?.title).toBe('KPI v2');
   });
 
-  it('answers 500 when manifest discovery fails, without dying', async () => {
+  it('passes story errors through with 200', async () => {
+    const errors = [{ file: '/p/broken.stories.mcp.ts', message: 'boom' }];
+    await start(async () => ({ widgets: [kpi], errors }));
+    const res = await fetch(`${base}/api/manifest`, { headers: { cookie: `mcp_studio_token=${TOKEN}` } });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ widgets: [kpi], errors });
+  });
+
+  it('streams manifest events to authorized clients only', async () => {
+    await start();
+    expect((await fetch(`${base}/api/events`)).status).toBe(401);
+    const controller = new AbortController();
+    const res = await fetch(`${base}/api/events`, {
+      headers: { cookie: `mcp_studio_token=${TOKEN}` },
+      signal: controller.signal,
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/event-stream');
+    const reader = res.body!.getReader();
+    await reader.read(); // initial comment flushes headers
+    server!.notify('manifest');
+    const { value } = await reader.read();
+    expect(new TextDecoder().decode(value)).toContain('event: manifest');
+    controller.abort();
+  });
+
+  it('answers 500 when manifest discovery fails unexpectedly, without dying', async () => {
     await start(async () => {
       throw new Error('story file is mid-edit');
     });
@@ -143,5 +172,29 @@ describe('createStudioServer', () => {
     // must never leak a file outside dist: either rejected or SPA fallback
     const text = await res.text();
     expect(text).not.toContain('root:');
+  });
+});
+
+describe('listenLoopback', () => {
+  it('resolves with the bound port on 127.0.0.1', async () => {
+    const s = createStudioServer({ studioDist: dist, getManifest: async () => manifest, token: TOKEN });
+    server = s;
+    const port = await listenLoopback(s, 0);
+    expect(port).toBeGreaterThan(0);
+    expect((s.address() as net.AddressInfo).address).toBe('127.0.0.1');
+  });
+
+  it('rejects with PortInUseError when the port is taken', async () => {
+    const blocker = net.createServer();
+    await new Promise<void>((r) => blocker.listen(0, '127.0.0.1', r));
+    const taken = (blocker.address() as net.AddressInfo).port;
+    try {
+      const s = createStudioServer({ studioDist: dist, getManifest: async () => manifest, token: TOKEN });
+      const err = await listenLoopback(s, taken).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(PortInUseError);
+      expect((err as PortInUseError).port).toBe(taken);
+    } finally {
+      await new Promise((r) => blocker.close(r));
+    }
   });
 });

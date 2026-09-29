@@ -1,0 +1,18 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "description": "The MCP SDKs define the protocol we emulate: upgrade them together; the conformance test is the gate.",
+      "matchPackageNames": ["@modelcontextprotocol/**"],
+      "groupName": "MCP SDKs",
+      "automerge": false
+    },
+    {
+      "description": "playwright-core must match the installed browser build.",
+      "matchPackageNames": ["playwright-core", "@playwright/test"],
+      "groupName": "Playwright"
+    }
+  ]
+}

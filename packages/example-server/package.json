@@ -2,23 +2,29 @@
   "name": "@studio/example-server",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./kpi-card.html": "./src/kpi-card.html"
   },
   "scripts": {
     "dev": "tsx src/main.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
     "@types/express": "^5.0.6",
     "tsx": "^4.23.1",
     "typescript": "~5.8.3"
   },
   "dependencies": {
-    "@modelcontextprotocol/ext-apps": "^1.7.4",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/express": "^2.0.0",
+    "@modelcontextprotocol/ext-apps": "^2.0.0",
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "express": "^5.2.1",
+    "hono": "^4.13.9",
     "zod": "^4.4.3"
   }
 }

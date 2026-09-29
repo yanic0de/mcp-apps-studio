@@ -6,6 +6,9 @@ test('protocol inspector from the test server drives tools through live passthro
 
   const frame = page.frameLocator('iframe[title="widget under test"]');
   await expect(frame.locator('h1')).toContainText('Protocol Inspector');
+  // live mode plays the model's call of the tool linked to the widget
+  await expect(frame.locator('#lifecycle')).toContainText('ui/notifications/tool-input');
+  await expect(frame.locator('#lifecycle')).toContainText('ui/notifications/tool-result');
 
   await frame.getByRole('button', { name: 'echo', exact: true }).click();
   await expect(frame.locator('#output')).toContainText('"echoed"');
@@ -13,6 +16,8 @@ test('protocol inspector from the test server drives tools through live passthro
 
   await frame.getByRole('button', { name: 'fail' }).click();
   await expect(frame.locator('#output')).toContainText('Intentional failure');
+  // forwarded as the server's CallToolResult, not converted into a JSON-RPC error
+  await expect(frame.locator('#output')).toContainText('"isError": true');
   await expect(frame.locator('#output')).toHaveClass('error');
 
   await frame.getByRole('button', { name: 'rows' }).click();

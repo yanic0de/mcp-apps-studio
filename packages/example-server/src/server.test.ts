@@ -1,8 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
-import { KPI_RESOURCE_URI, createExampleServer } from './server.js';
+import { describe, expect, it } from 'vitest';
+import { createExampleServer, KPI_RESOURCE_URI } from './server.js';
 
 async function connect() {
   const server = createExampleServer();
@@ -18,7 +17,7 @@ describe('example server', () => {
     const { tools } = await client.listTools();
     const tool = tools.find((t) => t.name === 'get_metrics');
     expect(tool).toBeDefined();
-    expect(tool?._meta?.['ui']).toMatchObject({ resourceUri: KPI_RESOURCE_URI });
+    expect(tool?._meta?.ui).toMatchObject({ resourceUri: KPI_RESOURCE_URI });
   });
 
   it('returns structuredContent plus text fallback from tools/call', async () => {
@@ -38,5 +37,6 @@ describe('example server', () => {
     const first = res.contents[0] as { mimeType?: string; text?: string };
     expect(first.mimeType).toBe(RESOURCE_MIME_TYPE);
     expect(first.text).toContain('ui/initialize');
+    expect(first.text).toContain('ui/notifications/initialized'); // SDK handshake, not just initialize
   });
 });

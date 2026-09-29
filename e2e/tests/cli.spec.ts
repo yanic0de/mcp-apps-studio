@@ -1,8 +1,11 @@
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { CLI_TOKEN, CLI_URL } from '../playwright.config.js';
 
-const widgetFrame = (page: import('@playwright/test').Page) =>
-  page.frameLocator('iframe[title="widget under test"]');
+const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
+
+const widgetFrame = (page: import('@playwright/test').Page) => page.frameLocator('iframe[title="widget under test"]');
 
 test('CLI rejects requests without a valid token', async ({ page }) => {
   const noToken = await page.goto(`${CLI_URL}/`);
@@ -30,4 +33,30 @@ test('CLI-served empty scenario shows the DataTable empty state', async ({ page 
   await page.goto(`${CLI_URL}/?token=${CLI_TOKEN}`);
   await page.getByLabel('Scenario').selectOption('empty');
   await expect(widgetFrame(page).locator('.data-table__message')).toHaveText('No rows.');
+});
+
+test('library component on the SDK App: handshake completes and the host theme reaches the document', async ({
+  page,
+}) => {
+  await page.goto(`${CLI_URL}/?token=${CLI_TOKEN}&widget=kpi-card`);
+  const frame = widgetFrame(page);
+  await expect(frame.locator('.kpi-card__value')).toHaveText('12,840');
+  await expect(page.locator('.trace-row').filter({ hasText: 'ui/notifications/initialized' })).toHaveCount(1);
+  await expect(page.locator('.trace-row.invalid')).toHaveCount(0);
+  await page.getByLabel('Theme').selectOption('dark');
+  await expect(frame.locator('html')).toHaveAttribute('data-theme', 'dark');
+});
+
+test('a second CLI on the busy port exits with a hint instead of a stack', () => {
+  // The config's web server already listens on the CLI_URL port.
+  const port = new URL(CLI_URL).port;
+  const r = spawnSync('pnpm', ['-s', '-F', 'mcp-apps-studio', 'start', '--port', port, '../components'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  expect(r.status).toBe(1);
+  expect(r.stderr).toContain(`port ${port} is already in use`);
+  expect(r.stderr).toContain('--port');
+  expect(r.stderr).not.toMatch(/^\s+at /m);
 });

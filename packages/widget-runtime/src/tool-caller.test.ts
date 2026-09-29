@@ -35,10 +35,7 @@ describe('createToolCaller', () => {
   it('ignores a stale response that settles after a newer call', async () => {
     const h = harness<string>();
     const resolvers: Array<(v: string) => void> = [];
-    const call = createToolCaller(
-      () => new Promise<string>((resolve) => resolvers.push(resolve)),
-      h.setState,
-    );
+    const call = createToolCaller(() => new Promise<string>((resolve) => resolvers.push(resolve)), h.setState);
     const first = call();
     const second = call();
     resolvers[1]?.('fresh');

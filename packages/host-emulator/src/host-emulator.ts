@@ -1,14 +1,17 @@
 import {
-  ERROR_CODES,
+  type CallToolResult,
   defaultHostContext,
+  ERROR_CODES,
   type HostContext,
   type JsonRpcNotification,
   type JsonRpcRequest,
   type MockConfig,
+  RpcError,
   type RpcLogEvent,
+  type ToolCall,
 } from '@studio/shared';
-import type { HostAdapter } from './adapter.js';
-import { RpcError } from './errors.js';
+import type { HostAdapter, HostEvent, WidgetIntent } from './adapter.js';
+
 import { MessageBridge } from './message-bridge.js';
 import { MockRouter, type PassthroughHandler } from './mock-router.js';
 import type { Transport } from './transport.js';
@@ -23,12 +26,26 @@ export interface HostEmulatorOptions {
   hostContext?: HostContext;
   onLog?: (ev: RpcLogEvent) => void;
   onSizeChanged?: (size: { width?: number; height?: number }) => void;
+  /** Links, messages, model context, downloads, logs, teardown requests — the host "UI side" of the widget. */
+  onWidgetIntent?: (intent: WidgetIntent) => void;
+  /** Context changes the WIDGET initiated (e.g. an accepted display-mode request); the full new context. */
+  onHostContextChanged?: (context: HostContext) => void;
+  /** The tool call that rendered the widget, played after `initialized`. */
+  toolCall?: ToolCall;
+  /** Definition of that tool (e.g. from tools/list) for `hostContext.toolInfo`. */
+  toolDefinition?: { name: string; [key: string]: unknown };
 }
+
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export class HostEmulator {
   private readonly bridge: MessageBridge;
   private readonly mockRouter: MockRouter;
   private context: HostContext;
+  /** The context put into the last `ui/initialize` result: what the widget knows before `initialized`. */
+  private sentContext: HostContext | undefined;
+  private ready = false;
+  private running = false;
 
   constructor(private readonly opts: HostEmulatorOptions) {
     this.context = opts.hostContext ?? defaultHostContext;
@@ -42,21 +59,28 @@ export class HostEmulator {
   }
 
   start(): void {
+    this.running = true;
     this.bridge.start();
   }
 
   stop(): void {
+    this.running = false;
     this.bridge.stop();
+  }
+
+  /** True once the widget sent `ui/notifications/initialized` after the handshake. */
+  isReady(): boolean {
+    return this.ready;
   }
 
   getHostContext(): HostContext {
     return this.context;
   }
 
+  /** Always updates the context; the widget hears about it only once it completed the handshake (like a real host). */
   setHostContext(patch: Partial<HostContext>): void {
     this.context = { ...this.context, ...patch };
-    const wire = this.opts.adapter.pushHostEvent({ type: 'context-changed', context: patch });
-    if (wire) this.bridge.notify(wire.method, wire.params);
+    if (this.ready) this.push({ type: 'context-changed', context: patch });
   }
 
   setMocks(config: MockConfig): void {
@@ -67,7 +91,11 @@ export class HostEmulator {
     const action = this.opts.adapter.handleWidgetMessage(req);
     switch (action.type) {
       case 'initialize':
-        return this.opts.adapter.buildInitializeResult(this.context);
+        // A new handshake is a new view instance (e.g. the frame reloaded): it gets the lifecycle again.
+        this.ready = false;
+        this.sentContext = this.context;
+        // toolInfo belongs to this widget instance only, so it never enters the shared context.
+        return this.opts.adapter.buildInitializeResult({ ...this.context, ...this.toolInfo() });
       case 'tool-call':
         return this.mockRouter.call(action.toolName, action.args);
       case 'resource-read': {
@@ -77,12 +105,24 @@ export class HostEmulator {
         }
         return { contents: [{ uri: action.uri, mimeType: 'text/html', text }] };
       }
+      case 'request-display-mode':
+        return { mode: this.requestDisplayMode(action.mode) };
+      // A fake host has nothing to open or send: report to the embedder and answer as a permissive host would.
+      case 'open-link':
+      case 'message':
+      case 'update-model-context':
+      case 'download-file':
+        this.opts.onWidgetIntent?.(action);
+        return {};
       case 'invalid-params':
         throw new RpcError(ERROR_CODES.INVALID_PARAMS, action.error);
       case 'unsupported':
         throw new RpcError(ERROR_CODES.METHOD_NOT_FOUND, `Unsupported method: ${action.method}`);
       default:
-        throw new RpcError(ERROR_CODES.INTERNAL_ERROR, `Request produced non-request action: ${(action as { type: string }).type}`);
+        throw new RpcError(
+          ERROR_CODES.INTERNAL_ERROR,
+          `Request produced non-request action: ${(action as { type: string }).type}`,
+        );
     }
   }
 
@@ -91,6 +131,16 @@ export class HostEmulator {
     switch (action.type) {
       case 'size-changed':
         this.opts.onSizeChanged?.({ width: action.width, height: action.height });
+        return;
+      case 'initialized':
+        if (this.ready) return; // tool-input is sent exactly once
+        this.ready = true;
+        this.pushChangesSinceInitialize();
+        void this.playToolCall();
+        return;
+      case 'log':
+      case 'request-teardown':
+        this.opts.onWidgetIntent?.(action);
         return;
       // Notifications have no response channel, so problems must surface in the trace.
       case 'invalid-params':
@@ -104,7 +154,72 @@ export class HostEmulator {
     }
   }
 
+  private push(ev: HostEvent): void {
+    if (!this.running) return;
+    const wire = this.opts.adapter.pushHostEvent(ev);
+    if (wire) this.bridge.notify(wire.method, wire.params);
+  }
+
+  /** Context fields changed between the `ui/initialize` result and `initialized`, sent as one notification. */
+  private pushChangesSinceInitialize(): void {
+    const sent = this.sentContext;
+    if (!sent) return;
+    const changed = Object.fromEntries(
+      Object.entries(this.context).filter(
+        ([key, value]) => JSON.stringify(value) !== JSON.stringify(sent[key as keyof HostContext]),
+      ),
+    ) as Partial<HostContext>;
+    if (Object.keys(changed).length > 0) this.push({ type: 'context-changed', context: changed });
+  }
+
+  private toolInfo(): { toolInfo?: { tool: Record<string, unknown> } } {
+    const name = this.opts.toolCall?.name;
+    if (!name) return {};
+    const tool = this.opts.toolDefinition ?? { name, inputSchema: { type: 'object' } };
+    return { toolInfo: { tool } };
+  }
+
+  /** Host side of the model's tool call: partial inputs → input → result | cancelled (SEP-1865 ordering). */
+  private async playToolCall(): Promise<void> {
+    const call = this.opts.toolCall;
+    if (!call) return;
+    for (const partial of call.partialInputs ?? []) this.push({ type: 'tool-input-partial', arguments: partial });
+    const input = call.input ?? {};
+    this.push({ type: 'tool-input', arguments: input });
+    const result = call.result;
+    if (!result) return;
+    if (result.kind === 'cancelled') {
+      if (result.delayMs) await delay(result.delayMs);
+      this.push({ type: 'tool-cancelled', reason: result.reason });
+      return;
+    }
+    const name = call.name ?? 'tool';
+    try {
+      // One-entry router: same CallToolResult shaping, delay and passthrough as tools/call.
+      const value = await new MockRouter({ [name]: result }, this.opts.passthrough).call(name, input);
+      this.push({ type: 'tool-result', result: value as CallToolResult });
+    } catch (err) {
+      this.push({ type: 'tool-cancelled', reason: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  /** Applies a widget-requested mode if the host offers it; returns the mode actually in effect. */
+  private requestDisplayMode(mode: HostContext['displayMode']): HostContext['displayMode'] {
+    if (mode !== this.context.displayMode && this.opts.adapter.capabilities().displayModes.includes(mode)) {
+      this.setHostContext({ displayMode: mode });
+      this.opts.onHostContextChanged?.(this.context);
+    }
+    return this.context.displayMode;
+  }
+
   private logInvalidNotification(n: JsonRpcNotification, error: string): void {
-    this.opts.onLog?.({ ts: Date.now(), direction: 'widget→host', kind: 'invalid', method: n.method, payload: n, error });
+    this.opts.onLog?.({
+      ts: Date.now(),
+      direction: 'widget→host',
+      kind: 'invalid',
+      method: n.method,
+      payload: n,
+      error,
+    });
   }
 }

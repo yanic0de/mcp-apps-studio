@@ -1,5 +1,5 @@
+import { useToolCall } from '@mcp-apps-studio/widget-runtime/react';
 import { useEffect } from 'react';
-import { useToolCall } from '@studio/widget-runtime/react';
 import type { TableData } from './fallback.js';
 
 export interface DataTableProps {
@@ -19,7 +19,9 @@ export function DataTable({ tool = 'get_rows', caption }: DataTableProps) {
     return <p className="data-table__message data-table__message--error">{error}</p>;
   }
   if (!data) {
-    return <p className="data-table__message">{loading ? 'loading…' : caption ? `${caption}: loading…` : 'loading…'}</p>;
+    return (
+      <p className="data-table__message">{loading ? 'loading…' : caption ? `${caption}: loading…` : 'loading…'}</p>
+    );
   }
   if (data.rows.length === 0) {
     return <p className="data-table__message">No rows.</p>;
@@ -37,6 +39,7 @@ export function DataTable({ tool = 'get_rows', caption }: DataTableProps) {
       </thead>
       <tbody>
         {data.rows.map((row, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: rows carry no id and the whole list is replaced per response
           <tr key={i}>
             {data.columns.map((c) => (
               <td key={c.key}>{String(row[c.key] ?? '')}</td>

@@ -9,7 +9,7 @@
   overflow: hidden;
 }
 
-[data-theme='dark'] .data-table {
+[data-theme="dark"] .data-table {
   color: var(--widget-fg, #e8eaf0);
   background: var(--widget-surface, #1c212b);
 }
@@ -49,7 +49,7 @@
   opacity: 0.8;
 }
 
-[data-theme='dark'] .data-table__message {
+[data-theme="dark"] .data-table__message {
   color: var(--widget-fg, #e8eaf0);
 }
 

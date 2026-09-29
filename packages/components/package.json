@@ -2,6 +2,7 @@
   "name": "@studio/components",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
@@ -9,9 +10,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@studio/widget-runtime": "workspace:*",
+    "@mcp-apps-studio/widget-runtime": "workspace:*",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/ext-apps": "^2.0.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/react": "^19.1.0",

@@ -5,16 +5,22 @@
   --line: #2a3140;
   --text: #e8eaf0;
   --muted: #8a93a6;
-  --to-host: #7ad3e6;   /* widget → host */
+  --to-host: #7ad3e6; /* widget → host */
   --to-widget: #f0a868; /* host → widget */
   --err: #e06c75;
-  --mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  --sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body, #root { height: 100%; }
+html,
+body,
+#root {
+  height: 100%;
+}
 
 body {
   margin: 0;
@@ -28,7 +34,7 @@ body {
   display: grid;
   grid-template-rows: 48px 1fr;
   grid-template-columns: 1fr 380px;
-  grid-template-areas: 'header header' 'canvas trace';
+  grid-template-areas: "header header" "canvas trace";
   height: 100%;
 }
 
@@ -92,13 +98,12 @@ body {
 }
 
 .canvas {
+  position: relative;
   grid-area: canvas;
   display: grid;
   place-items: center;
   overflow: auto;
-  background:
-    conic-gradient(var(--panel) 25%, transparent 0 50%, var(--panel) 0 75%, transparent 0)
-    0 0 / 24px 24px;
+  background: conic-gradient(var(--panel) 25%, transparent 0 50%, var(--panel) 0 75%, transparent 0) 0 0 / 24px 24px;
 }
 
 .canvas-note {
@@ -129,9 +134,15 @@ body {
 .viewport iframe {
   display: block;
   border: 0;
-  width: 360px;
-  height: 240px;
   background: #fff;
+  transition: height 120ms ease;
+}
+
+/* Picture-in-picture floats over the conversation, like hosts do. */
+.viewport--pip {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
 }
 
 .trace {
@@ -154,6 +165,11 @@ body {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.trace-actions {
+  display: flex;
+  gap: 6px;
 }
 
 .trace-head button {
@@ -200,13 +216,25 @@ body {
   overflow: hidden;
 }
 
-.trace-row summary::-webkit-details-marker { display: none; }
+.trace-row summary::-webkit-details-marker {
+  display: none;
+}
 
-.dir { flex: none; font-weight: 700; }
-.dir.to-host { color: var(--to-host); }
-.dir.to-widget { color: var(--to-widget); }
+.dir {
+  flex: none;
+  font-weight: 700;
+}
+.dir.to-host {
+  color: var(--to-host);
+}
+.dir.to-widget {
+  color: var(--to-widget);
+}
 
-.method { overflow: hidden; text-overflow: ellipsis; }
+.method {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .kind {
   flex: none;
@@ -219,7 +247,9 @@ body {
 
 .trace-row.invalid .method,
 .trace-row.invalid .kind,
-.trace-row.invalid .dir { color: var(--err); }
+.trace-row.invalid .dir {
+  color: var(--err);
+}
 
 .trace-row pre {
   margin: 0;
@@ -231,9 +261,75 @@ body {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .trace-row { animation: row-in 160ms ease-out; }
-  @keyframes row-in {
-    from { opacity: 0; transform: translateY(-2px); }
-    to { opacity: 1; transform: none; }
+  .trace-row {
+    animation: row-in 160ms ease-out;
   }
+  @keyframes row-in {
+    from {
+      opacity: 0;
+      transform: translateY(-2px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+.trace-saved {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-raised);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.trace-saved code {
+  font-family: var(--mono);
+  color: var(--to-host);
+}
+
+.trace-saved pre {
+  max-height: 180px;
+  overflow: auto;
+  margin: 8px 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+}
+
+.trace-saved button {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.canvas-errors {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 2;
+  padding: 8px 12px;
+  border: 1px solid var(--err);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--err);
+  font-size: 12px;
+  max-height: 30%;
+  overflow: auto;
+}
+
+.canvas-errors p {
+  margin: 4px 0;
+}
+
+.canvas-errors code {
+  font-family: var(--mono);
+  color: var(--text);
 }

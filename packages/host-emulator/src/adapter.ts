@@ -1,4 +1,11 @@
-import type { HostContext, JsonRpcId, JsonRpcNotification, JsonRpcRequest, WidgetSource } from '@studio/shared';
+import type {
+  CallToolResult,
+  ContentBlock,
+  HostContext,
+  JsonRpcNotification,
+  JsonRpcRequest,
+  WidgetSource,
+} from '@studio/shared';
 
 export type AdapterId = 'mcp-apps' | 'openai-apps' | 'mcp-ui-legacy';
 
@@ -9,15 +16,36 @@ export interface IframeEnv {
   csp?: string;
 }
 
-export type AdapterAction =
-  | { type: 'initialize'; requestId: JsonRpcId }
-  | { type: 'tool-call'; requestId: JsonRpcId; toolName: string; args: unknown }
-  | { type: 'resource-read'; requestId: JsonRpcId; uri: string }
-  | { type: 'size-changed'; width?: number; height?: number }
-  | { type: 'invalid-params'; requestId: JsonRpcId; method: string; error: string }
-  | { type: 'unsupported'; method: string; requestId?: JsonRpcId };
+/** Things a widget asks the host to do on its behalf; the embedder decides how to show them. */
+export type WidgetIntent =
+  | { type: 'open-link'; url: string }
+  | { type: 'message'; role: 'user'; content: ContentBlock[] }
+  | { type: 'update-model-context'; content?: ContentBlock[]; structuredContent?: Record<string, unknown> }
+  | { type: 'download-file'; contents: Record<string, unknown>[] }
+  | { type: 'log'; level: string; logger?: string; data: unknown }
+  | { type: 'request-teardown' };
 
-export type HostEvent = { type: 'context-changed'; context: Partial<HostContext> };
+/**
+ * Semantic meaning of a widget message. Request ids stay with the bridge
+ * (it answers using the original request), so actions carry none.
+ */
+export type AdapterAction =
+  | { type: 'initialize' }
+  | { type: 'initialized' }
+  | { type: 'tool-call'; toolName: string; args: unknown }
+  | { type: 'resource-read'; uri: string }
+  | { type: 'size-changed'; width?: number; height?: number }
+  | { type: 'request-display-mode'; mode: HostContext['displayMode'] }
+  | WidgetIntent
+  | { type: 'invalid-params'; method: string; error: string }
+  | { type: 'unsupported'; method: string };
+
+export type HostEvent =
+  | { type: 'context-changed'; context: Partial<HostContext> }
+  | { type: 'tool-input-partial'; arguments: Record<string, unknown> }
+  | { type: 'tool-input'; arguments: Record<string, unknown> }
+  | { type: 'tool-result'; result: CallToolResult }
+  | { type: 'tool-cancelled'; reason?: string };
 
 export interface HostCapabilities {
   displayModes: HostContext['displayMode'][];

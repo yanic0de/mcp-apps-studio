@@ -3,10 +3,12 @@ export default {
   widget: '../../dist/data-table.html',
   scenarios: {
     default: {
+      // The model's call that rendered the widget (tool-input + toolInfo); the component fetches its own data.
+      toolCall: { name: 'get_rows' },
       mocks: {
         get_rows: {
           kind: 'static',
-          result: {
+          structuredContent: {
             columns: [
               { key: 'name', label: 'Name' },
               { key: 'role', label: 'Role' },
@@ -23,12 +25,12 @@ export default {
     },
     empty: {
       mocks: {
-        get_rows: { kind: 'static', result: { columns: [{ key: 'name', label: 'Name' }], rows: [] } },
+        get_rows: { kind: 'static', structuredContent: { columns: [{ key: 'name', label: 'Name' }], rows: [] } },
       },
     },
     error: {
       mocks: {
-        get_rows: { kind: 'error', error: { code: -32000, message: 'Rows backend unavailable' } },
+        get_rows: { kind: 'error', message: 'Rows backend unavailable' },
       },
     },
   },

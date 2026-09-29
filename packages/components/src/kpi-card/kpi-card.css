@@ -8,7 +8,7 @@
   font-family: var(--widget-font, system-ui, -apple-system, sans-serif);
 }
 
-[data-theme='dark'] .kpi-card {
+[data-theme="dark"] .kpi-card {
   background: var(--widget-surface, #1c212b);
   color: var(--widget-fg, #e8eaf0);
 }

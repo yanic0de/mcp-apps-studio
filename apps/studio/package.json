@@ -2,6 +2,7 @@
   "name": "@studio/app",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/client": "^2.0.0",
     "@studio/host-emulator": "workspace:*",
     "@studio/shared": "workspace:*",
     "react": "^19.1.0",
@@ -17,6 +18,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@studio/example-server": "workspace:*",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",

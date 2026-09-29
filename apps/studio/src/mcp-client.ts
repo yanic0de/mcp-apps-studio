@@ -1,7 +1,6 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { ERROR_CODES, MCP_APPS_RESOURCE_MIME } from '@studio/shared';
-import { RpcError, type PassthroughHandler } from '@studio/host-emulator';
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
+import type { PassthroughHandler } from '@studio/host-emulator';
+import { ERROR_CODES, MCP_APPS_RESOURCE_MIME, RpcError } from '@studio/shared';
 
 export const DEFAULT_SERVER_URL = 'http://localhost:3100/mcp';
 
@@ -12,7 +11,11 @@ export function liveServerUrl(): string {
 }
 
 export interface LiveConnection {
+  /** ui:// uri of the resource the widget HTML came from. */
+  widgetUri: string;
   widgetHtml: string;
+  /** First tool whose `_meta.ui.resourceUri` points at the widget: the call the "model" makes in live mode. */
+  linkedTool?: { name: string; [key: string]: unknown };
   callTool: PassthroughHandler;
   close: () => Promise<void>;
 }
@@ -42,19 +45,23 @@ export async function connectMcpServer(url: string = liveServerUrl()): Promise<L
       throw new Error(`Resource ${uiResource.uri} has no text content`);
     }
 
+    // The server's CallToolResult goes to the widget unchanged — isError included — exactly as a real host forwards it.
+    // Only transport/protocol failures become JSON-RPC errors (MCP errors keep their code).
     const callTool: PassthroughHandler = async (toolName, args) => {
-      const result = await client.callTool({ name: toolName, arguments: (args ?? {}) as Record<string, unknown> });
-      if (result.isError) {
-        const text = Array.isArray(result.content)
-          ? result.content.map((c) => ('text' in c ? c.text : '')).join(' ')
-          : 'tool call failed';
-        throw new RpcError(ERROR_CODES.TOOL_ERROR, (typeof text === 'string' && text.trim()) || 'tool call failed');
+      try {
+        return await client.callTool({ name: toolName, arguments: (args ?? {}) as Record<string, unknown> });
+      } catch (err) {
+        const code = typeof (err as { code?: unknown }).code === 'number' ? (err as { code: number }).code : undefined;
+        throw new RpcError(code ?? ERROR_CODES.INTERNAL_ERROR, err instanceof Error ? err.message : String(err));
       }
-      // MVP simplification: widgets get structuredContent when the tool provides it.
-      return result.structuredContent ?? result;
     };
 
-    return { widgetHtml, callTool, close: () => client.close() };
+    const { tools } = await client.listTools();
+    const linkedTool = tools.find(
+      (t) => (t._meta?.ui as { resourceUri?: unknown } | undefined)?.resourceUri === uiResource.uri,
+    );
+
+    return { widgetUri: uiResource.uri, widgetHtml, linkedTool, callTool, close: () => client.close() };
   } catch (err) {
     await client.close();
     throw err;
