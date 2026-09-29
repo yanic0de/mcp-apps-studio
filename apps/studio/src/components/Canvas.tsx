@@ -5,6 +5,7 @@ import { adapter } from '../adapter.js';
 import { connectMcpServer, type LiveConnection } from '../mcp-client.js';
 import { selectActiveWidget, useStudioStore } from '../store.js';
 import { containerDimensions, frameSize, type Size } from '../viewport.js';
+import { HostRequests } from './HostRequests.js';
 
 /** Tracks the canvas box; the only DOM measurement the layout needs. */
 function useElementSize(ref: RefObject<HTMLElement | null>): Size {
@@ -92,6 +93,7 @@ export function Canvas() {
       hostContext: useStudioStore.getState().hostContext,
       onLog: (ev) => useStudioStore.getState().appendLog(ev),
       onHostContextChanged: (ctx) => useStudioStore.getState().replaceHostContext(ctx),
+      onWidgetIntent: (intent) => useStudioStore.getState().appendIntent(intent),
       onSizeChanged: ({ height }) => {
         if (height !== undefined) setReportedHeight(height);
       },
@@ -99,8 +101,8 @@ export function Canvas() {
     emulator.start();
     emulatorRef.current = emulator;
     return () => {
-      emulator.stop();
-      transport.dispose();
+      // Like a real host: ask the widget to tear down before the frame goes; keep listening for its answer.
+      void emulator.teardown().finally(() => transport.dispose());
       emulatorRef.current = null;
     };
   }, [activeWidget, scenario, live, waitingForServer, revision]);
@@ -181,6 +183,7 @@ export function Canvas() {
           {...(env.csp ? { csp: env.csp } : {})}
         />
       </div>
+      <HostRequests />
     </main>
   );
 }

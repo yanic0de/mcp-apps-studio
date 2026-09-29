@@ -8,8 +8,8 @@
 ## 2. Studio
 
 - [x] 2.1 `widgetsForManifest` used by first load and reload (empty → demo) — verify `manifest.test.ts`
-- [ ] 2.2 `intents.ts` `describeIntent` + store `intents` (cap 50, cleared with log) + `HostRequests` list under the canvas — verify `intents.test.ts`, `store.test.ts`
-- [ ] 2.3 Adapter `buildHostRequest`, `HostEmulator.teardown()`, Canvas cleanup through it — verify `host-emulator.test.ts` (silent widget → timeout, before handshake → nothing sent) and a `sdk-conformance.test.ts` case (`onteardown` runs)
+- [x] 2.2 `intents.ts` `describeIntent` + store `intents` (cap 50, cleared with log) + `HostRequests` list under the canvas — verify `intents.test.ts`, `store.test.ts`
+- [x] 2.3 Adapter `buildHostRequest`, `HostEmulator.teardown()`, Canvas cleanup through it — verify `host-emulator.test.ts` (silent widget → timeout, before handshake → nothing sent) and a `sdk-conformance.test.ts` case (`onteardown` runs)
 
 ## 3. Robustness
 

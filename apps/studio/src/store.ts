@@ -1,3 +1,4 @@
+import type { WidgetIntent } from '@studio/host-emulator';
 import {
   type DiscoveryError,
   defaultHostContext,
@@ -11,6 +12,8 @@ import { type Device, deviceContext } from './viewport.js';
 
 /** Chatty widgets must not grow the trace (and its re-renders) unbounded. */
 export const LOG_LIMIT = 500;
+/** Widget requests shown under the canvas: the recent ones are what matters. */
+export const INTENT_LIMIT = 50;
 
 /** A logged event plus a monotonic seq: the React key that stays stable while the capped log slides. */
 export interface TraceEntry extends RpcLogEvent {
@@ -18,6 +21,12 @@ export interface TraceEntry extends RpcLogEvent {
 }
 
 let nextSeq = 0;
+
+/** A host request the widget made (open-link, message, …), with a stable key. */
+export interface IntentEntry {
+  seq: number;
+  intent: WidgetIntent;
+}
 
 function firstScenario(widget: WidgetManifestEntry | undefined): string {
   return Object.keys(widget?.scenarios ?? {})[0] ?? 'default';
@@ -36,6 +45,8 @@ interface StudioState {
   /** Tool linked to the live widget (the "model's" call), for recording. */
   liveToolName: string | null;
   log: TraceEntry[];
+  /** What the widget asked the host to do; cleared with the trace. */
+  intents: IntentEntry[];
   setWidgets: (widgets: WidgetManifestEntry[]) => void;
   /** Live reload: new manifest, same selection when it still exists. */
   replaceWidgets: (widgets: WidgetManifestEntry[], errors: DiscoveryError[]) => void;
@@ -49,6 +60,7 @@ interface StudioState {
   /** Adds a session-only `recorded-<n>` scenario to the active widget, selects it, returns its name. */
   addScenario: (scenario: Scenario) => string;
   appendLog: (ev: RpcLogEvent) => void;
+  appendIntent: (intent: WidgetIntent) => void;
   clearLog: () => void;
 }
 
@@ -62,21 +74,30 @@ export const useStudioStore = create<StudioState>()((set, get) => ({
   device: 'desktop',
   liveToolName: null,
   log: [],
+  intents: [],
   setWidgets: (widgets) =>
-    set({ widgets, activeWidgetId: widgets[0]?.id ?? null, scenario: firstScenario(widgets[0]), log: [] }),
+    set({ widgets, activeWidgetId: widgets[0]?.id ?? null, scenario: firstScenario(widgets[0]), log: [], intents: [] }),
   replaceWidgets: (widgets, errors) =>
     set((s) => {
       const active = widgets.find((w) => w.id === s.activeWidgetId) ?? widgets[0];
       const scenario = active && s.scenario in active.scenarios ? s.scenario : firstScenario(active);
       // The widget remounts and handshakes again, so the trace starts over like on a scenario switch.
-      return { widgets, errors, activeWidgetId: active?.id ?? null, scenario, revision: s.revision + 1, log: [] };
+      return {
+        widgets,
+        errors,
+        activeWidgetId: active?.id ?? null,
+        scenario,
+        revision: s.revision + 1,
+        log: [],
+        intents: [],
+      };
     }),
   setActiveWidget: (id) =>
     set((s) => {
       const widget = s.widgets.find((w) => w.id === id);
-      return widget ? { activeWidgetId: id, scenario: firstScenario(widget), log: [] } : {};
+      return widget ? { activeWidgetId: id, scenario: firstScenario(widget), log: [], intents: [] } : {};
     }),
-  setScenario: (scenario) => set({ scenario, log: [] }),
+  setScenario: (scenario) => set({ scenario, log: [], intents: [] }),
   setHostContext: (patch) => set((s) => ({ hostContext: { ...s.hostContext, ...patch } })),
   replaceHostContext: (hostContext) => set({ hostContext }),
   addScenario: (scenario) => {
@@ -91,6 +112,7 @@ export const useStudioStore = create<StudioState>()((set, get) => ({
       widgets: widgets.map((w) => (w === active ? { ...w, scenarios: { ...w.scenarios, [name]: entry } } : w)),
       scenario: name,
       log: [],
+      intents: [],
     });
     return name;
   },
@@ -100,7 +122,11 @@ export const useStudioStore = create<StudioState>()((set, get) => ({
     const entry: TraceEntry = { ...ev, seq: ++nextSeq };
     set((s) => ({ log: [...s.log.slice(-(LOG_LIMIT - 1)), entry] }));
   },
-  clearLog: () => set({ log: [] }),
+  appendIntent: (intent) => {
+    const entry: IntentEntry = { intent, seq: ++nextSeq };
+    set((s) => ({ intents: [...s.intents.slice(-(INTENT_LIMIT - 1)), entry] }));
+  },
+  clearLog: () => set({ log: [], intents: [] }),
 }));
 
 export function selectActiveWidget(s: StudioState): WidgetManifestEntry | undefined {

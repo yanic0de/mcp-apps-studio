@@ -31,4 +31,4 @@ Before the studio removes a widget (scenario or widget switch, reload, unmount) 
 
 #### Scenario: Scenario switch
 - **WHEN** the user switches the scenario of a widget that completed the handshake
-- **THEN** the trace of the old instance ends with a `ui/resource-teardown` request
+- **THEN** the trace shows the `ui/resource-teardown` request sent to the previous instance

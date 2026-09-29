@@ -1,6 +1,6 @@
 import { defaultHostContext, type WidgetManifestEntry } from '@studio/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { LOG_LIMIT, useStudioStore } from './store.js';
+import { INTENT_LIMIT, LOG_LIMIT, useStudioStore } from './store.js';
 import { deviceContext } from './viewport.js';
 
 const initial = useStudioStore.getState();
@@ -85,6 +85,20 @@ describe('studio store', () => {
     expect(new Set(log.map((e) => e.seq)).size).toBe(LOG_LIMIT);
     expect(log.find((e) => e.ts === LOG_LIMIT - 1)?.seq).toBe(survivor.seq);
     expect(log.every((e, i) => i === 0 || e.seq > log[i - 1]!.seq)).toBe(true);
+  });
+
+  it('keeps the latest widget requests, capped, and clears them with the trace', () => {
+    const { appendIntent, setWidgets, setScenario, clearLog } = useStudioStore.getState();
+    setWidgets(widgets);
+    for (let i = 0; i < INTENT_LIMIT + 5; i++) appendIntent({ type: 'open-link', url: `https://e.com/${i}` });
+    const intents = useStudioStore.getState().intents;
+    expect(intents).toHaveLength(INTENT_LIMIT);
+    expect(intents.at(-1)?.intent).toEqual({ type: 'open-link', url: `https://e.com/${INTENT_LIMIT + 4}` });
+    setScenario('error');
+    expect(useStudioStore.getState().intents).toEqual([]);
+    appendIntent({ type: 'request-teardown' });
+    clearLog();
+    expect(useStudioStore.getState().intents).toEqual([]);
   });
 
   it('appends and clears log', () => {

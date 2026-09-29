@@ -18,7 +18,7 @@ import {
   type WidgetSource,
 } from '@studio/shared';
 import type { ZodType } from 'zod';
-import type { AdapterAction, HostAdapter, HostCapabilities, HostEvent, IframeEnv } from './adapter.js';
+import type { AdapterAction, HostAdapter, HostCapabilities, HostEvent, HostRequest, IframeEnv } from './adapter.js';
 
 type WireMessage = JsonRpcRequest | JsonRpcNotification;
 
@@ -113,6 +113,13 @@ export class McpAppsAdapter implements HostAdapter {
       hostInfo: { name: 'mcp-apps-studio', version: '0.1.0' },
       hostContext: { ...ctx, availableDisplayModes: this.capabilities().displayModes },
     };
+  }
+
+  buildHostRequest(req: HostRequest): { method: string; params: unknown } {
+    switch (req.type) {
+      case 'teardown':
+        return { method: MCP_APPS_METHODS.resourceTeardown, params: {} };
+    }
   }
 
   capabilities(): HostCapabilities {

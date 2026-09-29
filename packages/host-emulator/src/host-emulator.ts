@@ -68,6 +68,24 @@ export class HostEmulator {
     this.bridge.stop();
   }
 
+  /**
+   * Graceful removal, like a real host before it destroys the frame: asks the widget to tear down
+   * (when it completed the handshake), waits for the answer or `timeoutMs`, then stops. Never rejects.
+   */
+  async teardown(opts: { timeoutMs?: number } = {}): Promise<void> {
+    if (this.ready && this.running) {
+      const { method, params } = this.opts.adapter.buildHostRequest({ type: 'teardown' });
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, opts.timeoutMs ?? 500);
+      });
+      // An error answer or the bridge stopping is as final as a success here.
+      await Promise.race([this.bridge.request(method, params).catch(() => {}), timeout]);
+      clearTimeout(timer);
+    }
+    this.stop();
+  }
+
   /** True once the widget sent `ui/notifications/initialized` after the handshake. */
   isReady(): boolean {
     return this.ready;

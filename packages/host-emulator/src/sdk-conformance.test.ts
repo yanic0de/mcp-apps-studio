@@ -110,4 +110,21 @@ describe('ext-apps App against HostEmulator', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(reasons).toEqual(['user']);
   });
+
+  it('tears the App down: onteardown runs and the emulator stops after the answer', async () => {
+    let tornDown = false;
+    const { emulator, log } = await connectApp({
+      beforeConnect: (app) => {
+        app.onteardown = async () => {
+          tornDown = true;
+          return {};
+        };
+      },
+    });
+    await emulator.teardown();
+    expect(tornDown).toBe(true);
+    expect(log.some((e) => e.kind === 'request' && e.method === 'ui/resource-teardown')).toBe(true);
+    expect(log.some((e) => e.direction === 'widget→host' && e.kind === 'response')).toBe(true);
+    expect(invalid(log)).toEqual([]);
+  });
 });
