@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { addComponent, listComponents } from './add.js';
+import { addComponent, listComponents, UnknownComponentError } from './add.js';
 import { locateAssets } from './assets.js';
 import { discoverStories } from './discover.js';
 import { findWidgetFiles, initStories } from './init.js';
@@ -17,15 +17,27 @@ const args = process.argv.slice(2);
 if (args[0] === 'add') {
   const name = args[1];
   if (!name || name.startsWith('-')) {
-    console.error('Usage: mcp-apps-studio add <component> [--dir <dir>]');
+    console.error('Usage: mcp-apps-studio add <component> [--dir <dir>] [--force]');
     console.error(`Available: ${(await listComponents()).map((i) => i.name).join(', ')}`);
     process.exit(1);
   }
   const dirFlag = args.indexOf('--dir');
   const dir = dirFlag !== -1 ? (args[dirFlag + 1] ?? 'src/components') : 'src/components';
-  const copied = await addComponent(name, path.resolve(process.cwd(), dir));
-  console.log(`Added "${name}":`);
-  for (const file of copied) console.log(`  ${path.relative(process.cwd(), file)}`);
+  let added: Awaited<ReturnType<typeof addComponent>>;
+  try {
+    added = await addComponent(name, path.resolve(process.cwd(), dir), { force: args.includes('--force') });
+  } catch (err) {
+    if (!(err instanceof UnknownComponentError)) throw err;
+    console.error(err.message);
+    process.exit(1);
+  }
+  const rel = (file: string) => path.relative(process.cwd(), file);
+  if (added.copied.length > 0) console.log(`Added "${name}":`);
+  for (const file of added.copied) console.log(`  ${rel(file)}`);
+  if (added.skipped.length > 0) {
+    console.log('Skipped (already there, keeping your version; --force replaces):');
+    for (const file of added.skipped) console.log(`  ${rel(file)}`);
+  }
   console.log('\nComponent uses @mcp-apps-studio/widget-runtime. Install it with its peers:');
   console.log(
     '  npm i @mcp-apps-studio/widget-runtime @modelcontextprotocol/ext-apps @modelcontextprotocol/client zod react react-dom',

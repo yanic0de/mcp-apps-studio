@@ -1,3 +1,4 @@
+import { constants as fsConstants } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { locateAssets } from './assets.js';
@@ -20,23 +21,40 @@ async function readRegistry(): Promise<{ pkgRoot: string; registry: Registry }> 
   return { pkgRoot, registry };
 }
 
-/** Copies a registry component's source files into `<targetDir>/<name>/` (shadcn model). */
-export async function addComponent(name: string, targetDir: string): Promise<string[]> {
+/** Thrown for a name that is not in the registry; the message lists what is available. */
+export class UnknownComponentError extends Error {}
+
+/**
+ * Copies a registry component's source files into `<targetDir>/<name>/` (shadcn model). Files the
+ * user already has are theirs (they may have edited them): skipped unless `force`.
+ */
+export async function addComponent(
+  name: string,
+  targetDir: string,
+  opts: { force?: boolean } = {},
+): Promise<{ copied: string[]; skipped: string[] }> {
   const { pkgRoot, registry } = await readRegistry();
   const item = registry.items.find((i) => i.name === name);
   if (!item) {
     const available = registry.items.map((i) => i.name).join(', ');
-    throw new Error(`Unknown component "${name}". Available: ${available}`);
+    throw new UnknownComponentError(`Unknown component "${name}". Available: ${available}`);
   }
   const destDir = path.join(targetDir, item.name);
   await fs.mkdir(destDir, { recursive: true });
   const copied: string[] = [];
+  const skipped: string[] = [];
   for (const file of item.files) {
     const dest = path.join(destDir, path.basename(file));
-    await fs.copyFile(path.join(pkgRoot, file), dest);
-    copied.push(dest);
+    try {
+      // COPYFILE_EXCL: the existence check and the copy are one atomic step.
+      await fs.copyFile(path.join(pkgRoot, file), dest, opts.force ? 0 : fsConstants.COPYFILE_EXCL);
+      copied.push(dest);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+      skipped.push(dest);
+    }
   }
-  return copied;
+  return { copied, skipped };
 }
 
 export async function listComponents(): Promise<RegistryItem[]> {

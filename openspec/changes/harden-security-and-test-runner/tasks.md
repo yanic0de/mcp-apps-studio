@@ -14,7 +14,7 @@
 
 ## 3. CLI `add`
 
-- [ ] 3.1 `addComponent(name, dir, { force })` returns `{ copied, skipped }` via `COPYFILE_EXCL`; `bin.ts` `add` supports `--force`, lists skipped files, prints the unknown-name error without a stack and exits 1 — verify `add.test.ts` (re-add keeps edits, `--force` replaces) and a manual `pnpm -F mcp-apps-studio start add nope` exit code 1
+- [x] 3.1 `addComponent(name, dir, { force })` returns `{ copied, skipped }` via `COPYFILE_EXCL`; `bin.ts` `add` supports `--force`, lists skipped files, prints the unknown-name error without a stack and exits 1 — verify `add.test.ts` (re-add keeps edits, `--force` replaces) and a manual `pnpm -F mcp-apps-studio start add nope` exit code 1
 
 ## 4. Reference servers
 
