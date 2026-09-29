@@ -1,6 +1,6 @@
 {
   "name": "mcp-apps-studio",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Storybook + Playwright for MCP Apps widgets: stories with mocked tool calls, a faithful local host, and headless story runs in CI.",
   "license": "MIT",
   "type": "module",
