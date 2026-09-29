@@ -90,6 +90,8 @@ test('editing a story updates the open studio; a broken story is reported, not f
 });
 
 test('a dev-server widget runs in the null-origin sandbox and hot-reloads', async ({ page }) => {
+  // Vite's HMR client connects after the page loads; an edit before that is never pushed (a CI race).
+  const hmrConnected = page.waitForEvent('console', { predicate: (m) => m.text().includes('[vite] connected') });
   await page.goto(`${STUDIO}&widget=dev`);
   await expect(page.locator('iframe[title="widget under test"]')).toHaveAttribute(
     'src',
@@ -97,6 +99,7 @@ test('a dev-server widget runs in the null-origin sandbox and hot-reloads', asyn
   );
   await expect(frame(page).locator('#msg')).toHaveText('from-dev');
   await expect(frame(page).locator('#rev')).toHaveText('dev-v1');
+  await hmrConnected;
 
   await fs.writeFile(path.join(devRoot, 'index.html'), WIDGET.replace('REV', 'dev-v2'));
   await expect(frame(page).locator('#rev')).toHaveText('dev-v2', { timeout: 10_000 });
