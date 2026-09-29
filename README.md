@@ -121,7 +121,7 @@ Screenshots, `report.json` and a reviewable `report.html` land in `--out` (defau
 **GitHub Actions.** It takes one step. The report is attached as an artifact and summarized on the run page:
 
 ```yaml
-- uses: actions/setup-node@v4
+- uses: actions/setup-node@v7
   with: { node-version: 22 }
 - run: npm ci
 - uses: yanic0de/mcp-apps-studio@v0   # MCP Apps Studio story tests
