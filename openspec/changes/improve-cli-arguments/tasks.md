@@ -2,7 +2,7 @@
 
 ## 1. Pure parsing
 
-- [ ] 1.1 `args.ts`: `parseCli(argv)` with per-command `parseArgs` option tables, help/version, validation of port (1–65535), token (≥32 `[A-Za-z0-9_-]`), threshold, max-diff-pixels, themes, flag values that start with `-`; help text generated from the tables, `--token` hidden — verify `args.test.ts` (table of valid/invalid argv → expected result)
+- [x] 1.1 `args.ts`: `parseCli(argv)` with per-command `parseArgs` option tables, help/version, validation of port (1–65535), token (≥32 `[A-Za-z0-9_-]`), threshold, max-diff-pixels, themes, flag values that start with `-`; help text generated from the tables, `--token` hidden — verify `args.test.ts` (table of valid/invalid argv → expected result)
 
 ## 2. I/O edges
 
