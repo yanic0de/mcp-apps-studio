@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { App } from '@modelcontextprotocol/ext-apps';
+import { describe, expect, it, vi } from 'vitest';
 import { connectWidget } from './session.js';
 import { emulatorHost, flush } from './test-host.js';
 
@@ -81,5 +82,25 @@ describe('connectWidget', () => {
     } finally {
       g.document = previous;
     }
+  });
+
+  it('cleans up and rethrows when the handshake cannot start', async () => {
+    let closed = false;
+    const transport = {
+      start: async () => {
+        throw new Error('no parent window');
+      },
+      send: async () => {},
+      close: async () => {
+        closed = true;
+      },
+    };
+    const removed = vi.spyOn(App.prototype, 'removeEventListener');
+    await expect(
+      connectWidget({ appInfo, transport: transport as never, autoResize: false, applyToDocument: true }),
+    ).rejects.toThrow('no parent window');
+    expect(closed).toBe(true);
+    expect(removed).toHaveBeenCalledWith('hostcontextchanged', expect.any(Function));
+    removed.mockRestore();
   });
 });
