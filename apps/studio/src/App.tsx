@@ -1,4 +1,3 @@
-import type { StudioManifest } from '@studio/shared';
 import { useEffect } from 'react';
 import { type AutomationHook, createAutomationHook } from './automation.js';
 import { Canvas } from './components/Canvas.js';
@@ -6,6 +5,7 @@ import { HeaderControls } from './components/HeaderControls.js';
 import { TracePanel } from './components/TracePanel.js';
 import { applyDeepLink } from './deep-link.js';
 import { demoWidget } from './demo.js';
+import { loadManifest, widgetsForManifest } from './manifest.js';
 import { useStudioStore } from './store.js';
 
 declare global {
@@ -15,23 +15,13 @@ declare global {
   }
 }
 
-async function loadManifest(): Promise<StudioManifest> {
-  const res = await fetch('/api/manifest');
-  if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) {
-    throw new Error('no manifest');
-  }
-  const body = (await res.json()) as Partial<StudioManifest>;
-  if (!body.widgets?.length && !body.errors?.length) throw new Error('empty manifest');
-  return { widgets: body.widgets ?? [], errors: body.errors ?? [] };
-}
-
 /** CLI live reload: the watcher pushes `manifest` events; refetch and keep the selection. */
 function subscribeToManifestEvents(): () => void {
   const events = new EventSource('/api/events');
   events.addEventListener('manifest', () => {
     loadManifest()
-      .then(({ widgets, errors }) => useStudioStore.getState().replaceWidgets(widgets, errors))
-      .catch(() => {});
+      .then((manifest) => useStudioStore.getState().replaceWidgets(widgetsForManifest(manifest), manifest.errors))
+      .catch(() => {}); // a story mid-edit: keep what is shown, the next save reloads again
   });
   return () => events.close();
 }
@@ -42,10 +32,11 @@ export function App() {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
     loadManifest()
-      .then(({ widgets, errors }) => {
+      .then((manifest) => {
         if (cancelled) return;
+        const widgets = widgetsForManifest(manifest);
         useStudioStore.getState().setWidgets(widgets);
-        useStudioStore.getState().replaceWidgets(widgets, errors);
+        useStudioStore.getState().replaceWidgets(widgets, manifest.errors);
         applyDeepLink(window.location.search);
         unsubscribe = subscribeToManifestEvents();
       })
