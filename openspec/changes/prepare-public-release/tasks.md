@@ -4,7 +4,7 @@
 
 - [x] 1.1 `package-meta.test.ts`: both published manifests have repository/homepage/bugs on `yanic0de/mcp-apps-studio`, `author`, `engines.node >=22`; `LICENSE` in each package equals the root one; `README.md` exists in each — verify it fails first
 - [x] 1.2 Copy LICENSE into both packages; update manifests (+ root `engines`, `.nvmrc` 22, tsup `target: node22`); write `packages/cli/README.md` (npm manual) and refresh `packages/widget-runtime/README.md` links — verify `package-meta.test.ts` passes
-- [ ] 1.3 `pack-smoke.mjs`: fail when a tarball lacks `package/README.md` or `package/LICENSE` — verify `pnpm smoke:pack` passes, and fails when README is temporarily moved away
+- [x] 1.3 `pack-smoke.mjs`: fail when a tarball lacks `package/README.md` or `package/LICENSE` — verify `pnpm smoke:pack` passes, and fails when README is temporarily moved away
 
 ## 2. Release pipeline
 

@@ -29,12 +29,16 @@ const cliTgz = path.join(
 );
 const runtimeTgz = path.join(packs, tarballs.find((f) => f.includes('widget-runtime')) ?? '');
 
-// Published manifests must not point at the workspace.
+// Published manifests must not point at the workspace; every tarball carries README and LICENSE.
 for (const tgz of [cliTgz, runtimeTgz]) {
   const dir = path.join(work, path.basename(tgz, '.tgz'));
   await fs.mkdir(dir);
   run('tar', ['xzf', tgz, '-C', dir]);
   const pkg = JSON.parse(await fs.readFile(path.join(dir, 'package', 'package.json'), 'utf8'));
+  // npm shows the README on the package page; the license text must travel with the code.
+  for (const file of ['README.md', 'LICENSE']) {
+    await fs.access(path.join(dir, 'package', file)).catch(() => fail(`${path.basename(tgz)} has no ${file}`));
+  }
   for (const field of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
     for (const [name, range] of Object.entries(pkg[field] ?? {})) {
       if (name.startsWith('@studio/') || String(range).startsWith('workspace:')) {
