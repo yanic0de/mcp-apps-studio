@@ -37,6 +37,14 @@ describe('param schemas', () => {
     if (!r.success) expect(r.error.issues[0]?.path).toEqual(['url']);
   });
 
+  it('ui/open-link accepts web and mail links only', () => {
+    expect(openLinkParamsSchema.safeParse({ url: 'http://example.com/a' }).success).toBe(true);
+    expect(openLinkParamsSchema.safeParse({ url: 'mailto:a@example.com' }).success).toBe(true);
+    expect(openLinkParamsSchema.safeParse({ url: 'javascript:alert(1)' }).success).toBe(false);
+    expect(openLinkParamsSchema.safeParse({ url: 'data:text/html,<b>x</b>' }).success).toBe(false);
+    expect(openLinkParamsSchema.safeParse({ url: 'file:///etc/passwd' }).success).toBe(false);
+  });
+
   it('ui/message takes a user role and content blocks', () => {
     expect(messageParamsSchema.safeParse({ role: 'user', content: [{ type: 'text', text: 'hi' }] }).success).toBe(true);
     expect(messageParamsSchema.safeParse({ role: 'assistant', content: [] }).success).toBe(false);

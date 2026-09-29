@@ -253,7 +253,7 @@ importers:
         specifier: ^7.0.0
         version: 7.0.0
       zod:
-        specifier: ^4.0.0
+        specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
       '@studio/app':
@@ -361,7 +361,7 @@ importers:
         specifier: workspace:*
         version: link:../shared
       zod:
-        specifier: ^4.0.0
+        specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
       '@modelcontextprotocol/client':
@@ -377,7 +377,7 @@ importers:
   packages/shared:
     dependencies:
       zod:
-        specifier: ^4.0.0
+        specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
       typescript:

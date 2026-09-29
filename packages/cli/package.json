@@ -54,7 +54,7 @@
     "pixelmatch": "^7.2.0",
     "playwright-core": "1.61.1",
     "pngjs": "^7.0.0",
-    "zod": "^4.0.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@studio/app": "workspace:*",

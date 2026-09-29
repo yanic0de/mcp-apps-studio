@@ -2,7 +2,7 @@
 
 ## 1. Protocol and host core
 
-- [ ] 1.1 `protocol.ts`: `ui/open-link` accepts only http/https/mailto URLs; raise shared's zod range to `^4.4.3` — verify new cases in `protocol.test.ts` (javascript:, data: rejected; https, mailto accepted) and `sdk-conformance.test.ts` still green
+- [x] 1.1 `protocol.ts`: `ui/open-link` accepts only http/https/mailto URLs; raise shared's zod range to `^4.4.3` — verify new cases in `protocol.test.ts` (javascript:, data: rejected; https, mailto accepted) and `sdk-conformance.test.ts` still green
 - [ ] 1.2 `HostEmulator.setHostContext`: merge always, notify only when handshake done and running; diff vs the context sent in `ui/initialize` delivered right after `initialized` — verify new `host-emulator.test.ts` cases (before handshake, during handshake, after stop, no-diff → no notification) and existing theme-change case
 
 ## 2. `test` runner

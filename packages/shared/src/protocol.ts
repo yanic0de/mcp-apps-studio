@@ -65,7 +65,8 @@ export const sizeChangedParamsSchema = z.object({
 });
 
 export const openLinkParamsSchema = z.object({
-  url: z.url(),
+  // No host opens javascript:/data:/file: links; rejecting them keeps a future open-link handler safe.
+  url: z.url({ protocol: /^(https?|mailto)$/ }),
 });
 
 export const messageParamsSchema = z.object({

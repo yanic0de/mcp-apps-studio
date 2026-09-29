@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@studio/shared": "workspace:*",
-    "zod": "^4.0.0"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",
