@@ -10,13 +10,14 @@ const TOKEN = 'r'.repeat(32);
 const PORT = 4496;
 const STUDIO = `http://127.0.0.1:${PORT}/?token=${TOKEN}`;
 
-/** Vanilla widget: after the handshake it asks the host to open a link and to send a message. */
+/** Vanilla widget: after the handshake it asks the host to open a link and to send a message; it answers teardown. */
 const WIDGET = `<!doctype html><html><body><p>requests</p><script>
   let id = 0; const pending = new Map();
   const request = (method, params) => new Promise((resolve) => { const i = ++id; pending.set(i, resolve);
     parent.postMessage({ jsonrpc: '2.0', id: i, method, params }, '*'); });
   addEventListener('message', (ev) => { const m = ev.data;
-    if (m && m.id !== undefined && pending.has(m.id)) { pending.get(m.id)(m.result); pending.delete(m.id); } });
+    if (m && m.method === 'ui/resource-teardown') parent.postMessage({ jsonrpc: '2.0', id: m.id, result: {} }, '*');
+    else if (m && m.id !== undefined && pending.has(m.id)) { pending.get(m.id)(m.result); pending.delete(m.id); } });
   request('ui/initialize', { protocolVersion: '2026-01-26', appInfo: { name: 'r', version: '1' }, appCapabilities: {} })
     .then(() => parent.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/initialized' }, '*'))
     .then(() => request('ui/open-link', { url: 'https://example.com/docs' }))
@@ -66,9 +67,21 @@ test('widget requests are listed; only http(s) links are clickable, and they ope
   await expect(panel).toContainText('Summarize this');
 });
 
-test('switching the scenario tears the previous widget down first', async ({ page }) => {
+test('switching the scenario tears the previous widget down first, and the widget receives it', async ({ page }) => {
   await page.goto(STUDIO);
   await expect(page.getByRole('region', { name: 'Widget requests' })).toContainText('Summarize this');
   await page.getByLabel('Scenario').selectOption('other');
   await expect(page.locator('.trace-row').filter({ hasText: 'ui/resource-teardown' })).toHaveCount(1);
+  // The answer proves delivery: a request sent to an already removed frame would only time out.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const log = window.__mcpStudio?.getLog() ?? [];
+        const req = log.find((e) => e.method === 'ui/resource-teardown');
+        return log.some((e) => e.direction === 'widget→host' && e.kind === 'response' && e.id === req?.id);
+      }),
+    )
+    .toBe(true);
+  // Only the new widget stays visible and addressable.
+  await expect(page.locator('iframe[title="widget under test"]')).toHaveCount(1);
 });
