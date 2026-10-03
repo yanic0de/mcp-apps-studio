@@ -213,8 +213,12 @@ The studio SHALL list what the widget asked the host to do — open a link, send
 - **THEN** the panel shows a "Message" entry containing `Summarize this`
 
 ### Requirement: Teardown before removal
-Before the studio removes a widget (scenario or widget switch, reload, unmount) it SHALL ask the emulator to tear the widget down, and dispose of the iframe transport only after the teardown finished or timed out.
+Before the studio removes a widget (scenario or widget switch, reload, unmount) it SHALL ask the emulator to tear the widget down while the previous frame is still in the document (hidden), and remove that frame and dispose of its transport only after the teardown finished or timed out.
 
 #### Scenario: Scenario switch
 - **WHEN** the user switches the scenario of a widget that completed the handshake
 - **THEN** the trace shows the `ui/resource-teardown` request sent to the previous instance
+
+#### Scenario: Teardown reaches the widget
+- **WHEN** the user switches the scenario of a widget that answers `ui/resource-teardown`
+- **THEN** the trace shows the widget's response to that request, and only the new instance is visible and titled `widget under test`

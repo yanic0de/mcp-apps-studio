@@ -1,5 +1,5 @@
 import { HostEmulator, IframeTransport } from '@studio/host-emulator';
-import type { WidgetSource } from '@studio/shared';
+import type { WidgetManifestEntry, WidgetSource } from '@studio/shared';
 import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { adapter } from '../adapter.js';
 import { connectMcpServer, type LiveConnection } from '../mcp-client.js';
@@ -25,6 +25,31 @@ function useElementSize(ref: RefObject<HTMLElement | null>): Size {
   return size;
 }
 
+const WIDGET_TITLE = 'widget under test';
+
+/** Manifest widgets have no server-side uri; a studio-local one keeps WidgetSource honest. */
+function widgetSource(widget: WidgetManifestEntry, live: LiveConnection | null): WidgetSource {
+  if (live) return { kind: 'resource', uri: live.widgetUri, html: live.widgetHtml };
+  return widget.url !== undefined
+    ? { kind: 'dev', url: widget.url } // dev server: loaded with src so its HMR client runs
+    : { kind: 'resource', uri: `ui://studio/${widget.id}`, html: widget.html };
+}
+
+/**
+ * The widget frame is created and removed here, not rendered by React: React removes a keyed element before
+ * effect cleanups run, which would leave `ui/resource-teardown` addressed to a frame that no longer exists.
+ */
+function createWidgetFrame(source: WidgetSource): HTMLIFrameElement {
+  const env = adapter.buildIframeEnv(source, useStudioStore.getState().hostContext);
+  const iframe = document.createElement('iframe');
+  iframe.title = WIDGET_TITLE;
+  iframe.setAttribute('sandbox', env.sandbox.join(' '));
+  if (env.csp) iframe.setAttribute('csp', env.csp);
+  if (env.mode === 'srcdoc') iframe.srcdoc = env.content;
+  else iframe.src = env.content;
+  return iframe;
+}
+
 export function Canvas() {
   const activeWidget = useStudioStore(selectActiveWidget);
   const scenario = useStudioStore((s) => s.scenario);
@@ -35,7 +60,9 @@ export function Canvas() {
   const canvasRef = useRef<HTMLElement>(null);
   const canvasSize = useElementSize(canvasRef);
   const [reportedHeight, setReportedHeight] = useState<number | undefined>(undefined);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [frameMounted, setFrameMounted] = useState(false);
   const emulatorRef = useRef<HostEmulator | null>(null);
   const [live, setLive] = useState<LiveConnection | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
@@ -68,11 +95,31 @@ export function Canvas() {
 
   const waitingForServer = isLive && !live;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: revision remounts the iframe, so the emulator must follow
+  const displayMode = hostContext.displayMode;
+  const frame = activeWidget ? frameSize(displayMode, device, reportedHeight, canvasSize) : undefined;
+  const frameStyle = frame ? { width: `${frame.width}px`, height: `${frame.height}px` } : {};
+  // Read by the frame-creating effect without making a resize recreate the widget.
+  const frameStyleRef = useRef(frameStyle);
+  frameStyleRef.current = frameStyle;
+  const frameWidth = frameStyle.width;
+  const frameHeight = frameStyle.height;
   useEffect(() => {
     const iframe = iframeRef.current;
-    if (!iframe || !activeWidget || waitingForServer) return;
+    if (!frameMounted || !iframe || frameWidth === undefined || frameHeight === undefined) return;
+    iframe.style.width = frameWidth;
+    iframe.style.height = frameHeight;
+  }, [frameWidth, frameHeight, frameMounted]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: revision means a new frame, so the emulator must follow
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || !activeWidget || waitingForServer) return;
     setReportedHeight(undefined); // a new iframe starts from the default height
+    const iframe = createWidgetFrame(widgetSource(activeWidget, live));
+    Object.assign(iframe.style, frameStyleRef.current);
+    viewport.append(iframe);
+    iframeRef.current = iframe;
+    setFrameMounted(true);
     const transport = new IframeTransport(iframe);
     const scenarioConfig = activeWidget.scenarios[scenario];
     // Live: the "model" calls the tool linked to the widget through the real server, unless the scenario overrides it.
@@ -101,9 +148,18 @@ export function Canvas() {
     emulator.start();
     emulatorRef.current = emulator;
     return () => {
-      // Like a real host: ask the widget to tear down before the frame goes; keep listening for its answer.
-      void emulator.teardown().finally(() => transport.dispose());
+      // Like a real host: ask the widget to tear down before the frame goes. The frame stays in the DOM,
+      // hidden and renamed so it is never mistaken for the current widget, until the answer or the timeout.
+      iframe.title = 'retiring widget';
+      iframe.setAttribute('aria-hidden', 'true');
+      iframe.style.display = 'none';
+      iframeRef.current = null;
       emulatorRef.current = null;
+      setFrameMounted(false);
+      void emulator.teardown().finally(() => {
+        transport.dispose();
+        iframe.remove();
+      });
     };
   }, [activeWidget, scenario, live, waitingForServer, revision]);
 
@@ -115,7 +171,6 @@ export function Canvas() {
   }, [hostContext]);
 
   // The host tells the widget its bounds; only real changes go out, so canvas resizes don't flood the widget.
-  const displayMode = hostContext.displayMode;
   useEffect(() => {
     if (canvasSize.width === 0) return;
     const next = containerDimensions(displayMode, device, canvasSize);
@@ -125,45 +180,22 @@ export function Canvas() {
     }
   }, [displayMode, device, canvasSize]);
 
-  if (!activeWidget) {
-    return (
-      <main className="canvas" ref={canvasRef}>
-        <p className="canvas-note">Loading widget manifest…</p>
-      </main>
-    );
-  }
+  const note = !activeWidget ? (
+    <p className="canvas-note">Loading widget manifest…</p>
+  ) : liveError ? (
+    <p className="canvas-note">
+      Can't reach the MCP server: {liveError}. Start one (e.g. <code>pnpm -F @studio/example-server dev</code>) or point
+      the studio at another with <code>?server=&lt;url&gt;</code>, then switch the scenario again.
+    </p>
+  ) : waitingForServer ? (
+    <p className="canvas-note">Connecting to MCP server…</p>
+  ) : null;
 
-  if (liveError) {
-    return (
-      <main className="canvas" ref={canvasRef}>
-        <p className="canvas-note">
-          Can't reach the MCP server: {liveError}. Start one (e.g. <code>pnpm -F @studio/example-server dev</code>) or
-          point the studio at another with <code>?server=&lt;url&gt;</code>, then switch the scenario again.
-        </p>
-      </main>
-    );
-  }
-
-  if (waitingForServer) {
-    return (
-      <main className="canvas" ref={canvasRef}>
-        <p className="canvas-note">Connecting to MCP server…</p>
-      </main>
-    );
-  }
-
-  // Manifest widgets have no server-side uri; a studio-local one keeps WidgetSource honest.
-  const source: WidgetSource = live
-    ? { kind: 'resource', uri: live.widgetUri, html: live.widgetHtml }
-    : activeWidget.url !== undefined
-      ? { kind: 'dev', url: activeWidget.url } // dev server: loaded with src so its HMR client runs
-      : { kind: 'resource', uri: `ui://studio/${activeWidget.id}`, html: activeWidget.html };
-  const env = adapter.buildIframeEnv(source, hostContext);
-  const frame = frameSize(displayMode, device, reportedHeight, canvasSize);
-
+  // One tree in every state: the viewport stays mounted so a retiring frame survives until its teardown ends.
   return (
     <main className="canvas" ref={canvasRef}>
-      {errors.length > 0 && (
+      {note}
+      {activeWidget && errors.length > 0 && (
         <div className="canvas-errors" role="alert">
           {errors.map((e) => (
             <p key={e.file}>
@@ -172,17 +204,12 @@ export function Canvas() {
           ))}
         </div>
       )}
-      <div className={`viewport viewport--${displayMode}`} data-testid="viewport">
-        <iframe
-          style={{ width: frame.width, height: frame.height }}
-          key={`${activeWidget.id}:${scenario}:${revision}`}
-          ref={iframeRef}
-          title="widget under test"
-          sandbox={env.sandbox.join(' ')}
-          {...(env.mode === 'srcdoc' ? { srcDoc: env.content } : { src: env.content })}
-          {...(env.csp ? { csp: env.csp } : {})}
-        />
-      </div>
+      <div
+        className={`viewport viewport--${displayMode}`}
+        data-testid="viewport"
+        ref={viewportRef}
+        hidden={note !== null}
+      />
       <HostRequests />
     </main>
   );
