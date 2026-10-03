@@ -1,5 +1,30 @@
 # mcp-apps-studio
 
+## 0.2.0
+
+### Minor Changes
+
+- [#6](https://github.com/yanic0de/mcp-apps-studio/pull/6) [`da3cbcd`](https://github.com/yanic0de/mcp-apps-studio/commit/da3cbcd2f0cd339820a7799bfc70291db25be299) Thanks [@yanic0de](https://github.com/yanic0de)! - **Interaction steps in stories.** A scenario can now list `steps` that `mcp-apps-studio test` plays after the handshake:
+
+  - `click`, `fill` and `press` act inside the widget;
+  - `expectToolCall { name, arguments? }` and `expectMessage { method, params? }` wait for the widget to send that message, matching `arguments`/`params` as a subset.
+
+  The first failing step fails the run, with a reason that names the step and quotes what the widget sent instead. The `Step` type is exported. The component library's `kpi-card` has a `refresh` scenario as an example.
+
+### Patch Changes
+
+- [#5](https://github.com/yanic0de/mcp-apps-studio/pull/5) [`0ba2d95`](https://github.com/yanic0de/mcp-apps-studio/commit/0ba2d95ada137973ba3d78f21645272c6e0ff247) Thanks [@yanic0de](https://github.com/yanic0de)! - Dev-loop and robustness fixes:
+
+  - **Stories are bundled.** Editing a fixture or helper that a story imports now reloads the studio without a restart.
+  - **Deleted stories disappear.** When every story is deleted, the studio shows the demo instead of the stale stories.
+  - **Widget requests are visible.** The studio lists widget requests (open-link, message, model context, download, log, close), and only `http(s)` links are clickable. Before removing a widget, the host sends `ui/resource-teardown`, as real hosts do.
+  - **No silent failures.**
+    - The host bridge no longer leaks unhandled rejections. Such failures now show up in the trace.
+    - `connectWidget` cleans up after a failed handshake.
+    - A studio file read error answers `500` instead of crashing the CLI.
+  - **Screenshot paths are safe.** Scenario names and widget ids are sanitized before they become file paths.
+  - **Provenance.** Packages are published through npm Trusted Publishing and carry provenance.
+
 ## 0.1.0
 
 ### Minor Changes
