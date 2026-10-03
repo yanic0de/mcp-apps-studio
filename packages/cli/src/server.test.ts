@@ -1,7 +1,9 @@
+import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 import type { StudioManifest, WidgetManifestEntry } from '@studio/shared';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createStudioServer, generateToken, listenLoopback, PortInUseError, type StudioServer } from './server.js';
@@ -196,5 +198,31 @@ describe('listenLoopback', () => {
     } finally {
       await new Promise((r) => blocker.close(r));
     }
+  });
+});
+
+describe('static file read errors', () => {
+  it('answers 500 and keeps serving when a file stream fails (e.g. removed during a rebuild)', async () => {
+    let fail = true;
+    const s = createStudioServer({
+      studioDist: dist,
+      getManifest: async () => manifest,
+      token: TOKEN,
+      openFile: (file) =>
+        fail
+          ? new Readable({
+              read() {
+                this.destroy(new Error('ENOENT: vanished'));
+              },
+            })
+          : createReadStream(file),
+    });
+    server = s;
+    const port = await listenLoopback(s, 0);
+    const first = await fetch(`http://127.0.0.1:${port}/assets/app.js?token=${TOKEN}`);
+    expect(first.status).toBe(500);
+    fail = false;
+    const again = await fetch(`http://127.0.0.1:${port}/?token=${TOKEN}`);
+    expect(again.status).toBe(200);
   });
 });

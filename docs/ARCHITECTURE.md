@@ -47,7 +47,8 @@ Dependencies point down only.
 - **`HostEmulator`** composes the pieces above and is the only stateful orchestrator:
   - It sends host context changes only after the handshake.
   - It plays a scenario's `toolCall` after `ui/notifications/initialized` (`tool-input-partial`* → `tool-input` → `tool-result` | `tool-cancelled`).
-  - It reports widget intents (open-link, message, …) to the embedder.
+  - It reports widget intents (open-link, message, …) to the embedder; the studio lists them and never acts on them by itself.
+  - `teardown()` sends `ui/resource-teardown`, waits for the answer (at most 500 ms) and stops. The studio calls it before removing a widget, as real hosts do.
 - **`IframeTransport`** is the DOM edge. A sandboxed widget has a `null` origin, so `event.source === iframe.contentWindow` is the **only** trust signal.
 
 ## Trust model

@@ -220,6 +220,32 @@ describe('HostEmulator', () => {
     });
   });
 
+  describe('teardown', () => {
+    const teardowns = (inbox: WireMessage[]) => inbox.filter((m) => m.method === MCP_APPS_METHODS.resourceTeardown);
+
+    it('asks a silent widget, gives up after the timeout and stops', async () => {
+      const { emulator, widget } = setup({ mocks: { t: { kind: 'static', structuredContent: {} } } });
+      await handshake(widget);
+      const started = Date.now();
+      await emulator.teardown({ timeoutMs: 50 });
+      expect(Date.now() - started).toBeGreaterThanOrEqual(45);
+      expect(teardowns(widget.inbox)).toEqual([
+        expect.objectContaining({ method: MCP_APPS_METHODS.resourceTeardown, params: {} }),
+      ]);
+      // stopped: requests are no longer answered
+      await expect(widget.request(MCP_APPS_METHODS.toolsCall, { name: 't' })).rejects.toThrow(/no response/);
+    });
+
+    it('sends nothing before the handshake and still stops', async () => {
+      const { emulator, widget } = setup();
+      await emulator.teardown({ timeoutMs: 50 });
+      expect(teardowns(widget.inbox)).toEqual([]);
+      await expect(widget.request(MCP_APPS_METHODS.uiInitialize, { appCapabilities: {} })).rejects.toThrow(
+        /no response/,
+      );
+    });
+  });
+
   it('reports size-changed notifications', async () => {
     const sizes: unknown[] = [];
     const { widget } = setup({ onSizeChanged: (s) => sizes.push(s) });

@@ -74,6 +74,13 @@ describe('release.yml', () => {
     expect(at).toBeLessThan(publishAt);
   });
 
+  it('publishes through npm Trusted Publishing: OIDC allowed, no npm token anywhere', () => {
+    const doc = load('.github/workflows/release.yml');
+    expect(doc.permissions['id-token']).toBe('write');
+    const release = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'release.yml'), 'utf8');
+    expect(release).not.toMatch(/NPM_TOKEN|NODE_AUTH_TOKEN|registry-url/);
+  });
+
   it('moves the major tag only after a publish', () => {
     expect(steps[publishAt]?.id).toBe('changesets');
     const tag = steps.slice(publishAt + 1).find((s) => s.run?.includes('git tag -f'));

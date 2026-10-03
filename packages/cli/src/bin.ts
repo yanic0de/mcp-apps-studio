@@ -110,10 +110,17 @@ async function start(cmd: Of<'start'>): Promise<void> {
 
   // localhost only + one-time token in URL: a local dev tool is still an attack surface.
   const token = cmd.token ?? generateToken();
-  // Rediscover per request; the watcher tells open studios to refetch (live reload).
-  const server = createStudioServer({ studioDist, getManifest: () => discoverStories(rootDir), token });
+  // Rediscover per request; the watcher tells open studios to refetch (live reload), also when a
+  // fixture or helper a story imports changes — the dependency set follows the latest discovery.
+  let dependencies = new Set(manifest.dependencies);
+  const getManifest = async () => {
+    const next = await discoverStories(rootDir);
+    dependencies = new Set(next.dependencies);
+    return next;
+  };
+  const server = createStudioServer({ studioDist, getManifest, token });
   const port = await listenLoopback(server, cmd.port);
-  watchProject(rootDir, () => server.notify('manifest'));
+  watchProject(rootDir, () => server.notify('manifest'), { isDependency: (file) => dependencies.has(file) });
   console.log('');
   console.log('  MCP Apps Studio');
   console.log(`  project: ${rootDir}`);

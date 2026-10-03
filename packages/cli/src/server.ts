@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
+import type { Readable } from 'node:stream';
 import type { StudioManifest } from '@studio/shared';
 
 export interface StudioServerOptions {
@@ -10,6 +11,8 @@ export interface StudioServerOptions {
   /** Re-invoked on every /api/manifest request; story load failures travel inside it as `errors`. */
   getManifest: () => Promise<StudioManifest>;
   token: string;
+  /** Opens a studio file for streaming (tests inject failures; default `fs.createReadStream`). */
+  openFile?: (filePath: string) => Readable;
 }
 
 const COOKIE_NAME = 'mcp_studio_token';
@@ -83,9 +86,10 @@ export function createStudioServer(opts: StudioServerOptions): StudioServer {
     if (url.pathname === '/api/manifest') {
       opts
         .getManifest()
-        .then((manifest) => {
+        .then(({ widgets, errors }) => {
+          // Only what the page needs: discovery extras (e.g. absolute dependency paths) stay server-side.
           res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-          res.end(JSON.stringify(manifest));
+          res.end(JSON.stringify({ widgets, errors }));
         })
         .catch((err: unknown) => {
           // a story file mid-edit must not kill the server
@@ -120,8 +124,18 @@ export function createStudioServer(opts: StudioServerOptions): StudioServer {
       }
       filePath = path.join(distRoot, 'index.html'); // SPA fallback for client routes
     }
-    res.writeHead(200, { 'content-type': MIME[path.extname(filePath)] ?? 'application/octet-stream' });
-    fs.createReadStream(filePath).pipe(res);
+    // Status goes out with the first bytes, so a read error (file gone mid-rebuild) can still answer 500.
+    res.setHeader('content-type', MIME[path.extname(filePath)] ?? 'application/octet-stream');
+    const stream = (opts.openFile ?? fs.createReadStream)(filePath);
+    stream.on('error', () => {
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
+      res.writeHead(500, { 'content-type': 'text/plain' });
+      res.end('Read error');
+    });
+    stream.pipe(res);
   }) as StudioServer;
 
   server.notify = (event) => {

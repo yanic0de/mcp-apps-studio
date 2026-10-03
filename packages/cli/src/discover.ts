@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { type DiscoveryError, formatZodIssues, type StudioManifest, type WidgetManifestEntry } from '@studio/shared';
-import { transform } from 'esbuild';
+import { build } from 'esbuild';
 import { type WidgetStoryConfig, widgetStoryConfigSchema } from './define.js';
 
 const STORY_SUFFIX = '.stories.mcp.ts';
@@ -26,10 +26,32 @@ export async function findStoryFiles(rootDir: string): Promise<string[]> {
   return found.sort();
 }
 
-async function loadStoryConfig(file: string): Promise<WidgetStoryConfig> {
-  const source = await fs.readFile(file, 'utf8');
-  const { code } = await transform(source, { loader: 'ts', format: 'esm' });
-  // Written next to the story so its own imports resolve from the user's project.
+/**
+ * Bundles the story: local imports (fixtures, helpers, JSON) are inlined, so each discovery sees their
+ * current content — Node would otherwise serve them from its module cache forever. Package imports stay
+ * external and resolve from the user's project. Returns the code and the local files it was built from.
+ */
+async function bundleStory(file: string): Promise<{ code: string; dependencies: string[] }> {
+  const dir = path.dirname(file);
+  const result = await build({
+    entryPoints: [file],
+    absWorkingDir: dir,
+    bundle: true,
+    packages: 'external',
+    format: 'esm',
+    platform: 'node',
+    write: false,
+    metafile: true,
+    logLevel: 'silent',
+  });
+  const code = result.outputFiles[0]?.text ?? '';
+  const dependencies = Object.keys(result.metafile.inputs).map((input) => path.resolve(dir, input));
+  return { code, dependencies };
+}
+
+async function loadStoryConfig(file: string): Promise<{ config: WidgetStoryConfig; dependencies: string[] }> {
+  const { code, dependencies } = await bundleStory(file);
+  // Written next to the story so its package imports resolve from the user's project.
   const tmp = path.join(path.dirname(file), `.story-${crypto.randomBytes(4).toString('hex')}.mjs`);
   await fs.writeFile(tmp, code, 'utf8');
   try {
@@ -41,7 +63,7 @@ async function loadStoryConfig(file: string): Promise<WidgetStoryConfig> {
     if (!parsed.success) {
       throw new Error(`Invalid story config in ${file}: ${formatZodIssues(parsed.error)}`);
     }
-    return parsed.data;
+    return { config: parsed.data, dependencies };
   } finally {
     await fs.rm(tmp, { force: true });
   }
@@ -64,15 +86,15 @@ function assignIds(rootDir: string, files: string[]): Map<string, string> {
   );
 }
 
-async function loadEntry(file: string, id: string): Promise<WidgetManifestEntry> {
-  const config = await loadStoryConfig(file);
+async function loadEntry(file: string, id: string): Promise<{ entry: WidgetManifestEntry; dependencies: string[] }> {
+  const { config, dependencies } = await loadStoryConfig(file);
   const scenarios = Object.fromEntries(
     Object.entries(config.scenarios).map(([name, sc]) => [
       name,
       { mocks: sc.mocks ?? {}, ...(sc.toolCall ? { toolCall: sc.toolCall } : {}) },
     ]),
   );
-  if (isUrl(config.widget)) return { id, title: config.title, url: config.widget, scenarios };
+  if (isUrl(config.widget)) return { entry: { id, title: config.title, url: config.widget, scenarios }, dependencies };
   const widgetPath = path.resolve(path.dirname(file), config.widget);
   let html: string;
   try {
@@ -80,21 +102,29 @@ async function loadEntry(file: string, id: string): Promise<WidgetManifestEntry>
   } catch {
     throw new Error(`Widget file not found for ${file}: ${config.widget} (resolved to ${widgetPath})`);
   }
-  return { id, title: config.title, html, scenarios };
+  return { entry: { id, title: config.title, html, scenarios }, dependencies };
+}
+
+/** The manifest plus what the watcher needs: every local file a story was built from (never sent to the page). */
+export interface Discovery extends StudioManifest {
+  dependencies: string[];
 }
 
 /** Loads every story; a broken one becomes an error entry instead of taking the others down. */
-export async function discoverStories(rootDir: string): Promise<StudioManifest> {
+export async function discoverStories(rootDir: string): Promise<Discovery> {
   const files = await findStoryFiles(rootDir);
   const ids = assignIds(rootDir, files);
   const widgets: WidgetManifestEntry[] = [];
   const errors: DiscoveryError[] = [];
+  const dependencies = new Set<string>();
   for (const file of files) {
     try {
-      widgets.push(await loadEntry(file, ids.get(file) ?? file));
+      const loaded = await loadEntry(file, ids.get(file) ?? file);
+      widgets.push(loaded.entry);
+      for (const dep of loaded.dependencies) dependencies.add(dep);
     } catch (err) {
       errors.push({ file, message: err instanceof Error ? err.message : String(err) });
     }
   }
-  return { widgets, errors };
+  return { widgets, errors, dependencies: [...dependencies] };
 }

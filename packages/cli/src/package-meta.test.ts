@@ -19,6 +19,10 @@ describe.each(published)('%s', (dir) => {
     expect(pkg.author).toBeTruthy();
   });
 
+  it('asks npm for a provenance attestation', () => {
+    expect(pkg.publishConfig?.provenance).toBe(true);
+  });
+
   it('requires a supported Node', () => {
     expect(pkg.engines?.node).toBe('>=22');
   });

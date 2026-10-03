@@ -41,7 +41,14 @@ export async function connectWidget(opts: ConnectWidgetOptions): Promise<WidgetS
   const lifecycle = createToolLifecycleStore(app);
   const applyToDocument = opts.applyToDocument ?? true;
   if (applyToDocument) app.addEventListener('hostcontextchanged', applyHostContext);
-  await app.connect(opts.transport);
+  try {
+    await app.connect(opts.transport);
+  } catch (err) {
+    // A failed handshake leaves nothing behind: no document listener, no open transport.
+    if (applyToDocument) app.removeEventListener('hostcontextchanged', applyHostContext);
+    await app.close().catch(() => {});
+    throw err;
+  }
   const ctx = app.getHostContext();
   if (applyToDocument && ctx) applyHostContext(ctx);
   return { app, lifecycle };

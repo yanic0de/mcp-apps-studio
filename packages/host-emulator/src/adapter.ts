@@ -47,6 +47,9 @@ export type HostEvent =
   | { type: 'tool-result'; result: CallToolResult }
   | { type: 'tool-cancelled'; reason?: string };
 
+/** Requests the host makes of the widget (answered by the widget). */
+export type HostRequest = { type: 'teardown' };
+
 export interface HostCapabilities {
   displayModes: HostContext['displayMode'][];
 }
@@ -60,6 +63,8 @@ export interface HostAdapter {
   buildIframeEnv(widget: WidgetSource, ctx: HostContext): IframeEnv;
   handleWidgetMessage(msg: JsonRpcRequest | JsonRpcNotification): AdapterAction;
   pushHostEvent(ev: HostEvent): JsonRpcNotification | null;
+  /** Wire form of a host → widget request (the bridge assigns the id). */
+  buildHostRequest(req: HostRequest): { method: string; params: unknown };
   buildInitializeResult(ctx: HostContext): unknown;
   capabilities(): HostCapabilities;
 }

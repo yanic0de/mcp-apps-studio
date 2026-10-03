@@ -13,6 +13,15 @@ describe('isRelevantChange', () => {
     expect(isRelevantChange('.git/index.html')).toBe(false);
     expect(isRelevantChange('src/main.ts')).toBe(false);
   });
+
+  it('accepts files the stories depend on, and only those', () => {
+    const root = path.resolve('/p'); // a drive letter on Windows
+    const deps = new Set([path.join(root, 'src', 'rows.json'), path.join(root, 'src', 'helper.ts')]);
+    const isDependency = (abs: string) => deps.has(abs);
+    expect(isRelevantChange('src/rows.json', { root, isDependency })).toBe(true);
+    expect(isRelevantChange(path.join('src', 'helper.ts'), { root, isDependency })).toBe(true);
+    expect(isRelevantChange('src/main.ts', { root, isDependency })).toBe(false);
+  });
 });
 
 describe('watchProject', () => {
@@ -29,11 +38,12 @@ describe('watchProject', () => {
 
   it('reports a burst of relevant changes once, debounced', async () => {
     let calls = 0;
-    stop = watchProject(root, () => calls++, { debounceMs: 100 });
+    // Wide window: on a loaded CI runner four writes can take longer than 100 ms.
+    stop = watchProject(root, () => calls++, { debounceMs: 400 });
     await new Promise((r) => setTimeout(r, 50));
     for (let i = 0; i < 3; i++) await fs.writeFile(path.join(root, 'src', 'a.stories.mcp.ts'), `// ${i}`);
     await fs.writeFile(path.join(root, 'src', '.story-deadbeef.mjs'), 'x');
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 1200));
     expect(calls).toBe(1);
   });
 
@@ -44,5 +54,16 @@ describe('watchProject', () => {
     await fs.writeFile(path.join(root, 'src', 'main.ts'), 'x');
     await new Promise((r) => setTimeout(r, 250));
     expect(calls).toBe(0);
+  });
+
+  it('reports a change to a story dependency', async () => {
+    // Not created beforehand: macOS FSEvents may deliver a pre-start write late and count it twice.
+    const rows = path.join(root, 'src', 'rows.json');
+    let calls = 0;
+    stop = watchProject(root, () => calls++, { debounceMs: 50, isDependency: (abs) => abs === rows });
+    await new Promise((r) => setTimeout(r, 50));
+    await fs.writeFile(rows, '{"n":1}');
+    await new Promise((r) => setTimeout(r, 300));
+    expect(calls).toBeGreaterThanOrEqual(1);
   });
 });
