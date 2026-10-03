@@ -46,4 +46,13 @@ describe('renderMarkdownSummary', () => {
     );
     expect(md).toContain('**1 passed, 1 failed**');
   });
+
+  it('keeps a widget-sent newline from breaking out of its table row', () => {
+    const md = renderMarkdownSummary(
+      [{ widget: 'w', scenario: 's', theme: 'light', ok: false, failures: ['seen: evil\n# Injected [x](https://e)'] }],
+      [],
+    );
+    expect(md.split('\n').some((line) => line.startsWith('# Injected'))).toBe(false);
+    expect(md).toContain('| ❌ | w | s | light | seen: evil # Injected');
+  });
 });

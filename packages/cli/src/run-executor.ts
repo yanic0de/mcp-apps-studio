@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { MCP_APPS_METHODS, type RpcLogEvent, type Step } from '@studio/shared';
-import { type ActionStep, isAction, matchStep, stepSummary, unmetReason } from './steps.js';
+import { MCP_APPS_METHODS, type Step } from '@studio/shared';
+import { type ActionStep, isAction, matchStep, stepSummary, type TraceEvent, unmetReason } from './steps.js';
 import { type ActiveTarget, checkTarget, evaluateRun, type RunResult, type TestRun } from './test-plan.js';
 import { compareWithBaseline, type VisualOptions } from './visual.js';
 
@@ -11,7 +11,8 @@ export interface RunPage {
   /** Resolves when the trace has an entry with `method`, or after `timeoutMs` (never rejects on timeout). */
   waitForLog(method: string, timeoutMs: number): Promise<void>;
   settle(ms: number): Promise<void>;
-  getLog(): Promise<RpcLogEvent[]>;
+  /** The studio trace; its entries carry `seq`, the stable key step expectations consume by. */
+  getLog(): Promise<TraceEvent[]>;
   /** `window.__mcpStudio.getActive()`; `undefined` when the hook is missing. */
   getActive(): Promise<ActiveTarget | undefined>;
   /** Performs an action step inside the widget iframe; rejects when it cannot within `timeoutMs`. */
@@ -55,7 +56,7 @@ async function playSteps(page: RunPage, steps: Step[]): Promise<string | undefin
       }
       continue;
     }
-    let log: RpcLogEvent[] = [];
+    let log: TraceEvent[] = [];
     let match: number | undefined;
     // Counted polls rather than a wall clock: deterministic with a fake page whose settle is instant.
     for (let polls = Math.ceil(timeoutMs / POLL_MS); ; polls--) {

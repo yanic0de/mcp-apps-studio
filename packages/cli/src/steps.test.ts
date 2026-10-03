@@ -49,6 +49,21 @@ describe('matchStep', () => {
     expect(matchStep(log, step, consumed)).toBeUndefined();
   });
 
+  it('remembers consumed messages by their trace seq, so a capped trace dropping old entries cannot rematch one', () => {
+    const step: Step = { expectToolCall: { name: 'get_rows' } };
+    const before = [
+      { ...call(1, 'other'), seq: 1 },
+      { ...call(2, 'get_rows'), seq: 2 },
+    ];
+    const consumed = new Set<number>();
+    const first = matchStep(before, step, consumed);
+    expect(first).toBe(2);
+    consumed.add(first as number);
+    // The studio trimmed the oldest entry: the same call now sits at index 0.
+    const after = [{ ...call(2, 'get_rows'), seq: 2 }];
+    expect(matchStep(after, step, consumed)).toBeUndefined();
+  });
+
   it('matches widget requests and notifications by method and params subset, never host messages', () => {
     const log: RpcLogEvent[] = [
       {

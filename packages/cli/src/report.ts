@@ -48,7 +48,11 @@ ${rows}
 
 /** Markdown table for $GITHUB_STEP_SUMMARY. */
 export function renderMarkdownSummary(results: RunResult[], errors: DiscoveryError[]): string {
-  const cell = (s: string) => esc(s).replace(/\|/g, '\\|');
+  // Failure reasons quote widget-sent data: a newline must not end the table row and start markdown of its own.
+  const cell = (s: string) =>
+    esc(s)
+      .replace(/\s*[\r\n]+\s*/g, ' ')
+      .replace(/\|/g, '\\|');
   const lines = [
     '### MCP Apps Studio — story tests',
     '',

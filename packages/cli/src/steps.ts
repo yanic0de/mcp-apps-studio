@@ -24,6 +24,15 @@ export function isSubset(actual: unknown, expected: unknown): boolean {
   return actual === expected;
 }
 
+/** A trace entry as the studio hands it out: `seq` is its stable, monotonic key. */
+export type TraceEvent = RpcLogEvent & { seq?: number };
+
+/**
+ * Identity of a trace entry across polls. The studio caps the trace and drops the oldest entries, which
+ * shifts every index, so the index is only a fallback for traces without `seq`.
+ */
+const keyOf = (ev: TraceEvent, index: number) => ev.seq ?? index;
+
 const paramsOf = (ev: RpcLogEvent) => (ev.payload as { params?: unknown } | undefined)?.params;
 
 const methodOf = (step: ExpectStep) =>
@@ -49,9 +58,12 @@ function satisfies(ev: RpcLogEvent, step: ExpectStep): boolean {
   return expected === undefined || isSubset(params, expected);
 }
 
-/** Trace index of the earliest message meeting the expectation that no earlier expectation consumed. */
-export function matchStep(log: RpcLogEvent[], step: ExpectStep, consumed: ReadonlySet<number>): number | undefined {
-  return candidates(log, step).find((i) => !consumed.has(i) && satisfies(log[i] as RpcLogEvent, step));
+/** Key (see `keyOf`) of the earliest message meeting the expectation that no earlier expectation consumed. */
+export function matchStep(log: TraceEvent[], step: ExpectStep, consumed: ReadonlySet<number>): number | undefined {
+  const index = candidates(log, step).find(
+    (i) => !consumed.has(keyOf(log[i] as TraceEvent, i)) && satisfies(log[i] as RpcLogEvent, step),
+  );
+  return index === undefined ? undefined : keyOf(log[index] as TraceEvent, index);
 }
 
 export function stepSummary(step: Step): string {
