@@ -38,11 +38,12 @@ describe('watchProject', () => {
 
   it('reports a burst of relevant changes once, debounced', async () => {
     let calls = 0;
-    stop = watchProject(root, () => calls++, { debounceMs: 100 });
+    // Wide window: on a loaded CI runner four writes can take longer than 100 ms.
+    stop = watchProject(root, () => calls++, { debounceMs: 400 });
     await new Promise((r) => setTimeout(r, 50));
     for (let i = 0; i < 3; i++) await fs.writeFile(path.join(root, 'src', 'a.stories.mcp.ts'), `// ${i}`);
     await fs.writeFile(path.join(root, 'src', '.story-deadbeef.mjs'), 'x');
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 1200));
     expect(calls).toBe(1);
   });
 
