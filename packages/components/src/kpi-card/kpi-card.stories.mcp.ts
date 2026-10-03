@@ -9,6 +9,17 @@ export default {
         get_metrics: { kind: 'static', structuredContent: { value: 12840, delta: 8.3, label: 'Monthly active users' } },
       },
     },
+    // Played by `mcp-apps-studio test`: the card fetches on mount, then once more per Refresh click.
+    refresh: {
+      mocks: {
+        get_metrics: { kind: 'static', structuredContent: { value: 12840, delta: 8.3, label: 'Monthly active users' } },
+      },
+      steps: [
+        { expectToolCall: { name: 'get_metrics' } },
+        { click: 'button.kpi-card__refresh' },
+        { expectToolCall: { name: 'get_metrics' } },
+      ],
+    },
     loading: {
       mocks: {
         get_metrics: {

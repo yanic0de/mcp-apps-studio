@@ -50,9 +50,32 @@ export const toolCallSchema = z.strictObject({
 });
 export type ToolCall = z.infer<typeof toolCallSchema>;
 
-/** One story scenario: mocks for widget-initiated calls + the originating tool call. */
+const selector = z.string().min(1);
+const timeoutMs = z.number().int().positive().optional();
+
+/**
+ * One interaction step played by `mcp-apps-studio test` after the handshake: an action inside the widget
+ * or an expectation on the trace. Verb-keyed strict objects, so a typo or two verbs in one step fail.
+ */
+export const stepSchema = z.union([
+  z.strictObject({ click: selector, timeoutMs }),
+  z.strictObject({ fill: selector, value: z.string(), timeoutMs }),
+  z.strictObject({ press: z.string().min(1), on: selector.optional(), timeoutMs }),
+  z.strictObject({
+    expectToolCall: z.strictObject({ name: z.string().min(1), arguments: recordSchema.optional() }),
+    timeoutMs,
+  }),
+  z.strictObject({
+    expectMessage: z.strictObject({ method: z.string().min(1), params: z.unknown().optional() }),
+    timeoutMs,
+  }),
+]);
+export type Step = z.infer<typeof stepSchema>;
+
+/** One story scenario: mocks for widget-initiated calls + the originating tool call + interaction steps. */
 export const scenarioSchema = z.object({
   mocks: mockConfigSchema.optional(),
   toolCall: toolCallSchema.optional(),
+  steps: z.array(stepSchema).optional(),
 });
 export type Scenario = z.infer<typeof scenarioSchema>;

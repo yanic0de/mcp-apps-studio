@@ -47,6 +47,7 @@ CI runs lint, typecheck and unit tests on Linux, macOS and Windows, and runs e2e
   - Larger changes start as a proposal under `openspec/changes/<id>/` (proposal, spec deltas, design, tasks), get implemented, and are then archived. If you use Claude Code, the `/opsx:propose`, `/opsx:apply` and `/opsx:archive` commands automate this. It is optional; the files are plain Markdown.
   - Run `pnpm openspec validate --all --strict` after editing anything under `openspec/`.
 - **Architecture.** Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), especially "Constraints that are easy to violate", before touching the host core or the CLI server.
+- **Decisions.** An architectural choice with real alternatives (and anything that outlives one OpenSpec change) gets a record in [docs/adr/](docs/adr/).
 - **Biome rules.** Suppress one only with a `biome-ignore` comment that states the reason.
 
 Things we deliberately don't do: a server-inspector UI (LLM chat, OAuth), a docs site, and Tailwind. Open an issue first if you want to argue for one.

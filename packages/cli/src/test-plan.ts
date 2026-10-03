@@ -1,4 +1,4 @@
-import { MCP_APPS_METHODS, type RpcLogEvent, type WidgetManifestEntry } from '@studio/shared';
+import { MCP_APPS_METHODS, type RpcLogEvent, type Step, type WidgetManifestEntry } from '@studio/shared';
 
 export type Theme = 'light' | 'dark';
 
@@ -10,6 +10,8 @@ export interface TestRun {
   query: string;
   /** Relative to the output directory. */
   screenshot: string;
+  /** The scenario's interaction steps, played after the handshake. */
+  steps?: Step[];
 }
 
 export interface RunResult {
@@ -41,15 +43,17 @@ export function buildTestPlan(manifest: WidgetManifestEntry[], themes: Theme[]):
   return manifest.flatMap((w) =>
     Object.keys(w.scenarios)
       .filter((s) => s !== 'live')
-      .flatMap((scenario) =>
-        themes.map((theme) => ({
+      .flatMap((scenario) => {
+        const steps = w.scenarios[scenario]?.steps;
+        return themes.map((theme) => ({
           widget: w.id,
           scenario,
           theme,
           query: new URLSearchParams({ widget: w.id, scenario, theme }).toString(),
           screenshot: `${safeId(w.id)}/${safeSegment(scenario)}.${theme}.png`,
-        })),
-      ),
+          ...(steps ? { steps } : {}),
+        }));
+      }),
   );
 }
 

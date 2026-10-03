@@ -51,6 +51,13 @@ function playwrightRunPage(page: Page): RunPage {
     settle: (ms) => page.waitForTimeout(ms),
     getLog: () => page.evaluate(() => (globalThis as HookGlobal).__mcpStudio?.getLog() ?? []),
     getActive: () => page.evaluate(() => (globalThis as HookGlobal).__mcpStudio?.getActive?.()),
+    act: async (step, timeout) => {
+      // Playwright reaches the sandboxed null-origin frame over CDP: the sandbox itself stays untouched.
+      const frame = page.frameLocator('[data-testid="viewport"] iframe');
+      if ('click' in step) await frame.locator(step.click).click({ timeout });
+      else if ('fill' in step) await frame.locator(step.fill).fill(step.value, { timeout });
+      else await frame.locator(step.on ?? 'body').press(step.press, { timeout });
+    },
     screenshotViewport: async (file) => {
       await page.locator('[data-testid="viewport"]').screenshot({ path: file });
     },

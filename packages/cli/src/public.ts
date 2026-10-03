@@ -8,3 +8,4 @@ export type Scenario = WidgetStoryConfig['scenarios'][string];
 export type ToolMock = NonNullable<Scenario['mocks']>[string];
 export type ToolCall = NonNullable<Scenario['toolCall']>;
 export type ToolCallResult = NonNullable<ToolCall['result']>;
+export type Step = NonNullable<Scenario['steps']>[number];

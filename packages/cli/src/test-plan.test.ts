@@ -31,6 +31,14 @@ describe('buildTestPlan', () => {
     expect(run?.query).toBe('widget=kpi&scenario=default&theme=dark');
     expect(run?.screenshot).toBe('kpi/default.dark.png');
   });
+
+  it("carries the scenario's interaction steps into its runs", () => {
+    const entry = widget('kpi', ['default']);
+    const steps = [{ click: 'button' }];
+    entry.scenarios = { default: { mocks: {}, steps } };
+    expect(buildTestPlan([entry], ['light']).map((r) => r.steps)).toEqual([steps]);
+    expect(buildTestPlan([widget('kpi', ['default'])], ['light'])[0]?.steps).toBeUndefined();
+  });
 });
 
 const ev = (e: Partial<RpcLogEvent>): RpcLogEvent => ({
