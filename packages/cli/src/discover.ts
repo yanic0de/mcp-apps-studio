@@ -91,7 +91,11 @@ async function loadEntry(file: string, id: string): Promise<{ entry: WidgetManif
   const scenarios = Object.fromEntries(
     Object.entries(config.scenarios).map(([name, sc]) => [
       name,
-      { mocks: sc.mocks ?? {}, ...(sc.toolCall ? { toolCall: sc.toolCall } : {}) },
+      {
+        mocks: sc.mocks ?? {},
+        ...(sc.toolCall ? { toolCall: sc.toolCall } : {}),
+        ...(sc.steps ? { steps: sc.steps } : {}),
+      },
     ]),
   );
   if (isUrl(config.widget)) return { entry: { id, title: config.title, url: config.widget, scenarios }, dependencies };

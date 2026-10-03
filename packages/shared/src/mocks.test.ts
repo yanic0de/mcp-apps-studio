@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatZodIssues } from './json-rpc.js';
-import { mockConfigSchema, scenarioSchema, toolMockSchema } from './mocks.js';
+import { mockConfigSchema, scenarioSchema, stepSchema, toolMockSchema } from './mocks.js';
 
 describe('toolMockSchema', () => {
   it('accepts the four mock kinds', () => {
@@ -77,5 +77,42 @@ describe('scenarioSchema', () => {
     });
     expect(r.success).toBe(false);
     if (!r.success) expect(formatZodIssues(r.error)).toMatch(/toolCall\.result/);
+  });
+});
+
+describe('scenario steps', () => {
+  it('accepts a click followed by a tool-call expectation', () => {
+    const steps = [{ click: 'button.refresh' }, { expectToolCall: { name: 'get_metrics' } }];
+    expect(scenarioSchema.parse({ steps }).steps).toEqual(steps);
+  });
+
+  it('accepts every step kind with its options', () => {
+    for (const step of [
+      { click: '#a', timeoutMs: 100 },
+      { fill: 'input', value: '' },
+      { press: 'Enter' },
+      { press: 'Tab', on: 'input' },
+      { expectToolCall: { name: 'get_rows', arguments: { page: 2 } }, timeoutMs: 1000 },
+      { expectMessage: { method: 'ui/open-link', params: { url: 'https://x' } } },
+    ]) {
+      expect(stepSchema.safeParse(step).success, JSON.stringify(step)).toBe(true);
+    }
+  });
+
+  it('rejects a misspelled step, naming its index', () => {
+    const r = scenarioSchema.safeParse({ steps: [{ clik: 'button' }] });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(formatZodIssues(r.error)).toMatch(/steps\.0/);
+  });
+
+  it('rejects a step mixing two kinds', () => {
+    expect(stepSchema.safeParse({ click: 'button', expectToolCall: { name: 'x' } }).success).toBe(false);
+  });
+
+  it('rejects empty selectors, keys and names, and non-positive timeouts', () => {
+    expect(stepSchema.safeParse({ click: '' }).success).toBe(false);
+    expect(stepSchema.safeParse({ press: '' }).success).toBe(false);
+    expect(stepSchema.safeParse({ expectToolCall: { name: '' } }).success).toBe(false);
+    expect(stepSchema.safeParse({ click: 'a', timeoutMs: 0 }).success).toBe(false);
   });
 });

@@ -68,8 +68,9 @@ Dependencies point down only.
    1. Open a deep link (`?widget=&scenario=&theme=`).
    2. Wait for the handshake.
    3. Check that the studio rendered that target (`window.__mcpStudio.getActive()`).
-   4. Evaluate the trace: the handshake is complete and no message is invalid.
-   5. Take a screenshot and compare it with the baseline, or write the baseline (passing runs only).
+   4. Play the scenario's `steps`, if any. Actions go through `RunPage.act`, which uses Playwright's frame locator on the sandboxed iframe; the sandbox is untouched. Expectations poll the read-only trace, and each consumes the earliest matching widget message (pure logic in `steps.ts`). The first failure stops the steps.
+   5. Evaluate the trace: the handshake is complete and no message is invalid.
+   6. Take a screenshot and compare it with the baseline, or write the baseline (passing runs only).
 4. Write `report.json`, `report.html` and the GitHub job summary.
 
 ## Constraints that are easy to violate

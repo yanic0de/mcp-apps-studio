@@ -87,6 +87,7 @@ Story files are validated when they are loaded. A misspelled mock kind fails wit
 |---|---|
 | `toolCall` | The model's call that rendered the widget: `{ name, input?, partialInputs?, result? }`. It is played after `ui/notifications/initialized` as `tool-input-partial`* → `tool-input` → `tool-result` or `tool-cancelled`. |
 | `mocks` | Answers to the widget's own `tools/call`, keyed by tool name. |
+| `steps` | Interactions played by `test` after the handshake (see [Interaction steps](#interaction-steps)). The studio ignores them. |
 
 | Mock `kind` | Fields | Answer |
 |---|---|---|
@@ -113,6 +114,31 @@ Every widget × scenario (except `live`) × theme runs in headless Chromium. Eac
 - the studio rendered the requested widget, scenario and theme;
 - the SDK handshake completed;
 - the trace has no invalid messages.
+
+### Interaction steps
+
+A scenario can also check what the widget *does*. `steps` run in order after the handshake: actions inside the widget, and expectations on the messages it sends.
+
+```ts
+refresh: {
+  mocks: { get_metrics: { kind: 'static', structuredContent: { value: 12840, delta: 8.3, label: 'MAU' } } },
+  steps: [
+    { expectToolCall: { name: 'get_metrics' } },           // the fetch on mount
+    { click: 'button.refresh' },
+    { expectToolCall: { name: 'get_metrics' } },           // one more per click
+  ],
+},
+```
+
+| Step | Does |
+|---|---|
+| `{ click: selector }` | Clicks an element inside the widget. |
+| `{ fill: selector, value }` | Types into an input. |
+| `{ press: key, on?: selector }` | Presses a key (on `body` by default). |
+| `{ expectToolCall: { name, arguments? } }` | Waits for the widget to call the tool. `arguments` is a subset match: `{ page: 2 }` matches `{ page: 2, size: 20 }`. |
+| `{ expectMessage: { method, params? } }` | Waits for any widget request or notification, such as `ui/open-link` or `ui/message`. `params` is a subset match. |
+
+Every step takes `timeoutMs` (default 5000). Each expectation consumes one message, so two identical expectations need two calls. The first failing step fails the run, and its reason names the step and quotes what the widget sent instead: `step 3 (expectToolCall get_rows): no matching tools/call within 5000 ms; seen: get_rows {"page":1}`.
 
 Screenshots, `report.json` and a reviewable `report.html` land in `--out` (default `.mcp-studio/test`). The exit code is `1` on any failure, and `2` when Chromium is missing.
 
@@ -221,7 +247,7 @@ Bug reports, ideas and pull requests are welcome. Start with [CONTRIBUTING.md](C
 
 ## Roadmap
 
-- [ ] Interaction steps in stories (click → expect a `tools/call` with given arguments)
+- [x] Interaction steps in stories (click → expect a `tools/call` with given arguments)
 - [ ] Accessibility checks in `test` (axe-core)
 - [ ] Static export of the studio for PR previews
 - [ ] Richer mocks: per-call sequences, argument matching, JSON fixtures

@@ -14,6 +14,7 @@ export default {
     default: { mocks: { get_data: { kind: 'static', structuredContent: { n: 1 } } } },
     empty: {},
     called: { toolCall: { name: 'get_data', input: { q: 1 } } },
+    clicked: { steps: [{ click: 'button' }, { expectToolCall: { name: 'get_data' } }] },
   },
 };
 `;
@@ -51,6 +52,10 @@ describe('discoverStories', () => {
     expect(entries[0]?.scenarios.default?.mocks.get_data).toMatchObject({ kind: 'static' });
     expect(entries[0]?.scenarios.empty).toEqual({ mocks: {} });
     expect(entries[0]?.scenarios.called).toEqual({ mocks: {}, toolCall: { name: 'get_data', input: { q: 1 } } });
+    expect(entries[0]?.scenarios.clicked).toEqual({
+      mocks: {},
+      steps: [{ click: 'button' }, { expectToolCall: { name: 'get_data' } }],
+    });
   });
 
   it('isolates a story without default export: listed in errors, the others still load', async () => {
@@ -97,6 +102,14 @@ describe('discoverStories validation', () => {
       `export default { title: 'T', widget: './widget.html', scenarios: { default: { mocks: { get_data: { kind: 'statik', structuredContent: {} } } } } };`,
     );
     expect(await errorOf()).toMatch(/typo\.stories\.mcp\.ts.*scenarios\.default\.mocks\.get_data\.kind/s);
+  });
+
+  it('reports a misspelled interaction step, naming file and step index', async () => {
+    await fs.writeFile(
+      path.join(fixture, 'src', 'step.stories.mcp.ts'),
+      `export default { title: 'T', widget: './widget.html', scenarios: { refresh: { steps: [{ clik: 'button' }] } } };`,
+    );
+    expect(await errorOf()).toMatch(/step\.stories\.mcp\.ts.*scenarios\.refresh\.steps\.0/s);
   });
 
   it('reports a story missing required fields, naming them', async () => {

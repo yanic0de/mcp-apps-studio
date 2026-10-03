@@ -77,3 +77,43 @@ test('visual regression: baselines, unchanged pass, a color change fails with a 
   expect(html).toContain('mcp-studio-snapshots/box/default.light.png');
   await fs.rm(project, { recursive: true, force: true });
 });
+
+test('interaction steps: a click that sends the wrong arguments fails `test` with the step and what was seen', async () => {
+  test.setTimeout(120_000);
+  const project = await fs.mkdtemp(path.join(os.tmpdir(), 'steps-'));
+  await fs.writeFile(
+    path.join(project, 'pager.html'),
+    `<!doctype html><html><body><button id="next">Next</button><script>
+  let id = 0;
+  const send = (method, params) => parent.postMessage({ jsonrpc: '2.0', id: ++id, method, params }, '*');
+  addEventListener('message', (ev) => { if (ev.data && ev.data.id === 1)
+    parent.postMessage({ jsonrpc: '2.0', method: 'ui/notifications/initialized' }, '*'); });
+  send('ui/initialize', { protocolVersion: '2026-01-26', appInfo: { name: 'pager', version: '1' }, appCapabilities: {} });
+  document.getElementById('next').onclick = () => send('tools/call', { name: 'get_rows', arguments: { page: 1 } });
+</script></body></html>`,
+  );
+  await fs.writeFile(
+    path.join(project, 'pager.stories.mcp.ts'),
+    `export default { title: 'Pager', widget: './pager.html', scenarios: { next: {
+  mocks: { get_rows: { kind: 'static', structuredContent: { rows: [] } } },
+  steps: [{ click: '#next' }, { expectToolCall: { name: 'get_rows', arguments: { page: 2 } }, timeoutMs: 500 }],
+} } };\n`,
+  );
+  const out = path.join(project, 'out');
+  const failed = await promisify(execFile)(
+    'pnpm',
+    ['-F', 'mcp-apps-studio', 'start', 'test', project, '--out', out, '--themes', 'light'],
+    { cwd: repoRoot },
+  ).then(
+    () => null,
+    (e: { code: number }) => e,
+  );
+  expect(failed?.code).toBe(1);
+  const report = JSON.parse(await fs.readFile(path.join(out, 'report.json'), 'utf8')) as {
+    results: { failures: string[] }[];
+  };
+  expect(report.results[0]?.failures).toEqual([
+    expect.stringMatching(/^step 2 \(expectToolCall get_rows\): .*get_rows \{"page":1\}/),
+  ]);
+  await fs.rm(project, { recursive: true, force: true });
+});
