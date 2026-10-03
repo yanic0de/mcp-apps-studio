@@ -221,11 +221,11 @@ Bug reports, ideas and pull requests are welcome. Start with [CONTRIBUTING.md](C
 
 ## Roadmap
 
-- [ ] `openai-apps` adapter for the OpenAI Apps SDK dialect
 - [ ] Interaction steps in stories (click → expect a `tools/call` with given arguments)
 - [ ] Accessibility checks in `test` (axe-core)
 - [ ] Static export of the studio for PR previews
 - [ ] Richer mocks: per-call sequences, argument matching, JSON fixtures
+- [ ] Host profiles (Claude, ChatGPT, VS Code, Goose): display modes, container size, theme presets
 
 ## License
 
